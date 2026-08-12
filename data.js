@@ -78,4 +78,4 @@
       { id:'hf07', section:'hmi', group:'Final verification', title:'Verify product selection and production displays, then watch one complete machine cycle from the HMI.', note:'Confirm 3-inch selection works end-to-end, Total Cores / Production History values are sensible, navigation has no broken links, and live status follows the machine throughout the cycle.' }
     ];
 
-    const sectionOrder = ['power','parts','programming','hmi'];
+    const sectionOrder = ['parts','power','programming','hmi'];
