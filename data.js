@@ -4,7 +4,7 @@
       power: { name: 'Power Test', short: 'Power', subtitle: 'Energize and prove the panel / POINT I/O before PLC changes.' },
       parts: { name: 'Parts Installation', short: 'Parts', subtitle: 'Small field hardware items still to install.' },
       programming: { name: 'Programming', short: 'PLC', subtitle: 'Primary workstream — get CM2109 safely online and operational.', priority: 'Primary' },
-      hmi: { name: 'HMI', short: 'HMI', subtitle: 'Secondary workstream — integrate, test, then deploy the runtime.', priority: 'Secondary' }
+      hmi: { name: 'HMI', short: 'HMI', subtitle: 'Secondary workstream — download the completed MER and field-verify the screens.', priority: 'Secondary' }
     };
 
     const tasks = [
@@ -68,24 +68,14 @@
       { id:'g32', section:'programming', group:'Data concentrator — offline edits', title:'Map CM2109 current count / product / mode into existing Data_DINT_to_DC spare positions.', code:'[10] count • [11] product • [54].0 Auto • [54].1 Manual' },
       { id:'g33', section:'programming', group:'Data concentrator — validation', title:'After the receiver is ready, change DC_MSG_Word_Control Number Of Elements 100 → 120 and verify MSG .ER/.DN behavior plus remote values.' },
 
-      // HMI
-      { id:'h01', section:'hmi', group:'Backup / communications', title:'Back up the current MM_Core_Room_V9 FactoryTalk View ME application before editing.' },
-      { id:'h02', section:'hmi', group:'Backup / communications', title:'Confirm the existing [CoreRoom] communication shortcut reaches the updated PLC.', note:'Reuse [CoreRoom]; do not create a new shortcut.' },
-      { id:'h03', section:'hmi', group:'3-inch product support', title:'Create / import ProductSelect_3IN from ProductSelect and add 3-inch selection value 1025 / 16#0401.', note:'Leave the original ProductSelect unchanged for older machines.' },
-      { id:'h04', section:'hmi', group:'3-inch product support', title:'Update CM2113_Settings to use ProductSelect_3IN and add retained 3-inch indicator state 1024 / 16#0400.' },
-      { id:'h05', section:'hmi', group:'CM2109 settings screen', title:'Import / create CM2109_Settings from CM2113_Settings and open it in FactoryTalk View Studio for validation.', note:'Prepared package audit found 293 CM2109 references and no remaining CM2113 references, but Studio still needs to open/test it.' },
-      { id:'h06', section:'hmi', group:'CM2109 settings screen', title:'Verify every CM2109_Settings connection points to the correct CM2109 tag, including known spelling / capitalization differences.' },
-      { id:'h07', section:'hmi', group:'CM2109 settings screen', title:'Verify the only HMI writes on CM2109_Settings are the four timer setpoints plus CM2109_HMI_Reset.', code:'Cure • Blow • Exhaust • Sand Fill • Reset' },
-      { id:'h08', section:'hmi', group:'CM2109 settings screen', title:'Remove the copied Group13 / CM2113_Input_5 visibility behavior so the CM2109 Sand Fill timer group is normally visible.' },
-      { id:'h09', section:'hmi', group:'Navigation / I/O', title:'Add the CM2109 block to MAIN with CM2109_Settings navigation and Manual / Automatic / Off mode indication.' },
-      { id:'h10', section:'hmi', group:'Navigation / I/O', title:'Install / verify CM2109IO and add the CM2109 button to IODisplayMenu using the existing IOGeneric display.', note:'Points 01–36 active; 37–64 disabled.' },
-      { id:'h11', section:'hmi', group:'Production displays', title:'Add CM2109 to TotalCoresProduced and bind it to CM2109_Current_Day_Count.' },
-      { id:'h12', section:'hmi', group:'Production displays', title:'Add the CM2109 column to Production_History after the PLC history array is present.', note:'The prepared HMI package intentionally did not include Production_History because the CM2109 history array dependency was not yet present.' },
-      { id:'h13', section:'hmi', group:'Display testing', title:'Run Display Test on ProductSelect_3IN, CM2113_Settings, CM2109_Settings, and CM2109IO.' },
-      { id:'h14', section:'hmi', group:'Display testing', title:'Verify 3-inch selection end-to-end.', note:'HMI writes 1025 / 16#0401 → PLC clears .0 → steady value 1024 / 16#0400 → screen displays 3" TYTON CORE.' },
-      { id:'h15', section:'hmi', group:'Display testing', title:'Verify CM2109 current-day count, history, PPH, current-hour value, mode indicators, timer values, and I/O status populate correctly.' },
-      { id:'h16', section:'hmi', group:'Deploy', title:'Create the new MER only after all displays test correctly, then download it to the HMI.' },
-      { id:'h17', section:'hmi', group:'Deploy', title:'Validate final HMI navigation and operation on the physical terminal, then run one final machine-cycle check with live HMI status.' }
+      // HMI — MER is completed beforehand; tomorrow is download + field verification only
+      { id:'hf01', section:'hmi', group:'Download', title:'Download the completed CM2109 MER to the physical HMI and start the new runtime.', note:'Confirm the terminal accepts the file and the application starts without a runtime-load error.' },
+      { id:'hf02', section:'hmi', group:'Communications', title:'Confirm the HMI has live [CoreRoom] communications to the updated PLC.', note:'No communication-error placeholders or stale values on the CM2109 screens.' },
+      { id:'hf03', section:'hmi', group:'Screen verification', title:'From MAIN, verify the 2109 Core Machine Overview button opens CM2109_Settings and the Manual / Automatic / Off indication follows the PLC.' },
+      { id:'hf04', section:'hmi', group:'Screen verification', title:'Verify CM2109_Settings displays correctly and all intended live values / indicators populate.', note:'Check status, timer values, mode, current counts, PPH/current-hour information, and machine-state indicators.' },
+      { id:'hf05', section:'hmi', group:'Screen verification', title:'Verify the writable controls on CM2109_Settings operate correctly.', note:'Test Cure, Blow, Exhaust, and Sand Fill timer setpoints plus HMI Reset; confirm each writes only to the intended PLC tag.' },
+      { id:'hf06', section:'hmi', group:'I/O and product verification', title:'Open the CM2109 I/O screen and verify the 36 active I/O points display and change correctly during the field checkout.', note:'Confirm the I/O menu navigation, addresses/descriptions, input indications, and output indications match the machine.' },
+      { id:'hf07', section:'hmi', group:'Final verification', title:'Verify product selection and production displays, then watch one complete machine cycle from the HMI.', note:'Confirm 3-inch selection works end-to-end, Total Cores / Production History values are sensible, navigation has no broken links, and live status follows the machine throughout the cycle.' }
     ];
 
     const sectionOrder = ['power','parts','programming','hmi'];
