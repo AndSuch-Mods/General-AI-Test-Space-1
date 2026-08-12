@@ -1,0 +1,19 @@
+{
+  "name": "CM2109 Commissioning Checklist",
+  "short_name": "CM2109",
+  "description": "Field commissioning checklist for Core Machine 2109.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#09100d",
+  "theme_color": "#0c1411",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
