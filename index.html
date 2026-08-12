@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0c1411" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CM2109" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>CM2109 Commissioning Checklist</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="title-row">
+        <div>
+          <span class="eyebrow">Core Machine 2109</span>
+          <h1>Commissioning Checklist</h1>
+        </div>
+        <button class="clear-btn" id="clearChecked" type="button" disabled>Clear checked</button>
+      </div>
+      <div class="summary-grid" id="summaryGrid" aria-label="Remaining task summary"></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p><strong>Order:</strong> power-up first, finish the small hardware items, then PLC programming, then HMI. Programming is the primary workstream; HMI is secondary.</p>
+      <p>Checked items stay visible but fade, blur slightly, and strike through. Tap <strong>Clear checked</strong> to move them into the recoverable archive at the bottom. Progress is stored on this device.</p>
+    </section>
+
+    <div id="sections"></div>
+
+    <section class="archive-wrap" id="archive">
+      <details class="archive">
+        <summary>
+          <span>Cleared / Recoverable</span>
+          <span class="archive-meta" id="archiveCount">0 items</span>
+        </summary>
+        <div class="archive-content" id="archiveContent"></div>
+      </details>
+    </section>
+
+    <div class="footer">
+      CM2109 field checklist • Local-device progress • PWA / Add to Home Screen ready
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
