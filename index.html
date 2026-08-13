@@ -14,7 +14,15 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" href="./icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./icon.svg" />
-  <link rel="stylesheet" href="./styles.css" />
+  <script>
+    // Deliberately give app assets a fresh URL on every launch so iOS Safari /
+    // Home Screen cannot keep serving an old CSS or JavaScript copy.
+    window.CM2109_ASSET_VERSION = Date.now().toString();
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = './styles.css?v=' + window.CM2109_ASSET_VERSION;
+    document.head.appendChild(css);
+  </script>
 </head>
 <body>
   <header class="app-header">
@@ -49,13 +57,28 @@
     </section>
 
     <div class="footer">
-      CM2109 field checklist • Local-device progress • PWA / Add to Home Screen ready
+      CM2109 field checklist • Local-device progress • Add to Home Screen ready
     </div>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="./data.js" defer></script>
-  <script src="./app.js" defer></script>
+  <script>
+    (() => {
+      const v = window.CM2109_ASSET_VERSION || Date.now().toString();
+      const dataScript = document.createElement('script');
+      dataScript.src = './data.js?v=' + v;
+      dataScript.onload = () => {
+        const appScript = document.createElement('script');
+        appScript.src = './app.js?v=' + v;
+        document.body.appendChild(appScript);
+      };
+      dataScript.onerror = () => {
+        const host = document.getElementById('sections');
+        if (host) host.innerHTML = '<div class="intro"><p>Could not load the latest checklist. Check the internet connection and reopen the app.</p></div>';
+      };
+      document.body.appendChild(dataScript);
+    })();
+  </script>
 </body>
 </html>
