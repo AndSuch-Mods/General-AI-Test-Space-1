@@ -28,7 +28,7 @@
       { id:'i01', section:'parts', title:'Install Push Button Cover.' },
       { id:'i02', section:'parts', title:'Install Pendant Replacement Contact.' },
       { id:'i03', section:'parts', title:'Install Left and Right Push Button Labels.' },
-      { id:'i04', section:'parts', title:'Install the three Push Button Guards.' },
+      { id:'i04', section:'parts', title:'Install the four Push Button Guards.' },
 
       // PROGRAMMING
       { id:'g01', section:'programming', group:'Protect the running system', title:'Upload / back up the current running Core Room PLC before making CM2109 changes.', note:'Keep the original untouched.' },
