@@ -174,5 +174,12 @@
     renderAll(false);
 
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
+          await registration.update();
+        } catch (_) {
+          // The checklist itself still works if service-worker registration fails.
+        }
+      });
     }
