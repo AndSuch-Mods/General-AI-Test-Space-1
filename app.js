@@ -170,16 +170,21 @@
       return s.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
     }
 
+    async function retireOldServiceWorker() {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration('./');
+          if (registration) await registration.unregister();
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter(key => key.startsWith('cm2109-')).map(key => caches.delete(key)));
+        }
+      } catch (_) {
+        // App remains usable even if Safari refuses cache cleanup.
+      }
+    }
+
     document.getElementById('clearChecked').addEventListener('click', clearChecked);
     renderAll(false);
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          const registration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
-          await registration.update();
-        } catch (_) {
-          // The checklist itself still works if service-worker registration fails.
-        }
-      });
-    }
+    retireOldServiceWorker();
