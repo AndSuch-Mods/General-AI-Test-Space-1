@@ -1,0 +1,159 @@
+:root { color-scheme: dark; font-family: 'Trebuchet MS', system-ui, sans-serif; color: #e6dfcf; background: #101b25; --gold: #d8b780; --muted: #a8b0b0; --edge: #4c5150; }
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; color: #e8e2d4; background: #263337; border: 1px solid #62645a; border-radius: 5px; min-height: 44px; padding: 11px 16px; transition: border-color .2s, background .2s; touch-action: manipulation; }
+button:hover { border-color: #d8b780; background: #364341; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #dec189; outline-offset: 3px; }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: #bb9766; border-color: #dbbd88; color: #1c2526; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+button.primary:hover { background: #d0ad76; }
+.title-screen { height: 100%; position: relative; background: radial-gradient(ellipse at 32% 50%, #334352 0, #182731 60%, #101923 100%); isolation: isolate; display: grid; grid-template-columns: 1.25fr 1fr; align-items: center; padding: max(25px, env(safe-area-inset-top)) max(6.3vw, env(safe-area-inset-right)) max(68px, env(safe-area-inset-bottom)) max(6.8vw, env(safe-area-inset-left)); gap: 7vw; }
+.title-screen::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, #0a152323 0%, transparent 30%, #111c28b8 65%, #111c28 100%), linear-gradient(0deg, #101b25, transparent 35%); }
+.title-art { position: absolute; inset: 0; z-index: -2; overflow: hidden; }
+.title-art img { height: 100%; width: 100%; object-fit: cover; opacity: .83; }
+.title-copy { align-self: center; padding-bottom: 15vh; text-shadow: 0 3px 16px #0a1627; }
+.eyebrow { color: #d2b98e; text-transform: uppercase; letter-spacing: .2em; font-size: 10px; margin: 0 0 18px; }
+h1 { font-family: Georgia, serif; font-size: clamp(35px, 4.6vw, 73px); font-weight: 400; line-height: .97; margin: 0; letter-spacing: -.025em; color: #f0e4cd; }
+h1 span { display: block; color: #d7b980; letter-spacing: .5em; font: 400 clamp(15px, 1.9vw, 29px) 'Trebuchet MS', sans-serif; margin-top: 22px; }
+.tagline { font: italic clamp(13px, 1.3vw, 19px) Georgia, serif; color: #d0d0c4; margin-top: 27px; }
+.title-line { width: 38px; height: 1px; background: #bda270; margin: 27px 0 17px; }
+.world-caption { color: #9eaaa9; font-size: 10px; letter-spacing: .08em; }
+.menu-panel { max-width: 390px; width: 100%; justify-self: end; background: linear-gradient(135deg,#18272cdf,#18242be8); border: 1px solid #77807555; border-top-color: #9a967d88; padding: 27px; box-shadow: 0 18px 70px #030a1255, inset 0 0 35px #bbc99a04; border-radius: 9px; }
+.menu-heading { display: flex; align-items: center; justify-content: center; gap: 23px; margin-bottom: 20px; }
+.menu-heading p { font: 23px Georgia, serif; margin: 0; }
+.tiny-star { color: #af9469; font-size: 19px; }
+.slots { display: grid; gap: 10px; margin-bottom: 20px; }
+.slot { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #121d245e; border-color: #4c575355; padding: 13px 12px; }
+.slot.selected { background: #9c89621c; border-color: #ad956c; }
+.slot-number { font: 22px Georgia, serif; color: #c8ad81; }
+.slot b { font-weight: 400; font-size: 13px; }
+.slot small { display: block; font-size: 11px; color: #a4adaa; margin-top: 6px; }
+.slot-mark { margin-left: auto; color: #aa9169; }
+.menu-panel>.primary { width: 100%; }
+.coop-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.coop-buttons button { font-size: 12px; background: #202e31; border-color: #656d5e; }
+.menu-note { font-size: 11px; line-height: 1.7; text-align: center; color: #a6b0ac; margin: 18px 0 10px; }
+.menu-links { display: flex; align-items: center; justify-content: center; color: #7a8d87; }
+.menu-links button { background: none; border: 0; font-size: 11px; color: #c7c3b3; padding: 8px; }
+footer { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: max(28px, env(safe-area-inset-left)); right: max(28px, env(safe-area-inset-right)); display: flex; gap: 15px; justify-content: space-between; align-items: center; font-size: 10px; color: #9baba7; }
+.offline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.status-dot { height: 5px; width: 5px; border-radius: 50%; background: #91bda2; box-shadow: 0 0 7px #91bda244; }
+footer button { padding: 4px 8px; font-size: 10px; min-height: 30px; }
+.build-label { color: #84918f; letter-spacing: .1em; white-space: nowrap; }
+[hidden] { display: none !important; }
+.panel-dialog { width: min(650px, 87vw); max-height: 88dvh; background: #1b292f; color: #e6dfcf; border: 1px solid #9e8d6b; border-radius: 9px; padding: 25px; box-shadow: 0 20px 100px #0008; }
+.panel-dialog::backdrop { background: #071321b8; backdrop-filter: blur(3px); }
+.dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+h2 { font: 27px Georgia, serif; margin: 3px 0 15px; color: #eedcba; }
+h3 { font: 18px Georgia, serif; color: #d9bd8e; margin: 24px 0 10px; }
+.panel-dialog p { font-size: 14px; line-height: 1.7; }
+.panel-dialog .muted { font-size: 12px; color: #acb6b2; }
+.icon-button { background: transparent; border: 0; font-size: 25px; padding: 0; min-width: 44px; }
+label { display: block; font-size: 12px; color: #c8c6b7; margin: 17px 0; }
+input:not([type=checkbox]), textarea, select { display: block; width: 100%; margin-top: 8px; background: #111e27; border: 1px solid #606b62; border-radius: 4px; color: #e9e2cf; padding: 11px; font-size: 16px; }
+textarea { resize: vertical; min-height: 72px; font-size: 11px; word-break: break-all; }
+.check-label { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.check-label input { width: 22px; height: 22px; }
+.button-row { display: flex; gap: 12px; }
+.button-row>* { flex: 1; }
+.pair-output { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.pair-output canvas { width: 100%; max-width: 256px; height: auto; image-rendering: pixelated; border-radius: 4px; }
+video { width: 100%; max-height: 220px; margin-top: 12px; }
+.backup-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4b5651; padding: 12px 0; margin-bottom: 12px; font-size: 14px; }
+.backup-row small { display: block; color: #aab4b0; font-size: 11px; margin-top: 7px; }
+.story-text { font-family: Georgia, serif; font-size: 19px !important; line-height: 1.8 !important; }
+.play-screen { height: 100%; background: #101b25; position: relative; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+#game-canvas { position: absolute; inset: 0; } #game-canvas canvas { image-rendering: pixelated; }
+.game-hud { position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(17px, env(safe-area-inset-left)); right: max(17px, env(safe-area-inset-right)); display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+.game-hud .eyebrow { display: block; margin: 0 0 5px; }
+.game-hud strong { font-size: 12px; font-weight: 400; }
+.hud-actions { display: flex; gap: 7px; pointer-events: auto; }
+.hud-actions button { min-height: 38px; padding: 7px 10px; font-size: 11px; background: #15252edb; }
+.chapter-note { position: absolute; top: 78px; left: max(18px, env(safe-area-inset-left)); display: flex; gap: 10px; font: 15px Georgia, serif; color: #e3c393; pointer-events: none; background: #12202ab0; padding: 10px; border-left: 1px solid #af976e; }
+.chapter-note>span { font-size: 29px; }
+.chapter-note small { display: block; color: #bac0b4; font: 10px system-ui; margin-top: 6px; }
+.touch-pad { position: absolute; bottom: max(27px, env(safe-area-inset-bottom)); left: max(27px, env(safe-area-inset-left)); display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(2, 44px); gap: 4px; opacity: .83; }
+.touch-pad button { font-size: 22px; padding: 0; background: #1b303fc9; touch-action: none; user-select: none; }
+#move-up { grid-column: 2; } #move-left { grid-column: 1; } #move-down { grid-column: 2; } #move-right { grid-column: 3; }
+.interact-button { position: absolute; right: max(28px, env(safe-area-inset-right)); bottom: max(40px, env(safe-area-inset-bottom)); height: 73px; width: 100px; border-radius: 35px; background: #c5a470d9; color: #19262a; border: 2px solid #e1c591; }
+.interact-button small { display: block; font-size: 10px; opacity: .7; }
+.save-state { position: absolute; bottom: 5px; left: max(20px, env(safe-area-inset-left)); color: #9eada5; font-size: 10px; }
+.arrival-help { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); color: #9eada5; font-size: 10px; }
+#toast { position: fixed; z-index: 30; bottom: max(15px, env(safe-area-inset-bottom)); left: 50%; transform: translate(-50%, 15px); max-width: min(600px, 85vw); padding: 13px 20px; background: #e0c99b; color: #1b2b2e; border: 1px solid #f0d9ab; border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s, transformWorld } from './model';
+
+export const IntentSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('move'), dx: z.number().min(-1).max(1), dy: z.number().min(-1).max(1) }).strict(),
+  z.object({ kind: z.literal('interact'), target: z.enum(['letter', 'hearth', 'pantry']) }).strict(),
+]);
+export type Intent = z.infer<typeof IntentSchema>;
+export type CommitWorld = (world: World) => Promise<void>;
+
+/** The only write authority in solo and co-op. Never accept client-owned inventory or world flags. */
+export class Authority {
+  private queue: Promise<unknown> = Promise.resolve();
+  private listeners = new Set<(world: World) => void>();
+  constructor(public world: World, private commit: CommitWorld) { this.world = parseWorld(world); }
+  subscribe(fn: (world: World) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
+  private transaction<T>(mutate: (draft: World) => T): Promise<T> {
+    const result = this.queue.then(async () => {
+      const draft = structuredClone(this.world);
+      const value = mutate(draft);
+      draft.revision += 1;
+      parseWorld(draft);
+      await this.commit(draft); // Publish only after durable commit. Failure leaves live state unchanged.
+      this.world = draft;
+      for (const listener of this.listeners) listener(this.world);
+      return value;
+    });
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
+  async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; worldId: string; epoch: string; revision: number }) {
+    if (identity.worldId !== this.world.worldId || identity.epoch !== this.world.epoch) throw Error('This character belongs to a different world or timeline.');
+    if (identity.revision > this.world.revision) throw Error('Your recovery copy is newer than the host. Keep both backups; this join was stopped.');
+    if (identity.id === this.world.hostId) throw Error('The host and guest must be different residents.');
+    return this.transaction(world => {
+      if (world.guestId) {
+        if (world.guestId !== identity.id || world.guestKey !== identity.key) throw Error('This world already has a second resident. Rejoin from their device or recovery backup.');
+        return world.guestId;
+      }
+      const player = createPlayer(identity.name, identity.appearance, identity.id);
+      player.x = 530;
+      world.guestId = player.id;
+      world.guestKey = identity.key;
+      world.players[player.id] = player;
+      return player.id;
+    });
+  }
+  dispatch(actor: string, sequence: number, raw: unknown): Promise<boolean> {
+    const intent = IntentSchema.parse(raw);
+    if (!Number.isSafeInteger(sequence) || sequence < 1) return Promise.reject(Error('Invalid action sequence'));
+    return this.transaction(world => {
+      const player = world.players[actor];
+      if (!player) throw Error('Unknown resident');
+      if (sequence <= (world.lastSequence[actor] ?? 0)) return false;
+      if (intent.kind === 'move') {
+        const length = Math.hypot(intent.dx, intent.dy) || 1;
+        // One bounded step per request; the session rate-limits remote movement to 10 Hz.
+        player.x = Math.max(48, Math.min(912, player.x + intent.dx / Math.max(1, length) * 14));
+        player.y = Math.max(190, Math.min(484, player.y + intent.dy / Math.max(1, length) * 14));
+      } else {
+        const event = arrival.find(entry => entry.id === intent.target)!;
+        if (Math.hypot(player.x - event.x, player.y - event.y) > 105) throw Error('Move closer to interact.');
+        if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
+          player.discoveries.push(event.id);
+          player.quests['a-household-begins'] = player.discoveries.includes('letter') && player.discoveries.includes('pantry') ? 'complete' : 'started';
+          if (event.id === 'pantry') player.inventory['cacao-bean'] = (player.inventory['cacao-bean'] ?? 0) + 3;
+        } else if (event.scope === 'shared_world' && !world.story.flags[event.id]) {
+          world.story.flags[event.id] = true;
+          world.events.push({ id: crypto.randomUUID(), kind: event.id, actor, minute: world.clock.totalMinutes });
+          world.quests['a-light-for-the-house'] = 'complete';
+        }
+      }
+      world.lastSequence[actor] = sequence;
+      return true;
+    });
+  }
+}
