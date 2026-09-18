@@ -35,13 +35,16 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         for (let radius = 95; radius > 20; radius -= 12) {
           this.fire.fillStyle(0xffa64e, 0.012); this.fire.fillEllipse(551, 259, radius * 2, radius);
         }
-        for (let flame = 0; flame < 15; flame++) {
-          const x = 514 + flame * 5;
-          const height = 10 + Math.sin(flame * 1.8 + clock / 170) * 5 + Math.sin(flame * .8) * 9;
-          this.fire.fillStyle(0xa74225); this.fire.fillRect(x, 232 - height, 7, height + 8);
-          this.fire.fillStyle(0xe78635); this.fire.fillRect(x + 1, 236 - height, 5, height + 3);
-          this.fire.fillStyle(0xffd77b); this.fire.fillRect(x + 2, 239 - height * .6, 3, height * .6);
+        for (let flame = 0; flame < 7; flame++) {
+          const x = 521 + flame * 10, y = 239;
+          const height = 17 + Math.sin(flame * 1.8 + clock / 210) * 4 + Math.sin(flame * .9) * 8;
+          const sway = Math.round(Math.sin(clock / 240 + flame) * 3);
+          this.fire.fillStyle(0xd5702d);
+          this.fire.fillPoints([{ x: x - 7, y }, { x: x - 6, y: y - height * .35 }, { x: x - 2, y: y - height * .65 }, { x: x + sway, y: y - height }, { x: x + 4, y: y - height * .55 }, { x: x + 7, y: y - height * .2 }, { x: x + 5, y }], true);
+          this.fire.fillStyle(0xffca66);
+          this.fire.fillPoints([{ x: x - 4, y }, { x: x - 2, y: y - height * .3 }, { x: x + sway, y: y - height * .6 }, { x: x + 3, y: y - height * .2 }, { x: x + 4, y }], true);
         }
+        this.fire.lineStyle(3, 0x423130); this.fire.lineBetween(516, 240, 582, 243); this.fire.lineBetween(534, 243, 586, 238);
         if (!reducedMotion) for (let i = 0; i < 6; i++) {
           const rise = (time / 35 + i * 11) % 43;
           this.fire.fillStyle(0xffce79, 1 - rise / 43); this.fire.fillRect(527 + i * 8 + Math.sin(time / 500 + i) * 3, 228 - rise, 1, 2);

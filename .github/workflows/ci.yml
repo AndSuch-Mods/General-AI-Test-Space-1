@@ -14,7 +14,8 @@ jobs:
         include:
           - os: ubuntu-latest
             browser: chromium
-          - os: macos-latest
+          # Pin the host OS while investigating macOS 26 local-network discovery.
+          - os: macos-15
             browser: webkit
     runs-on: ${{ matrix.os }}
     steps:
