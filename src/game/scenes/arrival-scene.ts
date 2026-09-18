@@ -1,85 +1,80 @@
 import Phaser from 'phaser';
 import type { World } from '../model';
-import { arrival } from '../../content/arrival';
+import { RESIDENT_FRAMES, RESIDENT_ORIGIN } from '../art/resident-atlas';
+
+type Facing = 'down' | 'left' | 'right' | 'up';
+type Resident = { container: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image; x: number; y: number; facing: Facing; walkingUntil: number };
 
 export async function mountArrival(parent: HTMLElement, state: () => { world: World; localId: string; activeIds: string[] }, direction: (dx: number, dy: number) => void, interact: () => void, paused: () => boolean) {
+  const reducedMotion = document.documentElement.classList.contains('reduced-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
   class ArrivalScene extends Phaser.Scene {
-    private actors = new Map<string, Phaser.GameObjects.Container>();
+    private actors = new Map<string, Resident>();
     private fire!: Phaser.GameObjects.Graphics;
+    private motes!: Phaser.GameObjects.Graphics;
     private keys!: Record<string, Phaser.Input.Keyboard.Key>;
     private cooldown = 0;
+    preload() {
+      this.load.image('arrival-hall', './art/arrival-hall.png');
+      this.load.image('residents', './art/residents.png');
+    }
     create() {
-      const g = this.add.graphics();
-      const rect = (x: number, y: number, w: number, h: number, color: number) => { g.fillStyle(color); g.fillRect(x, y, w, h); };
-      rect(0, 0, 960, 540, 0x101b25);
-      rect(30, 85, 900, 430, 0x0b1219);
-      rect(48, 120, 864, 364, 0x392c37);
-      for (let row = 0; row < 11; row++) for (let col = 0; col < 14; col++) {
-        rect(48 + col * 64, 160 + row * 32, 62, 30, [0x514049, 0x4b3a43, 0x493941][(row * 7 + col * 3) % 3]);
-        rect(53 + col * 64, 175 + row * 32, 38, 1, 0x604b51);
-      }
-      rect(48, 64, 864, 127, 0x30383e);
-      for (let row = 0; row < 4; row++) for (let col = 0; col < 18; col++) rect(48 + col * 48 + (row % 2) * 24, 64 + row * 27, 45, 24, (col + row) % 3 ? 0x38414a : 0x3d454d);
-      rect(48, 172, 864, 10, 0x88765d); rect(48, 182, 864, 12, 0x202c36);
-      // Tall windows overlook the quiet hill, wholly original temporary geometry.
-      for (const x of [175, 690]) {
-        rect(x - 8, 51, 91, 119, 0x18222d); rect(x, 59, 75, 96, 0x455a78);
-        rect(x + 4, 66, 67, 86, 0x263b5b); rect(x + 49, 73, 13, 13, 0xc4cbaf);
-        rect(x + 35, 60, 5, 100, 0x192535); rect(x, 104, 75, 5, 0x192535);
-        rect(x - 14, 154, 105, 12, 0x8f7d67);
-        rect(x - 25, 45, 17, 115, 0x573343); rect(x + 82, 45, 17, 115, 0x573343);
-      }
-      // Pantry, table, shelves, and hearth are replaced by atlas art in Phase 11.
-      rect(736, 192, 140, 56, 0x302a31); rect(746, 190, 120, 50, 0x745244);
-      for (let n = 0; n < 5; n++) { rect(755 + n * 21, 201, 14, 29, n % 2 ? 0x8a7957 : 0x425d62); rect(757 + n * 21, 197, 10, 5, 0xba9c62); }
-      rect(764, 290, 63, 28, 0x251f2c); rect(764, 282, 63, 24, 0x916940); rect(789, 282, 11, 26, 0xc3a166);
-      rect(282, 246, 104, 25, 0x211f2b); rect(279, 231, 110, 24, 0x946b4e);
-      rect(290, 255, 10, 27, 0x593e36); rect(367, 255, 10, 27, 0x593e36);
-      rect(315, 226, 33, 20, 0xd5c5a0); rect(327, 230, 9, 9, 0x91483f);
-      rect(513, 101, 155, 148, 0x29262e); rect(525, 112, 131, 130, 0x747279);
-      rect(542, 142, 95, 96, 0x18212b); rect(513, 128, 155, 13, 0xa39989);
-      rect(507, 240, 167, 15, 0x66616a);
-      rect(417, 319, 168, 117, 0x29313b); rect(423, 325, 156, 105, 0x804851); rect(433, 335, 136, 85, 0x653d4b);
-      for (const x of [435, 557]) for (let y = 341; y < 421; y += 14) rect(x, y, 7, 7, 0xb49167);
-      rect(65, 223, 102, 76, 0x332938); rect(68, 218, 96, 60, 0x5f5361); rect(70, 234, 92, 37, 0x824f5e);
-      rect(77, 222, 29, 20, 0xbcb9aa); rect(128, 220, 9, 61, 0xb49d80);
-      for (const x of [405, 889]) {
-        rect(x, 190, 6, 34, 0x9f8257); rect(x - 8, 181, 22, 15, 0xdab276);
-        g.fillStyle(0xefbf72, 0.07); g.fillCircle(x + 3, 195, 45);
-      }
-      this.fire = this.add.graphics();
-      this.add.text(480, 35, 'THE CASTLE  /  ARRIVAL HALL', { fontFamily: 'Georgia', fontSize: '17px', color: '#c6bdac', letterSpacing: 3 }).setOrigin(0.5);
-      for (const event of arrival) {
-        this.add.circle(event.x, event.y + 10, 4, 0xe9c583, 0.8);
-      }
+      this.add.image(480, 270, 'arrival-hall').setDisplaySize(960, 540).setDepth(-1000);
+      const texture = this.textures.get('residents');
+      for (const frame of RESIDENT_FRAMES) texture.add(frame.name, 0, frame.x, frame.y, frame.width, frame.height);
+      this.fire = this.add.graphics().setDepth(255);
+      this.motes = this.add.graphics().setDepth(900);
       this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E') as Record<string, Phaser.Input.Keyboard.Key>;
       this.input.keyboard!.on('keydown-E', () => { if (!paused()) interact(); });
     }
-    update(_time: number, delta: number) {
+    update(time: number, delta: number) {
       const current = state();
       this.fire.clear();
       if (current.world.story.flags.hearth) {
-        this.fire.fillStyle(0xe1a65e, 0.09); this.fire.fillCircle(591, 242, 110);
-        this.fire.fillStyle(0xbc6443); this.fire.fillRect(560, 197, 63, 36);
-        this.fire.fillStyle(0xeeba72); this.fire.fillRect(572, 182 + Math.floor(Math.sin(_time / 260) * 3), 13, 49); this.fire.fillRect(599, 190, 14, 41);
+        // Fire stays inside the original dark firebox; its light reaches onto the floor.
+        const clock = reducedMotion ? 0 : time;
+        for (let radius = 95; radius > 20; radius -= 12) {
+          this.fire.fillStyle(0xffa64e, 0.012); this.fire.fillEllipse(551, 259, radius * 2, radius);
+        }
+        for (let flame = 0; flame < 15; flame++) {
+          const x = 514 + flame * 5;
+          const height = 10 + Math.sin(flame * 1.8 + clock / 170) * 5 + Math.sin(flame * .8) * 9;
+          this.fire.fillStyle(0xa74225); this.fire.fillRect(x, 232 - height, 7, height + 8);
+          this.fire.fillStyle(0xe78635); this.fire.fillRect(x + 1, 236 - height, 5, height + 3);
+          this.fire.fillStyle(0xffd77b); this.fire.fillRect(x + 2, 239 - height * .6, 3, height * .6);
+        }
+        if (!reducedMotion) for (let i = 0; i < 6; i++) {
+          const rise = (time / 35 + i * 11) % 43;
+          this.fire.fillStyle(0xffce79, 1 - rise / 43); this.fire.fillRect(527 + i * 8 + Math.sin(time / 500 + i) * 3, 228 - rise, 1, 2);
+        }
       }
-      for (const [id, actor] of this.actors) actor.setVisible(current.activeIds.includes(id));
+      this.motes.clear();
+      if (!reducedMotion) for (let i = 0; i < 16; i++) {
+        const x = 240 + (i * 77) % 540 + Math.sin(time / 3500 + i) * 9;
+        const y = 165 + (i * 53 + time / 150) % 295;
+        this.motes.fillStyle(i % 3 ? 0xe7cba0 : 0xabc9ef, .12 + Math.sin(time / 900 + i) * .08);
+        this.motes.fillRect(Math.round(x), Math.round(y), 1, 1);
+      }
+      for (const [id, actor] of this.actors) actor.container.setVisible(current.activeIds.includes(id));
       for (const id of current.activeIds) {
-        const p = current.world.players[id];
-        if (!p) continue;
+        const p = current.world.players[id]; if (!p) continue;
         let actor = this.actors.get(id);
         if (!actor) {
-          const body = this.add.graphics();
-          body.fillStyle(0x0a1220, 0.35); body.fillEllipse(0, 5, 32, 12);
-          body.fillStyle(0x202331); body.fillRect(-9, -7, 7, 15); body.fillRect(3, -7, 7, 15);
-          body.fillStyle({ amber: 0xc78b55, moss: 0x679a83, violet: 0x9a80b7 }[p.appearance]); body.fillRect(-13, -28, 26, 23);
-          body.fillStyle(0xd8b196); body.fillRect(-9, -43, 18, 17);
-          body.fillStyle(0x342633); body.fillRect(-10, -46, 21, 8); body.fillRect(-10, -41, 5, 8);
-          body.fillStyle(0xf0d99a); body.fillRect(-12, -27, 24, 4);
-          const name = this.add.text(0, -62, p.name, { fontSize: '13px', fontFamily: 'system-ui', color: id === current.localId ? '#ffdea2' : '#a6d7d0', backgroundColor: '#14212c' }).setOrigin(0.5);
-          actor = this.add.container(p.x, p.y, [body, name]); this.actors.set(id, actor);
+          const shadow = this.add.ellipse(0, -1, 25, 8, 0x0b0b15, .32);
+          const sprite = this.add.image(0, 0, 'residents', 'down-idle').setOrigin(RESIDENT_ORIGIN.x, RESIDENT_ORIGIN.y).setScale(.19);
+          if (p.appearance === 'moss') sprite.setTint(0xb6d8bb);
+          if (p.appearance === 'violet') sprite.setTint(0xd0b6ed);
+          const name = this.add.text(0, -68, p.name, { fontSize: '11px', fontFamily: 'Georgia', color: id === current.localId ? '#f5dba3' : '#b7ded3', stroke: '#211b24', strokeThickness: 3 }).setOrigin(.5);
+          const container = this.add.container(p.x, p.y, [shadow, sprite, name]);
+          actor = { container, sprite, x: p.x, y: p.y, facing: 'down', walkingUntil: 0 }; this.actors.set(id, actor);
         }
-        actor.setPosition(Phaser.Math.Linear(actor.x, p.x, Math.min(1, delta / 65)), Phaser.Math.Linear(actor.y, p.y, Math.min(1, delta / 65))).setDepth(p.y);
+        const dx = p.x - actor.x, dy = p.y - actor.y;
+        if (Math.abs(dx) + Math.abs(dy) > .1) {
+          actor.facing = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up';
+          actor.walkingUntil = time + 140; actor.x = p.x; actor.y = p.y;
+        }
+        const pose = time < actor.walkingUntil ? (Math.floor(time / 140) % 2 ? 'step-right' : 'step-left') : 'idle';
+        actor.sprite.setFrame(`${actor.facing}-${pose}`);
+        actor.container.setPosition(Phaser.Math.Linear(actor.container.x, p.x, Math.min(1, delta / 65)), Phaser.Math.Linear(actor.container.y, p.y, Math.min(1, delta / 65))).setDepth(p.y);
       }
       this.cooldown -= delta;
       if (!paused() && this.cooldown <= 0) {
@@ -90,7 +85,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     }
   }
   const canvasDiagnostic = new URLSearchParams(location.search).get('renderer') === 'canvas';
-  const game = new Phaser.Game({ type: canvasDiagnostic ? Phaser.CANVAS : Phaser.AUTO, parent, width: 960, height: 540, backgroundColor: '#101b25',
+  const game = new Phaser.Game({ type: canvasDiagnostic ? Phaser.CANVAS : Phaser.AUTO, parent, width: 960, height: 540, backgroundColor: '#101018',
     pixelArt: true, roundPixels: true, render: { antialias: false }, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: ArrivalScene, audio: { noAudio: true } });
   return () => game.destroy(true);

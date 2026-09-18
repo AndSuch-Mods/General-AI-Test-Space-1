@@ -6,7 +6,7 @@ The complete deliverables and exit criteria are preserved in [PHASES.md](docs/PH
 
 | Phase | Work | Status |
 | --- | --- | --- |
-| 0 | Repository, full specification, architecture, original reference boundary | Defined |
+| 0 | Repository, full specification, architecture, original reference boundary | Complete, 53 sections verified |
 | 1 | PWA, offline package, two world saves, co-op transport and pairing | In progress |
 | 2 | Phaser simulation, controls, three spaces, separate maps | Next |
 | 3 | Shared time, separate fatigue, multiplayer persistence | Planned |
@@ -20,6 +20,8 @@ The complete deliverables and exit criteria are preserved in [PHASES.md](docs/PH
 | 11 | Original art and audio pass | Planned |
 | 12 | Dense content expansion and postgame | Planned |
 
-Immediate work: finish Phase 1 through tested persistence, offline reload, host/guest profile continuity, transport pairing and CI. Begin the smallest playable castle interaction needed to exercise the real architecture. Two-iPhone validation remains a release gate.
+Implemented: two persistent world slots, separate residents, atomic saves, validated import/export, offline package repair and explicit updates, host/guest transport and pairing, mirrored guest recovery, plus a playable castle arrival room. The letter and parcel are personal; either resident can light the shared hearth. The default time-scale conversion is implemented and tested; advancing time remains Phase 3.
 
-Deployment access: repository read/write is available through the GitHub plugin. Pages configuration needs an authenticated administrative browser or CLI session. Requested once at the outset; continue all independent work.
+The user requested an earlier art pass on 2026-09-18. Detailed original castle exterior/interior art and animated resident poses now replace the visible geometric placeholders. This does not mark the full Phase 11 art/audio pass complete.
+
+Immediate work: finish browser validation and Pages deployment. Two-iPhone installation, QR and offline local-network pairing remain the Phase 1 device gates. Then continue the three-map simulation in Phase 2. See IMPLEMENTATION_STATUS.md for remaining work and DEVICE_TESTS.md for the acceptance procedure.

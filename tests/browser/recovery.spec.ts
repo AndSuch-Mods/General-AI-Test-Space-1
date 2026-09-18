@@ -1,13 +1,24 @@
 import { test, expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 
+test('the default renderer opens the arrival room without script errors', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await page.getByRole('button', { name: 'Enter the castle' }).click();
+  await expect(page.locator('#game-canvas canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Journal & satchel' }).click();
+  await expect(page.getByText('The first page is waiting.')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('missing mandatory content clears offline readiness and can be repaired', async ({ page }) => {
   await page.goto('/?renderer=canvas');
   await expect(page.locator('#offline-label')).toHaveText('Ready for offline play', { timeout: 30000 });
   await page.evaluate(async () => {
     for (const name of await caches.keys()) {
       const cache = await caches.open(name);
-      await cache.delete(new URL('art/castle.svg', location.href).href);
+      await cache.delete(new URL('art/title-castle.png', location.href).href);
     }
   });
   await page.reload();

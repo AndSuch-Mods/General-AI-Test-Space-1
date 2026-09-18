@@ -13,12 +13,14 @@ export function decodePairing(text: string): Pairing {
 export function encodePairing(pairing: Pairing) { return 'TW1:' + btoa(JSON.stringify(PairSchema.parse(pairing))); }
 
 export class WebRTCTransport implements Transport {
-  readonly peer = new RTCPeerConnection({ iceServers: [], iceCandidatePoolSize: 0 });
+  readonly peer: RTCPeerConnection;
   private channel?: RTCDataChannel;
   onMessage: Transport['onMessage'] = () => {};
   onState: Transport['onState'] = () => {};
   get ready() { return this.channel?.readyState === 'open'; }
   constructor() {
+    if (typeof RTCPeerConnection !== 'function') throw Error('This browser cannot open a local co-op connection. Open Twilight in Safari on your iPhone or a browser with WebRTC support.');
+    this.peer = new RTCPeerConnection({ iceServers: [], iceCandidatePoolSize: 0 });
     this.peer.ondatachannel = event => this.attach(event.channel);
     this.peer.onconnectionstatechange = () => {
       if (['disconnected', 'failed', 'closed'].includes(this.peer.connectionState)) this.onState(this.peer.connectionState === 'failed' ? 'failed' : 'closed');
@@ -39,23 +41,28 @@ export class WebRTCTransport implements Transport {
     if (this.peer.iceGatheringState === 'complete') return;
     await new Promise<void>((resolve, reject) => {
       const check = () => { if (this.peer.iceGatheringState === 'complete') { clearTimeout(timeout); this.peer.removeEventListener('icegatheringstatechange', check); resolve(); } };
-      const timeout = setTimeout(() => { this.peer.removeEventListener('icegatheringstatechange', check); reject(Error('Local network discovery timed out. Keep both phones on the same Wi-Fi and try again.')); }, 12000);
+      const timeout = setTimeout(() => { this.peer.removeEventListener('icegatheringstatechange', check); reject(Error('Local network discovery timed out. Allow Local Network access if your device asks, keep both phones on the same Wi-Fi, and try again.')); }, 12000);
       this.peer.addEventListener('icegatheringstatechange', check);
       check();
     });
+  }
+  private localSdp() {
+    const sdp = this.peer.localDescription?.sdp;
+    if (!sdp || !/^a=candidate:.* typ host(?:\s|$)/m.test(sdp)) throw Error('This browser did not provide a local network address for co-op. Check Local Network access in your device settings, connect to Wi-Fi, and create a new pairing code.');
+    return sdp;
   }
   async offer(worldId: string, epoch: string): Promise<Pairing> {
     this.attach(this.peer.createDataChannel('twilight-v1', { ordered: true }));
     await this.peer.setLocalDescription(await this.peer.createOffer());
     await this.gather();
-    return { version: 1, session: crypto.randomUUID(), worldId, epoch, type: 'offer', sdp: this.peer.localDescription!.sdp };
+    return { version: 1, session: crypto.randomUUID(), worldId, epoch, type: 'offer', sdp: this.localSdp() };
   }
   async answer(offer: Pairing): Promise<Pairing> {
     if (offer.type !== 'offer') throw Error('The guest needs the host offer code.');
     await this.peer.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
     await this.peer.setLocalDescription(await this.peer.createAnswer());
     await this.gather();
-    return { ...offer, type: 'answer', sdp: this.peer.localDescription!.sdp };
+    return { ...offer, type: 'answer', sdp: this.localSdp() };
   }
   async accept(answer: Pairing, offer: Pairing) {
     if (answer.type !== 'answer' || answer.session !== offer.session || answer.worldId !== offer.worldId || answer.epoch !== offer.epoch) throw Error('This answer belongs to a different pairing.');

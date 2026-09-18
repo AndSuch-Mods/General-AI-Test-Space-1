@@ -55,7 +55,7 @@ async function title() {
   authority = undefined; world = undefined;
   const records = await Promise.all(([1, 2] as Slot[]).map(id => db.load(id)));
   app.innerHTML = `<section class="title-screen">
-    <div class="title-art" aria-hidden="true"><img src="./art/castle.svg" alt="" /></div>
+    <div class="title-art" aria-hidden="true"><img src="./art/title-castle.png" alt="" /></div>
     <div class="title-copy"><p class="eyebrow">A light in the old house</p><h1>Haunted<br>Chocolatier<span>TWILIGHT</span></h1><p class="tagline">Some memories need a way home.</p><div class="title-line"></div><p class="world-caption">Gloambridge · At the edge of evening</p></div>
     <div class="menu-panel"><div class="menu-heading"><span class="tiny-star">✧</span><p>Welcome home</p><span class="tiny-star">✧</span></div>
     <div class="slots" role="group" aria-label="World save slots">${records.map((record, index) => `<button class="slot ${slot === index + 1 ? 'selected' : ''}" id="slot-${index + 1}" aria-pressed="${slot === index + 1}"><span class="slot-number">0${index + 1}</span><span><b>World Save Slot ${index + 1}</b><small>${record ? `${escape(record.world.players[record.world.hostId].name)} · The castle` : 'A new beginning'}</small></span><span class="slot-mark">${record ? '◈' : '+'}</span></button>`).join('')}</div>
@@ -215,17 +215,22 @@ function joinDialog() {
 async function backupDialog() {
   const records = await Promise.all(([1, 2] as Slot[]).map(id => db.load(id)));
   dialog('Keep a copy of home', `<p>Save files belong to this device. Export a backup before clearing browser data or changing phones.</p>${records.map((record, index) => `<div class="backup-row"><span>World Save Slot ${index + 1}<small>${record ? `Last export: ${record.lastBackupAt ? new Date(record.lastBackupAt).toLocaleString() : 'not yet backed up'}` : 'Empty'}</small></span><button id="export-${index + 1}" ${record ? '' : 'disabled'}>Export</button></div>`).join('')}<button id="export-both">Export both saves</button><label class="file-label">Import a world backup<input type="file" id="import-save" accept="application/json,.json" /></label><p class="muted">Imports are checked before any save changes. Replacing an occupied slot keeps a recovery checkpoint.</p><p id="import-status"></p>`);
-  const exportSlots = async (slots: Slot[]) => {
+  const exportSlots = async (slots: Slot[], share = false) => {
     const text = await db.backup(slots);
     parseBackup(text);
     const file = new File([text], 'twilight-worlds.json', { type: 'application/json' });
-    if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'Twilight save backup' });
+    if (share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'Twilight save backup' });
     else {
       const link = document.createElement('a'); const url = URL.createObjectURL(file); link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
     await db.markBackup(slots); toast('Backup exported.');
   };
   on('export-1', () => exportSlots([1])); on('export-2', () => exportSlots([2])); on('export-both', () => exportSlots([1, 2]));
+  if (typeof navigator.share === 'function') {
+    const shareButton = document.createElement('button'); shareButton.id = 'share-backup'; shareButton.textContent = 'Share both saves';
+    document.getElementById('export-both')!.after(shareButton);
+    on('share-backup', () => exportSlots([1, 2], true));
+  }
   document.getElementById('import-save')!.addEventListener('change', event => {
     void (async () => {
       const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;

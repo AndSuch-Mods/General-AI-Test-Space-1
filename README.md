@@ -18,7 +18,15 @@ The user's direct instructions require first-class co-op and take precedence ove
 
 Selected `AndSuch-Mods/General-AI-Test-Space-1` on 2026-09-18. Its `main` branch was empty at `fc1af4f05cc7da42745d5adf77e2455892e3142a`, with Git's empty-tree hash. Repositories 1-4 were empty, 5-6 contained existing applications, and 7-10 contained README files. Repository 1 is the first available, regardless of its older history.
 
-The source repository is public. A standard GitHub Pages deployment is public too. Local saves stay on the players' devices. There is no fake client-side privacy gate. Pages configuration access is awaiting an authenticated browser or CLI session; the connected GitHub plugin supports code and commit operations but exposes no Pages configuration action.
+The source repository and GitHub Pages site are public. Local saves stay on the players' devices. Pages is configured to use GitHub Actions. Deployment is gated by validation, including Chromium on Linux and WebKit on macOS.
+
+## Current playable slice
+
+Create a resident, enter the castle, walk with the touch pad or WASD/arrows, and use Interact or E near the letter, hearth and welcome parcel. The journal shows personal discoveries and inventory alongside the shared household state. Co-op uses the same authoritative world as solo play. A returning second resident keeps their identity and belongings.
+
+The title and room now use detailed original generated art with a twelve-pose resident sheet. These assets are integrated into the playable scene. The exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md` and the content ledger.
+
+The full game loop remains in development. Physical iPhone acceptance results are not yet available; see [the device checklist](docs/DEVICE_TESTS.md).
 
 ## Originality
 

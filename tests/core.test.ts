@@ -1,10 +1,10 @@
 import 'fake-indexeddb/auto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld } from '../src/game/model';
 import { gameMinutes } from '../src/game/time';
 import { GameDatabase, parseBackup } from '../src/persistence/database';
-import { decodePairing, encodePairing } from '../src/networking/webrtc';
+import { decodePairing, encodePairing, WebRTCTransport } from '../src/networking/webrtc';
 import { QRAssembler } from '../src/ui/pairing';
 import { GuestSession, HostSession } from '../src/networking/session';
 import type { Transport } from '../src/networking/transport';
@@ -14,7 +14,7 @@ import jsQR from 'jsqr';
 
 const databases: GameDatabase[] = [];
 function database() { const db = new GameDatabase(crypto.randomUUID()); databases.push(db); return db; }
-afterEach(async () => { await Promise.all(databases.splice(0).map(db => db.delete())); });
+afterEach(async () => { vi.unstubAllGlobals(); await Promise.all(databases.splice(0).map(db => db.delete())); });
 function world() { return createWorld(createPlayer('Rowan')); }
 describe('world persistence and authority', () => {
   it('round-trips both independent slots and both profiles', async () => {
@@ -100,6 +100,25 @@ describe('world persistence and authority', () => {
   });
 });
 describe('protocol and content', () => {
+  it('explains when the browser has no local co-op transport', () => {
+    vi.stubGlobal('RTCPeerConnection', undefined);
+    expect(() => new WebRTCTransport()).toThrow('WebRTC support');
+  });
+  it('rejects unusable local offers and accepts private mDNS host candidates', async () => {
+    let sdp = 'v=0\r\na=ice-ufrag:twilight\r\n';
+    class Peer extends EventTarget {
+      iceGatheringState = 'complete';
+      localDescription?: { sdp: string };
+      createDataChannel() { return { readyState: 'connecting' }; }
+      async createOffer() { return { type: 'offer', sdp }; }
+      async setLocalDescription(description: { sdp: string }) { this.localDescription = description; }
+    }
+    vi.stubGlobal('RTCPeerConnection', Peer);
+    await expect(new WebRTCTransport().offer(crypto.randomUUID(), crypto.randomUUID())).rejects.toThrow('did not provide a local network address');
+    sdp += 'a=candidate:1 1 udp 2122260223 household.local 49152 typ host\r\n';
+    const offer = await new WebRTCTransport().offer(crypto.randomUUID(), crypto.randomUUID());
+    expect(offer.sdp).toBe(sdp);
+  });
   it('encodes pairing and rejects truncated, malformed, or incompatible codes', () => {
     const pair = { version: 1 as const, session: crypto.randomUUID(), worldId: crypto.randomUUID(), epoch: crypto.randomUUID(), type: 'offer' as const, sdp: 'v=0\r\n' + 'a'.repeat(100) };
     expect(decodePairing(encodePairing(pair))).toEqual(pair);
