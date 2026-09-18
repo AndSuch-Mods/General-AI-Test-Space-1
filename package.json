@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build && node tools/build-offline.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
-    "test": "vitest run --exclude tests/browser/**",
+    "test": "vitest run",
     "test:browser": "node tools/browser-tests.mjs test",
     "install:browsers": "node tools/browser-tests.mjs install chromium webkit",
     "check:spec": "node tools/check-spec.mjs",
