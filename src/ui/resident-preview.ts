@@ -1,0 +1,61 @@
+import { RESIDENT_DISPLAY_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_IMAGE, type ResidentFacing } from '../game/art/resident-atlas';
+import { residentFrame } from '../game/art/resident-animation';
+import { residentCanvas, type ResidentAppearance } from '../game/art/resident-appearance';
+
+export type ResidentPreview = { setAppearance(value: ResidentAppearance): void; destroy(): void };
+let sourceImage: Promise<HTMLImageElement> | undefined;
+
+function imageSource() {
+  sourceImage ??= new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => { sourceImage = undefined; reject(new Error('Could not load the resident preview.')); };
+    image.src = `./${RESIDENT_IMAGE}`;
+  });
+  return sourceImage;
+}
+
+/** Paints the same garment-colored frames used in the room, with a quiet turning walk. */
+export async function mountResidentPreview(canvas: HTMLCanvasElement, initialAppearance: ResidentAppearance): Promise<ResidentPreview> {
+  const image = await imageSource();
+  canvas.width = RESIDENT_DISPLAY_WIDTH; canvas.height = RESIDENT_DISPLAY_HEIGHT;
+  canvas.style.imageRendering = 'pixelated';
+  canvas.setAttribute('role', 'img');
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Could not draw the resident preview.');
+  const media = matchMedia('(prefers-reduced-motion: reduce)');
+  let appearance = initialAppearance, destroyed = false, request = 0, lastFrame = '';
+  const started = performance.now();
+  const facings: readonly ResidentFacing[] = ['down', 'right', 'up', 'left'];
+  const draw = (now: number) => {
+    if (destroyed) return;
+    const reduced = media.matches || document.documentElement.classList.contains('reduced-motion');
+    // The first rAF timestamp can predate the synchronous mount within the same frame.
+    const elapsed = reduced ? 0 : Math.max(0, now - started);
+    const facing = facings[Math.floor(elapsed / 3600) % facings.length];
+    const walkingTime = Math.max(0, elapsed % 3600 - 1800);
+    const pose = residentFrame(facing, walkingTime / 125 * 12, walkingTime > 0);
+    const stamp = `${appearance}:${pose.frame}:${pose.flipX}`;
+    if (stamp !== lastFrame) {
+      context.imageSmoothingEnabled = false;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.save();
+      if (pose.flipX) { context.translate(canvas.width, 0); context.scale(-1, 1); }
+      context.drawImage(residentCanvas(image, pose.frame, appearance), 0, 0, canvas.width, canvas.height);
+      context.restore();
+      canvas.dataset.appearance = appearance; canvas.dataset.frame = pose.frame; canvas.dataset.flipX = String(pose.flipX);
+      canvas.setAttribute('aria-label', `Resident wearing ${appearance === 'amber' ? 'an' : 'a'} ${appearance} coat`);
+      lastFrame = stamp;
+    }
+    if (!reduced) request = requestAnimationFrame(draw);
+  };
+  const redraw = () => { cancelAnimationFrame(request); lastFrame = ''; draw(performance.now()); };
+  media.addEventListener('change', redraw);
+  const motionSetting = new MutationObserver(redraw);
+  motionSetting.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  draw(started);
+  return {
+    setAppearance(value) { if (!destroyed) { appearance = value; redraw(); } },
+    destroy() { destroyed = true; cancelAnimationFrame(request); media.removeEventListener('change', redraw); motionSetting.disconnect(); },
+  };
+}

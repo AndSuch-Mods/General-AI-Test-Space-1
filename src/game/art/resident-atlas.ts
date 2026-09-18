@@ -3,8 +3,11 @@ export const RESIDENT_TEXTURE = 'resident-amber-v2';
 export const RESIDENT_IMAGE = 'art/residents-v2.png';
 export const RESIDENT_FRAME_WIDTH = 248;
 export const RESIDENT_FRAME_HEIGHT = 372;
-export const RESIDENT_DISPLAY_WIDTH = 32;
-export const RESIDENT_DISPLAY_HEIGHT = 48;
+export const RESIDENT_NATIVE_WIDTH = 32;
+export const RESIDENT_NATIVE_HEIGHT = 48;
+/** Keep the artwork coarse while making the resident twice as tall beside furniture. */
+export const RESIDENT_DISPLAY_WIDTH = 64;
+export const RESIDENT_DISPLAY_HEIGHT = 96;
 /** Soles align here in every source crop, independent of direction or stride. */
 export const RESIDENT_ORIGIN = { x: 0.5, y: 370 / RESIDENT_FRAME_HEIGHT } as const;
 export type ResidentFacing = 'down' | 'left' | 'right' | 'up';

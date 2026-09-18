@@ -9,24 +9,64 @@ export async function walk(page: Page, key: string, count: number) {
   const axis = key === 'ArrowLeft' || key === 'ArrowRight' ? 'x' : 'y';
   const sign = key === 'ArrowLeft' || key === 'ArrowUp' ? -1 : 1;
   const target = before[axis] + sign * count * 14;
-  await page.keyboard.down(key);
-  try { await expect.poll(async () => sign * (Number(await page.locator('#game-canvas').getAttribute(`data-player-${axis}`)) - target), { timeout: count * 350 + 2500, intervals: [30] }).toBeGreaterThanOrEqual(-1); }
-  finally { await page.keyboard.up(key); }
+  await moveTo(page, key, axis, sign, target, count * 350 + 4000, 1);
 }
 export async function walkTo(page: Page, axis: 'x' | 'y', target: number) {
   const before = await position(page), sign = Math.sign(target - before[axis]);
   if (Math.abs(target - before[axis]) <= 7) return;
   const key = axis === 'x' ? sign > 0 ? 'ArrowRight' : 'ArrowLeft' : sign > 0 ? 'ArrowDown' : 'ArrowUp';
-  await page.keyboard.down(key);
-  try { await expect.poll(async () => sign * (Number(await page.locator('#game-canvas').getAttribute(`data-player-${axis}`)) - target), { timeout: 12000, intervals: [30] }).toBeGreaterThanOrEqual(-1); }
+  await moveTo(page, key, axis, sign, target, 12000, 7);
+}
+async function moveTo(page: Page, key: string, axis: 'x' | 'y', sign: number, target: number, timeout: number, tolerance: number) {
+  const before = await position(page), deadline = Date.now() + timeout;
+  const progress = async () => sign * (Number(await page.locator('#game-canvas').getAttribute(`data-player-${axis}`)) - target);
+  const state = () => page.locator('#game-canvas').evaluate((element, coordinate) => ({
+    coordinate: Number(element.getAttribute(`data-player-${coordinate}`)),
+    sleeping: element.getAttribute('data-sleeping') === 'true',
+  }), axis);
+  try {
+    // Protocol/VM latency can delay key-up after polling. Release well before a narrow
+    // waypoint, then release each fine movement only after the game has observed it.
+    if (await progress() < -84) {
+      await page.keyboard.down(key);
+      try { await expect.poll(progress, { timeout, intervals: [30] }).toBeGreaterThanOrEqual(-84); }
+      finally { await page.keyboard.up(key); }
+      await page.waitForTimeout(200);
+    }
+    for (;;) {
+      const current = await state();
+      // Crossing a bed entrance deliberately transfers the resident into its rest pose.
+      if (current.sleeping || Math.abs(current.coordinate - target) <= tolerance) return;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error(`Movement did not reach ${axis}=${target} within ${timeout}ms`);
+      const fineKey = axis === 'x' ? current.coordinate < target ? 'ArrowRight' : 'ArrowLeft'
+        : current.coordinate < target ? 'ArrowDown' : 'ArrowUp';
+      await page.keyboard.down(fineKey);
+      try {
+        // A fixed short pulse can end before Phaser's next update on a busy device.
+        // Wait for a real authoritative step; a blocked route fails with its position.
+        await page.waitForFunction(({ coordinate, previous }) => Number(document.querySelector('#game-canvas')?.getAttribute(`data-player-${coordinate}`)) !== previous,
+          { coordinate: axis, previous: current.coordinate }, { timeout: Math.min(2000, remaining), polling: 'raf' });
+      } finally { await page.keyboard.up(fineKey); }
+      const released = await state();
+      await page.waitForTimeout(200);
+      if (released.sleeping) return;
+    }
+  }
+  catch (error) {
+    console.error('Walk target not reached', { before, axis, target, current: await position(page),
+      map: await page.locator('#game-canvas').getAttribute('data-player-map'), sleeping: await page.locator('#game-canvas').getAttribute('data-sleeping') });
+    throw error;
+  }
   finally { await page.keyboard.up(key); }
 }
 export async function inventory(page: Page, tab: 'items' | 'journal' | 'missions' | 'household' | 'session' = 'items') {
-  await page.locator('#inventory-more').click();
-  if (tab !== 'items') await page.locator(`#tab-${tab}`).click();
+  await page.locator('#inventory-toggle').click();
+  // Unread discoveries open Missions first, so select the requested section explicitly.
+  await page.locator(`#tab-${tab}`).click();
+  await expect(page.locator(`#tab-${tab}`)).toHaveAttribute('aria-pressed', 'true');
 }
 export async function action(page: Page, target?: string) {
-  const bounds = await page.locator('#touch-surface').boundingBox();
-  await page.locator('#touch-surface').click({ position: { x: bounds!.width * .8, y: bounds!.height * .58 } });
+  await page.locator('#action-a').click();
   if (target) await page.locator(`[data-action="${target}"]`).click();
 }

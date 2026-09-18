@@ -4,6 +4,12 @@ export const ROOM_IMAGE = './art/room-v2-props.png';
 export const ROOM_MATERIAL_IMAGE = './art/room-v2-materials.png';
 export const ROOM_FLAME_IMAGE = './art/room-v2-flames.png';
 export const ROOM_FIRE_SIZE = { width: 48, height: 46 };
+export const ROOM_DOOR_IMAGE = './art/room-v3-doors-stairs.png';
+export const ROOM_EXTRA_FRAMES = [
+  { name: 'door-closed', x: 134, y: 56, width: 306, height: 414 },
+  { name: 'door-open', x: 584, y: 56, width: 306, height: 414 },
+  { name: 'stairs', x: 560, y: 1050, width: 400, height: 432 },
+] as const;
 export const ROOM_FRAMES = [
   { name: 'bed', x: 76, y: 12, width: 287, height: 401 },
   { name: 'desk', x: 411, y: 141, width: 316, height: 225 },

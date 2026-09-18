@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { z } from 'zod';
-import { parseWorld, WorldSchema, type Slot, type World } from '../game/model';
+import { parseWorld, StoredWorldSchema, type Slot, type World } from '../game/model';
 
 export interface SaveRecord { slot: Slot; world: World; savedAt: string; lastBackupAt: string | null }
 export interface Mirror { worldId: string; playerId: string; key: string; world: World; savedAt: string }
@@ -62,7 +62,7 @@ export class GameDatabase extends Dexie {
   }
 }
 const BackupSchema = z.object({ format: z.literal('twilight-world-backup'), version: z.literal(1), exportedAt: z.string().datetime(),
-  worlds: z.array(z.object({ slot: z.union([z.literal(1), z.literal(2)]), world: WorldSchema }).strict()).min(1).max(2),
+  worlds: z.array(z.object({ slot: z.union([z.literal(1), z.literal(2)]), world: StoredWorldSchema }).strict()).min(1).max(2),
 }).strict().refine(value => new Set(value.worlds.map(w => w.slot)).size === value.worlds.length, 'Duplicate world slots');
 export function parseBackup(text: string) {
   if (text.length > 4_000_000) throw Error('This backup is too large.');

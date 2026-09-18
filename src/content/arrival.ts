@@ -7,7 +7,7 @@ export const arrival = [
   { id: 'pantry', label: 'Open your welcome parcel', x: 785, y: 300, scope: 'personal' as Scope,
     title: 'A practical welcome', text: 'Three cacao beans, wrapped in a flour sack. The note reads: "The forge opens in the morning. Bring the broken latch, not the whole door. — Rook"' },
   { id: 'bed', label: 'Inspect the bed', x: 210, y: 345, scope: 'personal' as Scope,
-    title: 'A room kept ready', text: 'The quilt is dry and smells of cedar. Someone has turned down one corner, although the rest of the room has been empty for years. Beside the pillow, six stitches have been picked out in silver thread.' },
+    title: 'A room kept ready', text: 'The quilt is dry and smells of cedar. The covers have been turned down beside the pillow. Step in from either side to rest. Six stitches have been picked out in silver thread.' },
   { id: 'desk', label: 'Examine the writing desk', x: 382, y: 289, scope: 'personal' as Scope,
     title: 'Recipes in the grain', text: 'Knife marks run across the old writing desk. The deepest cut is filled with a trace of dark cacao. On the underside of the drawer, someone has written: "Warm the bowl before you ask it to remember."' },
   { id: 'bookshelf', label: 'Read the household ledger', x: 132, y: 232, scope: 'personal' as Scope,
@@ -26,6 +26,12 @@ export const arrival = [
     title: 'The desk candle', text: 'A small flame changes the shape of the room. Its light belongs to everyone in the house.' },
   { id: 'candle-table', label: 'Tend the bedside candle', x: 272, y: 446, scope: 'shared_world' as Scope,
     title: 'The bedside candle', text: 'The brass dish is warm beneath your fingers. You tend the wick and watch the shadows settle.' },
+  { id: 'door-out', label: 'Open the door to the landing', x: 685, y: 258, scope: 'personal' as Scope,
+    title: 'The castle landing', text: 'A cool draft carries the smell of stone and rain.' },
+  { id: 'door-home', label: 'Return to your room', x: 480, y: 258, scope: 'personal' as Scope,
+    title: 'Your room', text: 'The familiar floorboards give beneath your feet.' },
+  { id: 'landing-stairs', label: 'Examine the old west stair', x: 800, y: 456, scope: 'personal' as Scope,
+    title: 'A stair waiting for repair', text: 'The west stair has settled away from the wall. Someone has tied a brass bell across the loose treads. Beneath it, a note in charcoal reads: "The kitchen is below. Ask Rook about the supports before you try these."' },
 ] as const;
 export type ArrivalId = typeof arrival[number]['id'];
 export function validateContent() {

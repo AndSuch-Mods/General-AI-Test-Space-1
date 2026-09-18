@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2, resident scale and household interaction
+
+- Added live previews beside compact name/coat fields. Shared garment palettes keep face, hair, hands and boots unchanged. Doubled resident display size relative to furniture and made room pixels coarser.
+- Matched title and dialogs to the room's materials. Removed decorative copy and moved successful offline status into Settings.
+- Added seven quick slots, dedicated A/B controls and an inset clock/I/ESC group. Right-side background taps no longer interact. B closes ordinary menus; NPC conversation policy requires authored exits.
+- Added a split bed with automatic sleep entry, host-owned running clock, personal fatigue and co-op sleep rules. Windows now show misty daylight, gradual transitions and seeded night variants.
+- Added a working castle landing and return door, plus animated doors, chest lid, cupboard doors and desk drawers. Residents can occupy the two maps separately.
+- Added schema 1-to-2 migration and protocol 3 clock/map/rest updates. Old hotbar assignments retain their first five slots. Saves and personal progression are preserved.
+- Expanded tests for appearance, controls, clock, rest, migration, map travel and co-op. Physical iPhone acceptance remains open.
+
 ## 0.1.1, arrival-room rework
 
 - Replaced the furnished background image with separate native pixel layers, furniture and effects. Added a closer following camera, corrected side profiles and distance-based walk animation.

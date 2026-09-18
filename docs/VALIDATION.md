@@ -1,5 +1,17 @@
 # Validation record
 
+## Resident, menu and household rework, 0.1.2
+
+- Master hash and all 53 specification sections, lint, TypeScript, 39 unit tests and production build pass locally. New core checks cover appearance masks, configured time scale, sunrise fatigue, independent rest, storage failure rollback, map collision/travel, container presence and two-resident save migration.
+- The suite now contains 16 browser scenarios per engine. Local Chromium passed all scenarios across the full run and focused reruns. The default AUTO/WebGL renderer and real-origin-offline co-op storage/reconnect checks passed on rerun in 38.3 and 21.4 seconds respectively.
+- The local Windows WebKit run passed all 14 supported scenarios; its two actual-peer scenarios explicitly skip because that runtime has no RTCPeerConnection. macOS 15 CI runs all 16, including both actual DataChannel tests, before Pages can publish.
+- New browser checks inspect preview pixels and coat changes, compact creation forms, seven-slot migration, A/B behavior, inert right-side background taps, adult renderer dimensions, actual bed entry, three successive daylight phases, paused solo menus, saved doorway travel, co-op map separation and independent/shared sleep.
+- A short synthetic key pulse could disappear between rendering frames under VM load. The test driver now releases fine movement after observing an authoritative step and settles before turning; it makes no world-state edits. This also prevents held test keys overshooting the bed's narrow approach. The default WebGL check remains enabled; the software-rendered VM timed out once during an earlier full run.
+- Reviewed title, creation and gameplay at 844 by 390 and 667 by 375. The room and resident use a common native pixel density. Doors and containers animate separately; daytime mist and three night variants use the saved shared clock. The new original door/stair asset and exact prompt are recorded in ART_ROOM_V3_PROMPT.md.
+- The offline manifest contains 18 files, about 14.0 MB uncompressed, version `26d1c82be1bed10c`. Browser checks retain cold launch with the HTTP server stopped, integrity repair, explicit save-preserving updates, backups and reconnect conservation.
+
+The checkpoint workflow runs the complete suite on Chromium and macOS WebKit and requires both jobs before deployment. [Actions](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions) records the results for each exact commit. Physical iPhone installation, sustained frame rate, sleep, touch input and two-phone offline networking still require DEVICE_TESTS.md. These desktop results do not close those device gates or later content phases.
+
 ## Room and controls rework, 0.1.1
 
 - Specification hash and all 53 sections, lint, TypeScript, 23 unit tests and production build pass locally.

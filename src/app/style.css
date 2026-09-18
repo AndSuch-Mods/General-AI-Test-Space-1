@@ -157,3 +157,94 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 .reduced-motion * { transition: none !important; animation: none !important; }
 
 @media (max-height: 480px) { .inventory-dialog { padding: 12px 18px 16px; max-height: 90dvh; } .inventory-dialog h2 { margin: 2px 0 6px; font-size: 22px; } .inventory-tabs { margin-bottom: 10px; } .inventory-grid { gap: 6px; } .inventory-item, .empty-item { min-height: 65px; } .inventory-intro { margin-bottom: 10px; } .inventory-dialog h3 { margin-top: 12px; } .story-dialog { max-height: 88dvh; } }
+/* The title shares the room's native wood, wallpaper and burgundy palette. */
+.title-screen { background: #2e2630; grid-template-columns: 1.2fr 1fr; gap: 5vw; padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+.title-screen::after { background: linear-gradient(90deg, #17172224, #17172238), linear-gradient(0deg, #12131b88, transparent 65%); }
+.title-art canvas { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.title-copy { align-self: center; padding: 0; text-shadow: 3px 3px #201b29, -1px -1px #322130; }
+.title-copy h1 { font-family: Georgia, serif; font-weight: 700; line-height: 1.06; font-size: clamp(30px, 4.6vw, 64px); color: #eddbb1; }
+.title-copy h1 span { font-family: 'Courier New', monospace; font-weight: 700; font-size: clamp(17px, 2vw, 26px); color: #d9af77; letter-spacing: .3em; margin-top: 19px; }
+.menu-panel { border-radius: 0; border: 3px solid #9a7855; background: #302735f2; box-shadow: 0 4px #171a22, 4px 0 #171a22, -4px 0 #171a22, 0 -4px #171a22, inset 0 0 0 2px #4b3840; }
+.menu-panel button { border-radius: 1px; }
+.menu-heading p { color: #e0ca9b; font-family: 'Courier New', monospace; font-weight: 700; font-size: 22px; }
+.slot { background: #201f2b9e; border-color: #665053; }
+.slot.selected { border-color: #c7a575; background: #684b424f; }
+.coop-buttons button { background: #34303a; border-color: #80705c; }
+.character-dialog { width: min(500px, 88vw); padding: 16px 22px 21px; }
+.character-dialog h2, .guest-dialog h2 { font-size: 24px; margin-bottom: 6px; }
+.character-layout { display: grid; grid-template-columns: 128px minmax(160px, 1fr); align-items: center; gap: 20px; }
+.resident-preview-frame { display: grid; place-items: center; min-height: 160px; background: #22202a; border: 2px solid #7e6651; box-shadow: inset 0 -16px #3a2f32; }
+#resident-preview { width: 96px; height: 144px; image-rendering: pixelated; }
+.character-fields label { margin: 9px 0 13px; }
+.character-fields input, .character-fields select { margin-top: 5px; padding: 8px 10px; min-height: 40px; font-size: 14px; }
+.character-submit { width: 100%; margin-top: 16px; }
+.guest-dialog { width: min(580px, 90vw); }
+.guest-dialog .character-layout { grid-template-columns: 105px 1fr; }
+.guest-dialog .resident-preview-frame { min-height: 144px; }
+.guest-dialog #resident-preview { width: 88px; height: 132px; }
+.game-hud { right: calc(max(8px, env(safe-area-inset-right)) + 44px); }
+.quickbar { gap: 2px; padding: 3px; border-radius: 2px; }
+.game-actions { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 4; display: flex; align-items: flex-end; gap: 9px; }
+.action-key { width: 48px; height: 48px; min-height: 48px; padding: 0; border-radius: 50%; background: #252535de; border: 2px solid #aa8e65; box-shadow: 0 3px #17141f; color: #f0ddad; font: bold 18px Georgia, serif; touch-action: manipulation; }
+#action-a { margin-bottom: 21px; background: #63533edc; }
+.action-key:hover { background: #79624e; }
+.panel-dialog .game-actions { color: #e6dfcf; }
+.panel-dialog { overflow-y: auto; }
+.panel-dialog:has(.game-actions) { max-width: calc(100vw - 160px); }
+#sleep-overlay { position: absolute; bottom: max(80px, calc(env(safe-area-inset-bottom) + 66px)); left: 50%; transform: translateX(-50%); z-index: 3; padding: 12px 21px; border: 1px solid #958569; background: #1b2131e8; color: #e2d5b9; text-align: center; pointer-events: none; }
+#sleep-label { display: block; font: 17px Georgia, serif; }
+#sleep-overlay small { display: block; margin-top: 7px; font-size: 11px; color: #b8bfb8; }
+@media (max-height: 480px) {
+ .title-screen { padding-top: 14px; padding-bottom: 24px; }
+ .title-copy h1 { font-size: clamp(29px, 4.3vw, 42px); }
+ .title-copy h1 span { font-size: 17px; margin-top: 14px; }
+ .menu-panel { padding: 10px 15px; }
+ .menu-heading { margin-bottom: 11px; }
+ .menu-heading p { font-size: 19px; }
+ .character-dialog { padding: 12px 20px 16px; }
+ .character-dialog .dialog-head { align-items: center; }
+ .resident-preview-frame { min-height: 145px; }
+ .character-submit { margin-top: 10px; }
+ .guest-dialog { padding-top: 12px; }
+ .guest-dialog .character-layout { grid-template-columns: 80px 1fr; gap: 15px; }
+ .guest-dialog .resident-preview-frame { min-height: 125px; }
+ .guest-dialog #resident-preview { width: 72px; height: 108px; }
+ .guest-dialog .character-fields label { margin: 4px 0 8px; }
+ .guest-dialog>label { margin-top: 12px; }
+}
+@media (orientation: landscape) and (max-width: 740px) {
+ .quickbar { left: 45%; }
+ .quick-slot { width: 44px; }
+ .game-actions { gap: 6px; right: max(10px, env(safe-area-inset-right)); }
+ .action-key { width: 44px; height: 44px; min-height: 44px; }
+ .title-copy h1 { font-size: 29px; }
+ .title-copy h1 span { font-size: 16px; }
+}
+@media (max-height: 480px) {
+ .guest-dialog { max-height: 94dvh; padding: 10px 20px 12px; }
+ .guest-dialog .dialog-head { align-items: center; }
+ .guest-dialog>label { margin: 8px 0; }
+ .guest-dialog textarea { height: 54px; min-height: 54px; margin-top: 4px; padding: 8px; }
+ .guest-dialog #scan-status:empty { display: none; }
+}
+/* Menus use the room's hard edges and warm wood/plum colors. */
+.title-copy h1 { font-family: 'Courier New', monospace; font-weight: 700; font-size: clamp(28px, 4.4vw, 61px); line-height: 1.06; letter-spacing: -.065em; color: #eddbb1; text-shadow: 3px 0 #271c2b, 0 3px #271c2b, 3px 3px #271c2b; }
+.title-copy h1 span { letter-spacing: .25em; text-shadow: 2px 2px #271c2b; }
+.panel-dialog { color: #e8dcc5; background: #2c2532; border: 3px solid #a68a62; border-radius: 0; box-shadow: 0 4px #14151e, 4px 0 #14151e, -4px 0 #14151e, 0 -4px #14151e, inset 0 0 0 2px #493742; }
+.panel-dialog::backdrop { background: #0c0d18ad; backdrop-filter: none; }
+.panel-dialog h2 { font-family: 'Courier New', monospace; font-size: 24px; font-weight: 700; letter-spacing: -.04em; color: #ecd4a1; text-shadow: 2px 2px #17151e; }
+.panel-dialog h3 { color: #d7b684; font-family: 'Courier New', monospace; font-weight: 700; font-size: 17px; letter-spacing: -.04em; }
+.panel-dialog input:not([type=checkbox]), .panel-dialog textarea, .panel-dialog select { background: #201e29; border: 2px solid #705b56; border-radius: 0; color: #f0e1bf; }
+.panel-dialog button:not(.action-key):not(.icon-button) { border-radius: 0; }
+.panel-dialog button:not(.primary):not(.action-key):not(.icon-button):not([aria-pressed=true]) { background-color: #3b303b; border-color: #816b58; }
+.panel-dialog button:hover:not(.action-key):not(.icon-button) { border-color: #d8b780; }
+.panel-dialog .muted { color: #b8afa8; }
+.inventory-tabs { border-bottom-color: #8e735666; }
+.inventory-tabs button[aria-pressed=true] { background: #7857414d; border-bottom-color: #d7b780; color: #f0dab2; }
+.empty-item, .inventory-item { background: #211d29; border-color: #725a536e; border-radius: 0; }
+.resident-preview-frame { background: #211e2b; border: 2px solid #9a7855; box-shadow: inset 0 -16px #46313a, inset 2px 2px #141620; }
+.storage-columns>div { border-color: #81674f; border-radius: 0; background: #211e2999; }
+.story-continue { background: #574039; border-color: #a0835c; }
+.dialogue-choices kbd { border-radius: 0; border-color: #a58d656e; }
+@media (max-height: 480px) { .panel-dialog h2 { font-size: 22px; } .title-copy h1 { font-size: clamp(28px, 4.4vw, 38px); } }
+@media (orientation: landscape) and (max-width: 740px) { .title-copy h1 { font-size: 28px; } }

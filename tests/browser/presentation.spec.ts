@@ -1,0 +1,106 @@
+import { test, expect, type Page } from '@playwright/test';
+import { action, inventory, position, walkTo } from './controls';
+
+async function start(page: Page) {
+  await page.goto('/?renderer=canvas');
+  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await page.getByRole('button', { name: 'Enter the castle' }).click();
+  await position(page);
+}
+
+test('compact resident creation previews clothing changes without tinting the face or boots', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?renderer=canvas');
+  await page.getByRole('button', { name: /^Single Player/ }).click();
+  const canvas = page.locator('#resident-preview');
+  await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
+  await expect(page.locator('#new-resident input,#new-resident select')).toHaveCount(2);
+  for (const width of [844, 667]) {
+    await page.setViewportSize({ width, height: 375 });
+    const geometry = await page.locator('.character-layout').evaluate(element => {
+      const preview = element.querySelector('canvas')!.getBoundingClientRect();
+      const input = element.querySelector('input')!.getBoundingClientRect();
+      const dialog = element.closest('dialog')!.getBoundingClientRect();
+      return { previewRight: preview.right, inputLeft: input.left, inputWidth: input.width, dialogWidth: dialog.width, top: dialog.top, bottom: dialog.bottom };
+    });
+    expect(geometry.previewRight).toBeLessThanOrEqual(geometry.inputLeft);
+    expect(geometry.inputWidth).toBeLessThan(geometry.dialogWidth * 2 / 3);
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.bottom).toBeLessThanOrEqual(375);
+  }
+  const amber = await canvas.evaluate(element => Array.from((element as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, 64, 96).data));
+  expect(amber.filter((value, index) => index % 4 === 3 && value > 0).length).toBeGreaterThan(500);
+  for (const appearance of ['moss', 'violet']) {
+    await page.getByLabel('Coat color').selectOption(appearance);
+    await expect(canvas).toHaveAttribute('data-appearance', appearance);
+    const pixels = await canvas.evaluate(element => Array.from((element as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, 64, 96).data));
+    let changed = 0, protectedChanges = 0;
+    for (let index = 0; index < pixels.length; index++) {
+      const y = Math.floor(index / 4 / 64);
+      if ((y < 40 || y >= 70 || index % 4 === 3) && pixels[index] !== amber[index]) protectedChanges++;
+      if (pixels[index] !== amber[index]) changed++;
+    }
+    expect(changed).toBeGreaterThan(100);
+    expect(protectedChanges).toBe(0);
+  }
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('button', { name: 'Join Co-op', exact: true }).click();
+  await expect(page.locator('#guest-name')).toHaveValue('Companion');
+  await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', 'down-idle');
+  await page.getByLabel('Coat color').selectOption('moss');
+  await expect(page.locator('#resident-preview')).toHaveAttribute('data-appearance', 'moss');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.getByRole('button', { name: /^Single Player/ }).click();
+    await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', /^(down|right|up)-(idle|step-left|passing|step-right)$/);
+    await page.getByRole('button', { name: 'Close dialog' }).click();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {
+  await start(page);
+  await walkTo(page, 'x', 550); await walkTo(page, 'y', 290);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'hearth');
+  const before = await position(page);
+  const surface = page.locator('#touch-surface'), bounds = (await surface.boundingBox())!;
+  await surface.click({ position: { x: bounds.width * .78, y: bounds.height * .5 } });
+  await page.waitForTimeout(200);
+  expect(await position(page)).toEqual(before);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:true:true');
+  await action(page);
+  await expect(page.getByRole('heading', { name: 'The house exhales' })).toBeVisible();
+  await page.locator('#action-a').click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await inventory(page, 'items');
+  await expect(page.locator('#action-a')).toBeDisabled();
+  await page.locator('#action-b').click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await walkTo(page, 'y', 308); await walkTo(page, 'x', 388);
+  await action(page);
+  await expect(page.locator('.dialogue-choices button')).toHaveCount(3);
+  await expect(page.locator('#action-a')).toBeDisabled();
+  await page.locator('#action-b').click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await action(page, 'letter');
+  await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
+  await page.locator('#action-b').click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+});
+
+test('the rendered resident uses adult scale and keeps crisp pixels at phone sizes', async ({ page }, testInfo) => {
+  await start(page);
+  const scene = page.locator('#game-canvas');
+  await expect(scene).toHaveAttribute('data-resident-width', '64');
+  await expect(scene).toHaveAttribute('data-resident-height', '96');
+  for (const width of [844, 667]) {
+    await page.setViewportSize({ width, height: 390 });
+    await expect.poll(async () => Number(await scene.getAttribute('data-render-scale'))).toBeGreaterThan(1);
+    const pixels = await scene.locator('canvas').evaluate(canvas => getComputedStyle(canvas).imageRendering);
+    expect(['pixelated', 'crisp-edges']).toContain(pixels);
+    await page.screenshot({ path: testInfo.outputPath(`resident-${width}.png`) });
+  }
+});

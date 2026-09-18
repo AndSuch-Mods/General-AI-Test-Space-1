@@ -19,7 +19,7 @@ test('missing mandatory content clears offline readiness and can be repaired', a
   await page.evaluate(async () => {
     for (const name of await caches.keys()) {
       const cache = await caches.open(name);
-      await cache.delete(new URL('art/title-castle.png', location.href).href);
+      await cache.delete(new URL('art/residents-v2.png', location.href).href);
     }
   });
   await page.reload();
@@ -36,7 +36,7 @@ test('an update waits for explicit restart and preserves the saved resident', as
     await page.getByRole('button', { name: /^Single Player/ }).click();
     await page.getByLabel('Your name', { exact: true }).fill('Update keeper');
     await page.getByRole('button', { name: 'Enter the castle' }).click();
-    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.locator('#game-canvas canvas')).toBeVisible();
     await page.getByRole('button', { name: 'Save and return to title' }).click();
     await writeFile(path, original + '\n// Explicit-update integration check\n');
     await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())!.update(); });
@@ -53,7 +53,7 @@ test('malformed import is rejected and occupied slots require confirmation', asy
   await page.getByRole('button', { name: /^Single Player/ }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Original keeper');
   await page.getByRole('button', { name: 'Enter the castle' }).click();
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#game-canvas canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Save and return to title' }).click();
   await page.getByRole('button', { name: 'Backups', exact: true }).click();
   await page.locator('#import-save').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{broken') });

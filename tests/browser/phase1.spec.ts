@@ -7,7 +7,7 @@ async function create(page: Page, name = 'Ada') {
   await page.getByLabel('Your name', { exact: true }).fill(name);
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await expect(page.locator('#resident-label')).toContainText(name);
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#game-canvas canvas')).toBeVisible();
 }
 test('title, two slots, personal rewards, reload and backup export', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -23,6 +23,7 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   await expect(page.getByRole('button', { name: 'Cacao bean, 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('button', { name: 'Save and return to title' }).click();
+  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
   await inventory(page);
@@ -53,7 +54,7 @@ test('offline package survives a cold page and permits save/load without its ori
   await coldPage.goto(server.url + '/?renderer=canvas');
   await expect(coldPage.locator('#offline-label')).toHaveText('Ready for offline play');
   await coldPage.getByRole('button', { name: /Continue \/ Single Player/ }).click();
-  await expect(coldPage.locator('canvas')).toBeVisible();
+  await expect(coldPage.locator('#game-canvas canvas')).toBeVisible();
   await inventory(coldPage, 'journal');
   await expect(coldPage.getByText('The first page is waiting.')).toBeVisible();
   } finally { await server.stop(); }

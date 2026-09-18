@@ -4,7 +4,7 @@ An original iPhone-first PWA about keeping a haunted castle, knowing a small tow
 
 This is a long-term game project. The current work is Phase 1; the complete first playable release and mature content targets remain open. See [the roadmap](ROADMAP.md) for the tested state, not just the intended feature list.
 
-[Open the Phase 1 build](https://andsuch-mods.github.io/General-AI-Test-Space-1/). GitHub Pages publishes after both browser jobs pass. Wait for `Ready for offline play` before disconnecting. For two phones, install on each device and follow [the device checklist](docs/DEVICE_TESTS.md).
+[Open the Phase 1 build](https://andsuch-mods.github.io/General-AI-Test-Space-1/). GitHub Pages publishes after both browser jobs pass. Check for `Ready for offline play` in Settings before disconnecting. For two phones, install on each device and follow [the device checklist](docs/DEVICE_TESTS.md).
 
 ## Development
 
@@ -24,9 +24,9 @@ The source repository and GitHub Pages site are public. Local saves stay on the 
 
 ## Current playable slice
 
-Create a resident and enter the castle. Drag the left side to walk and tap the right side near furniture to interact. Desktop controls use WASD/arrows and E or Space. `I` opens items, missions, journal and co-op controls; `ESC` saves and returns to the title. Assign owned items to five quick slots. Candles and the household chest are shared, while discoveries and belongings stay personal.
+Create a resident with a live coat preview and enter the castle. Drag the left side to walk; A interacts and B backs out. Desktop controls use WASD/arrows and E or Space. `I` opens items, missions, journal and co-op controls; `ESC` saves and returns to the title after closing ordinary dialogs. Assign owned items to seven quick slots. Candles and the household chest are shared, while discoveries and belongings stay personal. Walk into the bed's turned-down gap to sleep, or open the door to explore the adjoining landing.
 
-The title uses original generated castle art. The room uses separate furniture and material layers, a consistent native pixel scale, directional residents, animated lights and authoritative collision. The exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md`, the [content ledger](docs/CONTENT_LEDGER.md), and [room and controls](docs/ROOM_AND_CONTROLS.md).
+The title uses the room's original floor and wall materials. Residents display at 64 by 96 world pixels, with furniture and effects on a matching two-world-pixel grid. Shared time drives the window sky; furniture animates as it opens. Exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md`, the [content ledger](docs/CONTENT_LEDGER.md), and [room and controls](docs/ROOM_AND_CONTROLS.md). See [time and sleep](docs/TIME_AND_SLEEP.md) for solo/co-op rest rules.
 
 The full game loop remains in development. Physical iPhone acceptance results are not yet available; see [the device checklist](docs/DEVICE_TESTS.md).
 

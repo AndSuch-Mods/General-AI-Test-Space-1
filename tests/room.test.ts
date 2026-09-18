@@ -15,7 +15,7 @@ describe('room geometry', () => {
         { x: r.x + r.width / 2, y: r.y - 2, dx: 0, dy: 1 },
         { x: r.x + r.width / 2, y: r.y + r.height + 10, dx: 0, dy: -1 },
       ];
-      for (const point of approaches.filter(canStand)) {
+      for (const point of approaches.filter(point => canStand(point))) {
         const moved = moveInRoom(point, point.dx, point.dy, 180);
         expect(canStand(moved), object.id).toBe(true);
         expect(Math.hypot(moved.x - point.x, moved.y - point.y), object.id).toBeLessThan(4.1);

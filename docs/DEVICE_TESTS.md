@@ -6,15 +6,17 @@ Record the two phone models, iOS versions, network type, build commit, installat
 
 ## Installation and solo play
 
-1. Open the deployed game in Safari, add it to the Home Screen, and wait for `Ready for offline play`.
+1. Open the deployed game in Safari, add it to the Home Screen, and check Settings for `Ready for offline play`.
 2. Launch in landscape and portrait. Check safe areas, touch targets, keyboard dismissal and the rotation message.
 3. Create a resident in each world slot. Read the letter, collect the parcel, light the hearth, and export both saves to Files.
 4. Close the installed app. Disconnect internet and cold-launch it. Both slots and their separate progress must load.
 5. Import the backup into a disposable occupied slot. Cancel once and confirm once. Cancellation must leave progress unchanged.
 6. Install a newer build. It must wait for an explicit restart at the title screen and preserve both worlds.
-7. Walk into every side of the bed, desk, chest and other solid furnishings. Check scale, left/right strides, occlusion and the closer camera. No feet should enter furniture.
-8. Drag from several places on the left side. Release, cancel, rotate and open inventory while holding. Movement must stop. Tap the right side near furniture and test the action choices.
-9. Toggle both candles, inspect the furnishings, assign cacao to a quick slot and reload. The lights and personal quick-slot choices must persist. Review flicker and fire against the room pixel style.
+7. Walk into every solid side of the bed, desk and chest. The pillow/cover entry gap is the deliberate bed exception. Check adult scale, left/right strides and occlusion.
+8. Drag from several places on the left side. Release, cancel, rotate and open inventory while holding. Movement must stop. Right-side background taps must do nothing. Test A, B and direct action choices with the same thumb.
+9. Change coat colors in character creation and compare the live preview with the actual resident. Assign cacao to slot seven and reload. Toggle candles, open/close chest, cupboard and desk. Review their motion and the fire against the room's pixel grid.
+10. Enter the bed from each side. The resident must appear beneath the quilt before waking on clear floor. Check sunrise, foggy daytime and night windows. Solo time must pause in menus. B during the brief rest transition must get up without clearing deep fatigue.
+11. Use the room exit, save/reload on the landing, and return. Check the 44-pixel inset HUD and seven-slot bar on small landscape phones and around safe areas. Record actual WebGL frame rate and thermal behavior.
 
 ## Two resident household
 
@@ -27,5 +29,7 @@ Record the two phone models, iOS versions, network type, build commit, installat
 7. Repeat with internet disconnected while the local Wi-Fi router stays on. A reachable local network is still required. Record network isolation failures separately.
 8. Restore an older host backup while keeping a newer guest mirror. The guest must refuse the stale host without erasing either copy.
 9. Have either player toggle candles and use the shared chest. Race withdrawals, interrupt a transfer and reconnect. Count the total cacao across both inventories and the chest before and after; it must be conserved.
+10. Send one resident to the landing while the other stays in the room. They must disappear from each other's map and reappear on return. Opening a container on one phone must animate it on the other when both are in the room.
+11. Put one resident to bed while the other moves and uses a menu. Time must continue normally. B wakes only the sleeping resident. Put both to bed and verify the shared wake time and personal energy/fatigue. Save/rejoin during rest, and drop an awake guest while the host sleeps.
 
-Phase 2 adds separate maps and simulation stress tests. Phase 3 adds multi-day sessions, time scale, fatigue and sleep. Do not mark those systems passed from this arrival-room checklist.
+The current correction milestone brings a room/landing connection and basic time/rest forward. Phase 2 still adds town/forest and simulation stress; Phase 3 still requires multi-day device runs and broader health/schedule integration. Do not mark those phases complete from this checklist.

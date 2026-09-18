@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { arrival } from '../content/arrival';
 import { createPlayer, parseWorld, type Player, type World } from './model';
-import { canInteract, canStand, moveInRoom, objectForAction, safePosition } from '../content/room';
+import { canInteract, canStand, inBedEntry, moveInRoom, objectForAction, safePosition } from '../content/room';
+import { advanceWorldClock, gameMinutes, startSleep, wakePlayer } from './time';
 
 export const IntentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('move'), dx: z.number().min(-1).max(1), dy: z.number().min(-1).max(1) }).strict(),
   z.object({ kind: z.literal('interact'), target: z.enum(arrival.map(event => event.id)) }).strict(),
   z.object({ kind: z.literal('transfer'), direction: z.enum(['deposit', 'withdraw']), item: z.literal('cacao-bean'), count: z.number().int().positive().max(999) }).strict(),
+  z.object({ kind: z.literal('wake') }).strict(),
+  z.object({ kind: z.literal('close-interaction') }).strict(),
 ]);
 export type Intent = z.infer<typeof IntentSchema>;
 export type CommitWorld = (world: World) => Promise<void>;
@@ -16,7 +19,8 @@ export class Authority {
   private queue: Promise<unknown> = Promise.resolve();
   private listeners = new Set<(world: World) => void>();
   private lastFailure: unknown;
-  constructor(public world: World, private commit: CommitWorld) { this.world = parseWorld(world); }
+  private activeIds: string[];
+  constructor(public world: World, private commit: CommitWorld) { this.world = parseWorld(world); this.activeIds = [this.world.hostId]; }
   subscribe(fn: (world: World) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private transaction<T>(mutate: (draft: World) => T): Promise<T> {
     const result = this.queue.then(async () => {
@@ -37,10 +41,33 @@ export class Authority {
     return result;
   }
   async flush() { await this.queue; if (this.lastFailure) throw this.lastFailure; }
+  setActivePlayers(ids: readonly string[]) { this.activeIds = [...new Set([this.world.hostId, ...ids])].filter(id => !!this.world.players[id]); }
+  async releasePlayer(id: string) {
+    this.setActivePlayers(this.activeIds.filter(active => active !== id));
+    if (this.world.players[id]) await this.transaction(world => { world.players[id].interaction = null; });
+  }
+  async advanceTime(realSeconds: number, options: { activeIds: string[]; paused: boolean }): Promise<boolean> {
+    if (!Number.isFinite(realSeconds) || realSeconds < 0) throw Error('Invalid clock input');
+    this.setActivePlayers(options.activeIds);
+    if (options.paused || realSeconds === 0) return false;
+    return this.transaction(world => {
+      const residents = this.activeIds.map(id => world.players[id]);
+      const allSleeping = residents.every(player => player.fatigue.sleeping);
+      const minutes = allSleeping ? Math.max(0, Math.min(...residents.map(player => player.fatigue.wakeAt!)) - world.clock.totalMinutes)
+        : gameMinutes(Math.min(realSeconds, 5), world.clock.secondsPerGameMinute);
+      advanceWorldClock(world, minutes, this.activeIds);
+      // A returning sleeper may have finished resting while their device was absent.
+      for (const player of residents) if (player.fatigue.sleeping && player.fatigue.wakeAt! <= world.clock.totalMinutes) wakePlayer(player, player.fatigue.wakeAt!);
+      return true;
+    });
+  }
   async prepareRoom() {
-    if (Object.values(this.world.players).every(canStand)) return;
+    if (Object.values(this.world.players).every(player => !player.interaction && (player.fatigue.sleeping || canStand(player)))) return;
     await this.transaction(world => {
-      for (const player of Object.values(world.players)) Object.assign(player, safePosition(player));
+      for (const player of Object.values(world.players)) {
+        player.interaction = null;
+        if (!player.fatigue.sleeping) Object.assign(player, safePosition(player));
+      }
     });
   }
   async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; worldId: string; epoch: string; revision: number }) {
@@ -50,6 +77,7 @@ export class Authority {
     return this.transaction(world => {
       if (world.guestId) {
         if (world.guestId !== identity.id || world.guestKey !== identity.key) throw Error('This world already has a second resident. Rejoin from their device or recovery backup.');
+        world.players[world.guestId].interaction = null;
         return world.guestId;
       }
       const player = createPlayer(identity.name, identity.appearance, identity.id);
@@ -67,11 +95,20 @@ export class Authority {
       const player = world.players[actor];
       if (!player) throw Error('Unknown resident');
       if (sequence <= (world.lastSequence[actor] ?? 0)) return false;
-      if (intent.kind === 'move') {
+      if (intent.kind === 'wake') {
+        wakePlayer(player, world.clock.totalMinutes);
+      } else if (intent.kind === 'close-interaction') {
+        player.interaction = null;
+      } else if (player.fatigue.sleeping) {
+        // Held movement cannot wake a resident or retrigger bed entry after a jump.
+      } else if (intent.kind === 'move') {
         // One bounded step per request; the session rate-limits remote movement to 10 Hz.
         Object.assign(player, moveInRoom(player, intent.dx, intent.dy));
+        player.interaction = null;
+        if (inBedEntry(player)) startSleep(player, world.clock.totalMinutes);
       } else if (intent.kind === 'transfer') {
-        if (!canInteract(player, objectForAction('chest'))) throw Error('Move closer to the household chest.');
+        const chest = objectForAction('chest', player.map);
+        if (!chest || !canInteract(player, chest)) throw Error('Move closer to the household chest.');
         const from = intent.direction === 'deposit' ? player.inventory : world.chest;
         const to = intent.direction === 'deposit' ? world.chest : player.inventory;
         if ((from[intent.item] ?? 0) < intent.count) throw Error('That stack has changed. Choose an available amount.');
@@ -80,8 +117,11 @@ export class Authority {
         to[intent.item] = (to[intent.item] ?? 0) + intent.count;
       } else {
         const event = arrival.find(entry => entry.id === intent.target)!;
-        if (!canInteract(player, objectForAction(event.id))) throw Error('Move closer to interact.');
-        if (event.id === 'candle-desk' || event.id === 'candle-table') {
+        const object = objectForAction(event.id, player.map);
+        if (!object || !canInteract(player, object)) throw Error('Move closer to interact.');
+        if (event.id === 'door-out') Object.assign(player, { map: 'landing', x: 480, y: 300, interaction: null });
+        else if (event.id === 'door-home') Object.assign(player, { map: 'castle', x: 685, y: 278, interaction: null });
+        else if (event.id === 'candle-desk' || event.id === 'candle-table') {
           world.story.flags[event.id] = !(world.story.flags[event.id] ?? true);
         } else if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
           player.discoveries.push(event.id);
@@ -92,6 +132,7 @@ export class Authority {
           world.events.push({ id: crypto.randomUUID(), kind: event.id, actor, minute: world.clock.totalMinutes });
           world.quests['a-light-for-the-house'] = 'complete';
         }
+        if (event.id === 'chest' || event.id === 'pantry' || event.id === 'desk') player.interaction = event.id;
       }
       world.lastSequence[actor] = sequence;
       return true;

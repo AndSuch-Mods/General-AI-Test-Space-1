@@ -10,7 +10,7 @@ An `Authority` applies validated intents to a draft and commits the complete tra
 
 ## Transport and reconnect
 
-`Transport` separates sessions from browser WebRTC. One ordered DataChannel carries the prototype protocol. Pairing is a two-way exchange of offer and answer after ICE gathering. Rotating, numbered QR frames keep codes readable; a complete manual text exchange is always available. No STUN, TURN, matchmaking, cloud signaling or game server is required by this implementation. Reachable local network candidates are required. Networks with client isolation can fail; do not claim every Wi-Fi or hotspot works before device testing.
+`Transport` separates sessions from browser WebRTC. One ordered DataChannel carries the versioned session protocol. Pairing is a two-way exchange of offer and answer after ICE gathering. Rotating, numbered QR frames keep codes readable; a complete manual exchange is always available. No STUN, TURN, matchmaking, cloud signaling or game server is required. Reachable local network candidates are required. Networks with client isolation can fail; do not claim every Wi-Fi or hotspot works before device testing.
 
 The pairing envelope includes protocol version, session UUID, world UUID and timeline UUID. The first guest identity is durably stored on the guest device before pairing finishes. A world then reserves its second resident UUID and recovery key. Returning guests must match both. This key is automatic continuity data, not an account or password prompt.
 
@@ -22,9 +22,11 @@ A newer guest recovery revision stops the join. Different world/timeline IDs als
 
 The arrival hall is a small playable integration slice. Reading the letter and opening the welcome parcel are personal, and lighting the hearth changes the shared world. The second resident can do either. This is a starting room in the actual game architecture, not the complete first-release loop.
 
-Movement uses bounded 14-pixel steps with a 110 ms input cadence and collision-safe visual interpolation. Room objects share explicit rendering rectangles, collision footprints and reachable actions. The host spaces incoming movement and acknowledges every processed sequence, avoiding the former silent-drop stall. Each accepted step still commits durably. Phase 2 must replace that expensive provisional cadence with a fixed host simulation and checkpoint batching while preserving durable item/world transactions. Zone interest management is not implemented. See ROOM_AND_CONTROLS.md for the revised room, controls and protocol 2 contract.
+Movement uses bounded 14-pixel steps with a 110 ms input cadence and collision-safe visual interpolation. Room objects share explicit rendering rectangles, collision footprints and reachable actions. The host spaces incoming movement and acknowledges every processed sequence, avoiding the former silent-drop stall. Each accepted step still commits durably. Phase 2 must replace that expensive provisional cadence with a fixed host simulation and checkpoint batching while preserving durable item/world transactions. Broader zone interest management is not implemented. See ROOM_AND_CONTROLS.md for the revised room, controls and protocol 3 contract.
 
-The world clock schema starts at 18:00 and includes `secondsPerGameMinute = 1`. The conversion function is tested. The clock does not yet advance in gameplay; shared time, sleep and fatigue are Phase 3. No fixed-hour forced sleep is introduced.
+The world starts at 18:00 with `secondsPerGameMinute = 1`. The user's bed/window request brought a running shared clock, independent sleep and fatigue forward. Solo menus pause; private co-op menus do not. All present residents sleeping advances to the earliest requested wake time after a short presentation pause. Full rest resets only the rested person's fatigue. There is no fixed-hour forced sleep. TIME_AND_SLEEP.md records tuning and limits; SAVE_MIGRATIONS.md records schema 2 and protocol 3.
+
+The room door now reaches a small adjoining landing. Map identity participates in host collision, interaction checks, saves and compact updates. Each client renders only residents on its current map. This is the first two-map connection; town/forest content and broader interest management remain pending. Container opening is per-resident state so two people can use the chest without one closing the other's lid.
 
 ## Browser lifecycle and ownership
 

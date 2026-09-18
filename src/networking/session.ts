@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Authority, IntentSchema, type Intent } from '../game/authority';
-import { parseWorld, PlayerSchema, PROTOCOL_VERSION, type World } from '../game/model';
+import { parseWorld, PlayerSchema, PROTOCOL_VERSION, WorldSchema, type World } from '../game/model';
 import type { GameDatabase, Mirror } from '../persistence/database';
 import type { Pairing } from './webrtc';
 import type { Transport } from './transport';
@@ -16,7 +16,7 @@ export class HostSession {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private transport: Transport, private authority: Authority, private status: (text: string) => void) {
     transport.onState = state => {
-      if (state !== 'open') { this.guestId = undefined; this.status('Player 2 disconnected. Their progress is saved. You can keep playing.'); }
+      if (state !== 'open') { this.releaseGuest(); this.status('Player 2 disconnected. Their progress is saved. You can keep playing.'); }
     };
     transport.onMessage = raw => {
       this.queue = this.queue.then(() => this.receive(raw)).catch(error => {
@@ -32,6 +32,7 @@ export class HostSession {
       const id = await this.authority.join(hello);
       if (this.closed || !this.transport.ready) return;
       this.guestId = id;
+      this.authority.setActivePlayers([this.authority.world.hostId, id]);
       this.publish();
       this.status(`${this.authority.world.players[this.guestId].name} has arrived.`);
     } else {
@@ -52,15 +53,21 @@ export class HostSession {
     if (!this.guestId || !this.transport.ready) return;
     const world = this.authority.world;
     if (positionsOnly) this.transport.send({ kind: 'positions', worldId: world.worldId, epoch: world.epoch, revision: world.revision,
-      players: Object.values(world.players).map(p => ({ id: p.id, x: p.x, y: p.y })), lastSequence: world.lastSequence });
+      clock: world.clock, weather: world.weather,
+      players: Object.values(world.players).map(p => ({ id: p.id, map: p.map, x: p.x, y: p.y, fatigue: p.fatigue, energy: p.energy, interaction: p.interaction })), lastSequence: world.lastSequence });
     else this.transport.send({ kind: 'snapshot', world });
   }
-  close() { this.closed = true; this.guestId = undefined; this.transport.close(); }
+  private releaseGuest() {
+    const id = this.guestId; this.guestId = undefined;
+    if (id) void this.authority.releasePlayer(id).catch(error => this.status(error instanceof Error ? error.message : 'Could not save session exit.'));
+  }
+  close() { this.closed = true; this.releaseGuest(); this.transport.close(); }
   async flush() { await this.queue; await this.authority.flush(); }
 }
 
 const Positions = z.object({ kind: z.literal('positions'), worldId: z.string().uuid(), epoch: z.string().uuid(), revision: z.number().int().nonnegative(),
-  players: z.array(z.object({ id: z.string().uuid(), x: PlayerSchema.shape.x, y: PlayerSchema.shape.y })).max(2),
+  clock: WorldSchema.shape.clock, weather: WorldSchema.shape.weather,
+  players: z.array(PlayerSchema.pick({ id: true, map: true, x: true, y: true, fatigue: true, energy: true, interaction: true })).max(2),
   lastSequence: z.record(z.string().uuid(), z.number().int().nonnegative()) });
 export class GuestSession {
   world?: World;
@@ -95,10 +102,12 @@ export class GuestSession {
       world = structuredClone(this.world);
       for (const p of positions.players) {
         if (!world.players[p.id]) throw Error('Unknown player update');
-        Object.assign(world.players[p.id], { x: p.x, y: p.y });
+        Object.assign(world.players[p.id], p);
       }
       world.revision = positions.revision;
       world.lastSequence = positions.lastSequence;
+      world.clock = positions.clock; world.weather = positions.weather;
+      world = parseWorld(world);
     } else throw Error('Unknown session update');
     if (world.worldId !== this.pairing.worldId || world.epoch !== this.pairing.epoch) throw Error('Wrong world snapshot');
     if (world.revision < Math.max(this.world?.revision ?? 0, this.mirror?.world.revision ?? 0)) throw Error('An older host snapshot was rejected. Keep both recovery copies.');

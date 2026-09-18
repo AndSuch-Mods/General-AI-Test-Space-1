@@ -9,13 +9,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('floating touch controls, compact HUD and movement cancellation', async ({ page }) => {
-  await expect(page.locator('.chapter-note,.touch-pad,.arrival-help,.interact-button')).toHaveCount(0);
+  await expect(page.locator('.chapter-note,.touch-pad,.arrival-help,.interact-button,#inventory-more,.quick-more')).toHaveCount(0);
   await expect(page.locator('#thumbstick')).toBeHidden();
-  await expect(page.locator('#game-clock')).toHaveText('18:00');
-  await expect(page.locator('.quick-slot')).toHaveCount(5);
+  await expect(page.locator('#game-clock')).toHaveText(/^\d{2}:\d{2}$/);
+  await expect(page.locator('.quick-slot')).toHaveCount(7);
   for (const width of [844, 667]) {
     await page.setViewportSize({ width, height: 390 });
-    const targets = await page.locator('.hud-button,.quick-slot,.quick-more').evaluateAll(elements => elements.map(element => {
+    const targets = await page.locator('.hud-button,.quick-slot,.action-key').evaluateAll(elements => elements.map(element => {
       const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     }));
     for (const target of targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); expect(target.x).toBeGreaterThanOrEqual(0); expect(target.x + target.width).toBeLessThanOrEqual(width); }
@@ -69,7 +69,7 @@ test('left/right profiles, bed collision and furniture interaction at the closer
   expect(await position(page)).toEqual(stopped);
 });
 
-test('candle choices persist, notifications clear, and quick slots retain personal item references', async ({ page }) => {
+test('candle choices persist and seven quick slots retain items while migrating older five-slot settings', async ({ page }) => {
   await walk(page, 'ArrowUp', 4); await walk(page, 'ArrowLeft', 6);
   await action(page, 'candle-desk');
   await page.getByRole('button', { name: 'Carry on' }).click();
@@ -86,10 +86,38 @@ test('candle choices persist, notifications clear, and quick slots retain person
   await page.getByRole('button', { name: 'Carry on' }).click();
   await inventory(page);
   await page.getByRole('button', { name: 'Cacao bean, 3' }).click();
-  await page.getByRole('button', { name: 'Assign to quick slot 3' }).click();
-  await expect(page.locator('#quick-slot-3')).toHaveAttribute('aria-label', 'Quick slot 3: Cacao bean, 3');
-  await page.locator('#leave').click(); await page.reload();
+  await expect(page.locator('.assign-slots button')).toHaveCount(7);
+  await page.getByRole('button', { name: 'Assign to quick slot 7' }).click();
+  await expect(page.locator('#quick-slot-7')).toHaveAttribute('aria-label', 'Quick slot 7: Cacao bean, 3');
+  await page.locator('#leave').click();
+  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
+  await page.reload();
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
-  await expect(page.locator('#quick-slot-3')).toHaveAttribute('aria-label', 'Quick slot 3: Cacao bean, 3');
+  await expect(page.locator('#quick-slot-7')).toHaveAttribute('aria-label', 'Quick slot 7: Cacao bean, 3');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:false:true');
+  await page.locator('#leave').click();
+  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
+  // The previous released UI stored five slots. Keep those references and append two empty slots.
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('twilight-v1');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction(['saves', 'settings'], 'readwrite');
+      const saved = transaction.objectStore('saves').get(1);
+      saved.onsuccess = () => {
+        const world = saved.result.world;
+        transaction.objectStore('settings').put({ key: `quickSlots:${world.worldId}:${world.hostId}`,
+          value: { slots: ['cacao-bean', null, null, null, null], selected: 4, seen: '' } });
+      };
+      transaction.oncomplete = () => { database.close(); resolve(); };
+      transaction.onerror = () => { database.close(); reject(transaction.error); };
+    };
+  }));
+  await page.reload();
+  await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await expect(page.locator('.quick-slot')).toHaveCount(7);
+  await expect(page.locator('#quick-slot-1')).toHaveAttribute('aria-label', 'Quick slot 1: Cacao bean, 3');
+  await expect(page.locator('#quick-slot-5')).toHaveAttribute('aria-pressed', 'true');
+  for (const slot of [6, 7]) await expect(page.locator(`#quick-slot-${slot}`)).toHaveAttribute('aria-label', `Quick slot ${slot}: empty`);
 });
