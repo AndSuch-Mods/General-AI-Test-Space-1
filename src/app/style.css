@@ -81,79 +81,12 @@ video { width: 100%; max-height: 220px; margin-top: 12px; }
 .interact-button small { display: block; font-size: 10px; opacity: .7; }
 .save-state { position: absolute; bottom: 5px; left: max(20px, env(safe-area-inset-left)); color: #9eada5; font-size: 10px; }
 .arrival-help { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); color: #9eada5; font-size: 10px; }
-#toast { position: fixed; z-index: 30; bottom: max(15px, env(safe-area-inset-bottom)); left: 50%; transform: translate(-50%, 15px); max-width: min(600px, 85vw); padding: 13px 20px; background: #e0c99b; color: #1b2b2e; border: 1px solid #f0d9ab; border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s, transformWorld } from './model';
-
-export const IntentSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('move'), dx: z.number().min(-1).max(1), dy: z.number().min(-1).max(1) }).strict(),
-  z.object({ kind: z.literal('interact'), target: z.enum(['letter', 'hearth', 'pantry']) }).strict(),
-]);
-export type Intent = z.infer<typeof IntentSchema>;
-export type CommitWorld = (world: World) => Promise<void>;
-
-/** The only write authority in solo and co-op. Never accept client-owned inventory or world flags. */
-export class Authority {
-  private queue: Promise<unknown> = Promise.resolve();
-  private listeners = new Set<(world: World) => void>();
-  constructor(public world: World, private commit: CommitWorld) { this.world = parseWorld(world); }
-  subscribe(fn: (world: World) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
-  private transaction<T>(mutate: (draft: World) => T): Promise<T> {
-    const result = this.queue.then(async () => {
-      const draft = structuredClone(this.world);
-      const value = mutate(draft);
-      draft.revision += 1;
-      parseWorld(draft);
-      await this.commit(draft); // Publish only after durable commit. Failure leaves live state unchanged.
-      this.world = draft;
-      for (const listener of this.listeners) listener(this.world);
-      return value;
-    });
-    this.queue = result.catch(() => undefined);
-    return result;
-  }
-  async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; worldId: string; epoch: string; revision: number }) {
-    if (identity.worldId !== this.world.worldId || identity.epoch !== this.world.epoch) throw Error('This character belongs to a different world or timeline.');
-    if (identity.revision > this.world.revision) throw Error('Your recovery copy is newer than the host. Keep both backups; this join was stopped.');
-    if (identity.id === this.world.hostId) throw Error('The host and guest must be different residents.');
-    return this.transaction(world => {
-      if (world.guestId) {
-        if (world.guestId !== identity.id || world.guestKey !== identity.key) throw Error('This world already has a second resident. Rejoin from their device or recovery backup.');
-        return world.guestId;
-      }
-      const player = createPlayer(identity.name, identity.appearance, identity.id);
-      player.x = 530;
-      world.guestId = player.id;
-      world.guestKey = identity.key;
-      world.players[player.id] = player;
-      return player.id;
-    });
-  }
-  dispatch(actor: string, sequence: number, raw: unknown): Promise<boolean> {
-    const intent = IntentSchema.parse(raw);
-    if (!Number.isSafeInteger(sequence) || sequence < 1) return Promise.reject(Error('Invalid action sequence'));
-    return this.transaction(world => {
-      const player = world.players[actor];
-      if (!player) throw Error('Unknown resident');
-      if (sequence <= (world.lastSequence[actor] ?? 0)) return false;
-      if (intent.kind === 'move') {
-        const length = Math.hypot(intent.dx, intent.dy) || 1;
-        // One bounded step per request; the session rate-limits remote movement to 10 Hz.
-        player.x = Math.max(48, Math.min(912, player.x + intent.dx / Math.max(1, length) * 14));
-        player.y = Math.max(190, Math.min(484, player.y + intent.dy / Math.max(1, length) * 14));
-      } else {
-        const event = arrival.find(entry => entry.id === intent.target)!;
-        if (Math.hypot(player.x - event.x, player.y - event.y) > 105) throw Error('Move closer to interact.');
-        if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
-          player.discoveries.push(event.id);
-          player.quests['a-household-begins'] = player.discoveries.includes('letter') && player.discoveries.includes('pantry') ? 'complete' : 'started';
-          if (event.id === 'pantry') player.inventory['cacao-bean'] = (player.inventory['cacao-bean'] ?? 0) + 3;
-        } else if (event.scope === 'shared_world' && !world.story.flags[event.id]) {
-          world.story.flags[event.id] = true;
-          world.events.push({ id: crypto.randomUUID(), kind: event.id, actor, minute: world.clock.totalMinutes });
-          world.quests['a-light-for-the-house'] = 'complete';
-        }
-      }
-      world.lastSequence[actor] = sequence;
-      return true;
-    });
-  }
-}
+#toast { position: fixed; z-index: 30; bottom: max(15px, env(safe-area-inset-bottom)); left: 50%; transform: translate(-50%, 15px); max-width: min(600px, 85vw); padding: 13px 20px; background: #e0c99b; color: #1b2b2e; border: 1px solid #f0d9ab; border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+#toast.visible { opacity: 1; transform: translate(-50%, 0); }
+#rotate { display: none; position: fixed; inset: 0; background: radial-gradient(ellipse at center, #2a3b42, #101b25); z-index: 40; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 30px; }
+.rotate-glyph { color: #d6b886; font-size: 90px; padding-bottom: 20px; }
+#rotate p { font-size: 14px; color: #adb9b5; }
+@media (orientation: portrait) and (max-width: 700px) { #rotate { display: flex; } }
+@media (max-height: 480px) { .title-screen { padding-top: 14px; padding-bottom: 40px; gap: 5vw; } .menu-panel { padding: 16px 20px; max-width: 340px; } .menu-heading { margin-bottom: 12px; } .menu-heading p { font-size: 20px; } .slots { gap: 7px; margin-bottom: 12px; } .slot { padding: 9px; min-height: 57px; } .menu-note { display: none; } .menu-links button { min-height: 35px; } footer { bottom: max(9px, env(safe-area-inset-bottom)); font-size: 9px; } .build-label { display: none; } .title-copy { padding-bottom: 17vh; } .tagline { margin-top: 18px; } .title-line, .world-caption { display: none; } h1 span { margin-top: 15px; } .menu-panel>.primary { min-height: 44px; padding: 9px 13px; font-size: 13px; } .coop-buttons button { min-height: 42px; padding: 8px; } .chapter-note { top: 66px; font-size: 13px; padding: 6px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.reduced-motion * { transition: none !important; animation: none !important; }

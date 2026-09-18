@@ -9,6 +9,8 @@ import { QRAssembler } from '../src/ui/pairing';
 import { GuestSession, HostSession } from '../src/networking/session';
 import type { Transport } from '../src/networking/transport';
 import { validateContent } from '../src/content/arrival';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 
 const databases: GameDatabase[] = [];
 function database() { const db = new GameDatabase(crypto.randomUUID()); databases.push(db); return db; }
@@ -111,6 +113,21 @@ describe('protocol and content', () => {
     expect(qr.add('TQ1|abcdef12|0|2|hello ')).toBe('hello world');
     expect(qr.add('TQ1|11111111|0|2|new')).toBeUndefined();
     expect(qr.progress).toBe('1/2');
+  });
+  it('decodes an actual pairing QR image with the local camera decoder', () => {
+    const frame = 'TQ1|abcdef12|0|1|TW1:local-pairing-payload';
+    const matrix = QRCode.create(frame, { errorCorrectionLevel: 'M' }).modules;
+    const scale = 6, margin = 4, size = (matrix.size + margin * 2) * scale;
+    const pixels = new Uint8ClampedArray(size * size * 4).fill(255);
+    for (let y = 0; y < matrix.size; y++) for (let x = 0; x < matrix.size; x++) if (matrix.get(y, x)) {
+      for (let dy = 0; dy < scale; dy++) for (let dx = 0; dx < scale; dx++) {
+        const index = (((y + margin) * scale + dy) * size + (x + margin) * scale + dx) * 4;
+        pixels[index] = pixels[index + 1] = pixels[index + 2] = 0;
+      }
+    }
+    const decoded = jsQR(pixels, size, size);
+    expect(decoded?.data).toBe(frame);
+    expect(new QRAssembler().add(decoded!.data)).toBe('TW1:local-pairing-payload');
   });
   it('uses a tunable game clock and validates the authored content', () => {
     expect(gameMinutes(1440)).toBe(1440); expect(gameMinutes(60, 1.2)).toBe(50);
