@@ -6,9 +6,10 @@ Implemented code includes the title screen, two world slots, profiles, IndexedDB
 
 Specification coverage, lint, types, 15 unit tests and production build pass. CI now passes seven Chromium and seven WebKit scenarios, including actual DataChannel pairing/reconnect, separate inventories, shared changes, cold-page loading with its HTTP origin stopped, package repair, save-preserving updates, and import/export. WebKit runs on macOS 15. A macOS 26 runner timed out in local network discovery and remains a documented compatibility concern. See VALIDATION.md for exact checkpoint evidence. Real-device results are not available. There are no completed content phases to audit yet.
 
+The tested checkpoint is on `main`. GitHub Pages deployment requires both browser jobs to pass; [Actions](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions) records each publication.
+
 Known open gates:
 
-- Pages deployment verification. Source configuration and remote CI are complete.
 - Real installation and cold offline start on an iPhone.
 - Two-iPhone Wi-Fi pairing, camera permissions, rotating QR scanning, suspension, reconnect and offline local-network operation.
 - Phase 2 three-map movement, collision and fixed-rate authoritative simulation.

@@ -4,6 +4,8 @@ An original iPhone-first PWA about keeping a haunted castle, knowing a small tow
 
 This is a long-term game project. The current work is Phase 1; the complete first playable release and mature content targets remain open. See [the roadmap](ROADMAP.md) for the tested state, not just the intended feature list.
 
+[Open the Phase 1 build](https://andsuch-mods.github.io/General-AI-Test-Space-1/). GitHub Pages publishes after both browser jobs pass. Wait for `Ready for offline play` before disconnecting. For two phones, install on each device and follow [the device checklist](docs/DEVICE_TESTS.md).
+
 ## Development
 
 Use Node 22 or newer and pnpm. Run `pnpm install`, `pnpm dev`, `pnpm check`, and `pnpm test:browser`. `pnpm build` creates a versioned offline package. `pnpm preview` serves the production build for service-worker checks. CI runs Chromium and WebKit before deployment.

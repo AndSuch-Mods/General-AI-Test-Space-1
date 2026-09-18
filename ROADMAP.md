@@ -24,4 +24,4 @@ Implemented: two persistent world slots, separate residents, atomic saves, valid
 
 The user requested an earlier art pass on 2026-09-18. Detailed original castle exterior/interior art and animated resident poses now replace the visible geometric placeholders. This does not mark the full Phase 11 art/audio pass complete.
 
-Browser checkpoint: 15 unit tests and 14 Chromium/WebKit scenarios pass. Immediate work is Pages deployment verification and physical two-iPhone acceptance. Installation, QR and offline local-network pairing on actual phones remain the Phase 1 device gates. Then continue the three-map simulation in Phase 2. See IMPLEMENTATION_STATUS.md and VALIDATION.md for evidence, and DEVICE_TESTS.md for the device procedure.
+Browser checkpoint: 15 unit tests and 14 Chromium/WebKit scenarios pass. GitHub Pages publishes validated main-branch builds. Installation, QR and offline local-network pairing on actual phones remain the Phase 1 device gates. Then continue the three-map simulation in Phase 2. See [implementation status](docs/IMPLEMENTATION_STATUS.md), [validation evidence](docs/VALIDATION.md) and [the device procedure](docs/DEVICE_TESTS.md).
