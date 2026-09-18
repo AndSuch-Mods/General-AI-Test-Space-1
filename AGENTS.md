@@ -6,7 +6,7 @@ Build the long-term original iPhone-first, landscape, offline PWA described by t
 
 Before planning or implementation, read all of:
 
-- `README.md`, `ROADMAP.md`, `CHANGELOG.md`, `docs/IMPLEMENTATION_STATUS.md`
+- `README.md`, `ROADMAP.md`, `CHANGELOG.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/VALIDATION.md`
 - `docs/GAME_DESIGN.md`, `docs/PROJECT_RULES.md`, `docs/CONTENT_TARGETS.md`
 - `docs/MULTIPLAYER.md`, `docs/TECHNICAL_ARCHITECTURE.md`, `docs/ARCHITECTURE_DECISIONS.md`
 - `docs/SAVE_FORMAT.md`, `docs/OFFLINE_AND_PWA.md`, `docs/TEST_PLAN.md`

@@ -12,4 +12,4 @@
 - Added a versioned offline manifest, integrity-checked installation, package repair, explicit update restart and save-preserving update tests.
 - Configured GitHub Actions validation and Pages deployment. Browser validation uses Chromium on Linux and WebKit on macOS.
 - Replaced visible geometric placeholder artwork after user review with original generated castle artwork and twelve directional resident poses. Added fire, embers and restrained ambient particles; retained Phaser.
-- Local checks pass with 15 unit tests. Chromium's initial six browser scenarios passed in CI. WebKit offline tests now stop the origin server instead of relying on its failing offline emulation. The current art/recovery checkpoint is undergoing full CI validation; physical iPhone testing remains open.
+- Specification, lint, types, 15 unit tests, build, and all 14 Chromium/WebKit browser scenarios pass at the art checkpoint. WebKit uses a pinned macOS 15 runner; macOS 26 local discovery failed and remains documented. Offline tests stop the HTTP origin and open a cold page. Physical two-iPhone testing remains open.

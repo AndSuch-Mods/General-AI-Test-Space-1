@@ -67,11 +67,13 @@ test('manual WebRTC pairing, independent discoveries, shared hearth and guest re
   test.setTimeout(180000);
   const first = await browser.newContext({ viewport: { width: 1000, height: 650 } });
   const second = await browser.newContext({ viewport: { width: 1000, height: 650 } });
+  const server = await offlineServer();
+  try {
   const host = await first.newPage(); const guest = await second.newPage();
   for (const page of [host, guest]) {
     page.on('pageerror', error => console.log(browserName, 'page error', error.message));
   }
-  await host.goto('/?renderer=canvas'); await guest.goto('/?renderer=canvas'); await create(host, 'Host');
+  await host.goto(server.url + '/?renderer=canvas'); await guest.goto(server.url + '/?renderer=canvas'); await create(host, 'Host');
   const supportsRTC = await host.evaluate(() => typeof RTCPeerConnection === 'function');
   test.skip(!supportsRTC, `${browserName} runtime has no RTCPeerConnection; real two-iPhone transport testing remains required.`);
   const pair = async () => {
@@ -90,6 +92,10 @@ test('manual WebRTC pairing, independent discoveries, shared hearth and guest re
     await host.getByRole('button', { name: 'Close dialog' }).click();
   };
   await pair();
+  // Remove the real HTTP origin while preserving the local network used by RTC.
+  // Both existing peers and a fresh pairing must work without the web server.
+  await server.stop();
+  await expect(async () => { await fetch(server.url); }).rejects.toThrow();
   await walk(guest, 'ArrowUp', 5);
   await guest.getByRole('button', { name: 'Interact' }).click();
   await expect(guest.getByRole('heading', { name: 'The house exhales' })).toBeVisible();
@@ -107,6 +113,6 @@ test('manual WebRTC pairing, independent discoveries, shared hearth and guest re
   await expect(guest.getByText('3 cacao bean')).toBeVisible();
   await host.getByRole('button', { name: 'Journal & satchel' }).click();
   await expect(host.getByText('Your satchel is empty.')).toBeVisible();
-  await first.close(); await second.close();
+  } finally { await server.stop(); await first.close(); await second.close(); }
 });
 
