@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { offlineServer } from './offline-server';
 
 async function create(page: Page, name = 'Ada') {
   await page.getByRole('button', { name: /^Single Player/ }).click();
@@ -42,14 +43,17 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   expect((await download).suggestedFilename()).toBe('twilight-worlds.json');
   expect(errors).toEqual([]);
 });
-test('offline package survives a cold page and permits save/load without internet', async ({ page, context }) => {
-  await page.goto('/?renderer=canvas');
+test('offline package survives a cold page and permits save/load without its origin', async ({ page }) => {
+  const server = await offlineServer();
+  await page.goto(server.url + '/?renderer=canvas');
   await expect(page.locator('#offline-label')).toHaveText('Ready for offline play', { timeout: 30000 });
   await create(page);
   await page.getByRole('button', { name: 'Save & title' }).click();
-  await context.setOffline(true);
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await server.stop();
+  await expect(async () => { await fetch(server.url); }).rejects.toThrow();
   await page.reload();
-  await expect(page.locator('#offline-label')).toHaveText('Running offline');
+  await expect(page.locator('#offline-label')).toHaveText('Ready for offline play');
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
   await expect(page.locator('canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Journal & satchel' }).click();
@@ -60,6 +64,21 @@ test('manual WebRTC pairing, independent discoveries, shared hearth and guest re
   const first = await browser.newContext({ viewport: { width: 1000, height: 650 } });
   const second = await browser.newContext({ viewport: { width: 1000, height: 650 } });
   const host = await first.newPage(); const guest = await second.newPage();
+  for (const page of [host, guest]) {
+    page.on('console', message => { if (message.text().startsWith('RTC:')) console.log(browserName, message.text()); });
+    await page.addInitScript(() => {
+      if (typeof RTCPeerConnection !== 'function') return;
+      const Native = RTCPeerConnection;
+      window.RTCPeerConnection = class extends Native {
+        constructor(config?: RTCConfiguration) {
+          super(config);
+          this.addEventListener('iceconnectionstatechange', () => console.log('RTC: ICE', this.iceConnectionState));
+          this.addEventListener('connectionstatechange', () => console.log('RTC: peer', this.connectionState));
+          this.addEventListener('datachannel', event => console.log('RTC: channel delivered', event.channel.readyState));
+        }
+      };
+    });
+  }
   await host.goto('/?renderer=canvas'); await guest.goto('/?renderer=canvas'); await create(host, 'Host');
   const supportsRTC = await host.evaluate(() => typeof RTCPeerConnection === 'function');
   test.skip(!supportsRTC, `${browserName} runtime has no RTCPeerConnection; real two-iPhone transport testing remains required.`);
