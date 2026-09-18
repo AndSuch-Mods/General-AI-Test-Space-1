@@ -1,0 +1,272 @@
+{
+  "masterPath": "docs/master/Haunted_Chocolatier_Twilight_AGENTS.md",
+  "masterSha256": "bba12cd0da0a2f79143924186f2d9dc95839b7f722e3475098ad6a769c5edf44",
+  "preamble": "# AGENTS.md — Haunted Chocolatier: Twilight\n\n",
+  "sections": [
+    {
+      "section": "Project title",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "d9381c2e316891451f6f995c77bcdbe3b6c65558717760c7a45d256447fd9500"
+    },
+    {
+      "section": "0",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "c718c4ca72729293c95d8cf4d56cbfa8620663afbb48dad913492b1b9ca15568"
+    },
+    {
+      "section": "2",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "ad0498917eb20fc8b5808f862491778d881468ea77ca501a1f88fdf3deed5636"
+    },
+    {
+      "section": "4",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "80e8752b8aad2fbc36ed09c9cfdec5f940c9e425845437d489048d865cbd1974"
+    },
+    {
+      "section": "12",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "500adfd29aadd2cb6175db020093e84005b73881efe0dbeb55879cec5b63cd95"
+    },
+    {
+      "section": "45",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "4f13c0e50f65ad0857b723c739368b3474fd84af7f252a734fe163f59c399ccf"
+    },
+    {
+      "section": "49",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "e695ec18f5a7a4f1783849005bfbb0144f62b1b7eb5c77e78c577e7b5ac69d1c"
+    },
+    {
+      "section": "50",
+      "document": "docs/GAME_DESIGN.md",
+      "sha256": "83d8936b7be6683eb1efa49814cbfb0544b5c8d524a932d78191e417f55fd657"
+    },
+    {
+      "section": "1",
+      "document": "docs/PROJECT_RULES.md",
+      "sha256": "97d2cf61d16503713667ae0c726bf1891d304d98eb25e8254886a8c2cad2048f"
+    },
+    {
+      "section": "47",
+      "document": "docs/PROJECT_RULES.md",
+      "sha256": "d7adec77b0051dfa12ba81709088597d1e52d272d6c1f1c836530a3ddab54fc8"
+    },
+    {
+      "section": "48",
+      "document": "docs/PROJECT_RULES.md",
+      "sha256": "3fdff313a1dbd3ff3403a8ecd2998dfc01cc31c9675d7b4880be21cc08145166"
+    },
+    {
+      "section": "3",
+      "document": "docs/REFERENCE_AND_ART.md",
+      "sha256": "cd164232939a49f40ddd8ba7dfedda86bc6147fe47fe2ee56ec6d54ebf3a852c"
+    },
+    {
+      "section": "8",
+      "document": "docs/REFERENCE_AND_ART.md",
+      "sha256": "212425fc76a119fae3a0425db3d01b51c178f056a62f6ef551ae9824bad02aac"
+    },
+    {
+      "section": "9",
+      "document": "docs/REFERENCE_AND_ART.md",
+      "sha256": "b30ecc741902a37a9266dfed9c73da3395be1d53eb82cbd1207e45a3c5ad72f0"
+    },
+    {
+      "section": "4A",
+      "document": "docs/MULTIPLAYER.md",
+      "sha256": "14f5de3f36473e5e8b3ba3a6b56e4a8b0b946ccf3eb321918972d646f6a282aa"
+    },
+    {
+      "section": "5",
+      "document": "docs/TECHNICAL_ARCHITECTURE.md",
+      "sha256": "4adcb8ea26667d3c986d229f2bc796ffea00bdd716048b6680b7f3009c4c88eb"
+    },
+    {
+      "section": "6",
+      "document": "docs/TECHNICAL_ARCHITECTURE.md",
+      "sha256": "a3d2252f8a81d259ae9b07f64697bed18be295eb182350927c5192ce450b2bca"
+    },
+    {
+      "section": "7",
+      "document": "docs/TECHNICAL_ARCHITECTURE.md",
+      "sha256": "5fbd7d7d12b7bdbfcb15b0a047766fc6d50915b7371d3327f9543a952d6bce21"
+    },
+    {
+      "section": "41",
+      "document": "docs/TECHNICAL_ARCHITECTURE.md",
+      "sha256": "557a628a34f6100df30150812fb73dfc0df5ec4552f7bd8229ea97d1069c54cb"
+    },
+    {
+      "section": "10",
+      "document": "docs/OFFLINE_AND_PWA.md",
+      "sha256": "26608dfce408d2368e3ff96a3df9c1385199669771049cb8340808b66adea74e"
+    },
+    {
+      "section": "43",
+      "document": "docs/OFFLINE_AND_PWA.md",
+      "sha256": "97d781c1f94dcd633a4bb4ae70cd3a8b3a9fac8074e9e24edb5fcf84ace38091"
+    },
+    {
+      "section": "11",
+      "document": "docs/SAVE_FORMAT.md",
+      "sha256": "d638a43db6f9d6e12d7cf757c59b5a63bf91d44ed97e42e5f9a2ee22cadd57ba"
+    },
+    {
+      "section": "13",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "b32b3d6756b506e0e8dfbd2842e61be7a5ef4050a9feeff132046ad32da72eb4"
+    },
+    {
+      "section": "28",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "ea6abb4082f166bd1838bc43764dcd0601dc5ee624649b41eb48fe3cfc0f2975"
+    },
+    {
+      "section": "30",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "dcdff8927282e9e759b42f0100b9a24cdc092bc4f4908c5cc6fd62fedd30d77c"
+    },
+    {
+      "section": "34",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "483985e31264ebd1991fec60ba7efd97004b3f2060b2561fc315509a1974cf47"
+    },
+    {
+      "section": "36",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "02e2c78d0f92ee5711c6ea4ab07607fa470e7b6b2cd6fd0147613c545a41a0c4"
+    },
+    {
+      "section": "38",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "38e6bbe2732e7c9a492c1a5f886495e16f9cc3f7af4e81919f19fc7fc378151f"
+    },
+    {
+      "section": "39",
+      "document": "docs/WORLD_BIBLE.md",
+      "sha256": "644c6975c1ccd4cabc00abbb0165187d3a311588c09d4e7035882678c4bceabf"
+    },
+    {
+      "section": "14",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "76990b0643f5bdbe89fbe5606d6285ae41cc47f885b44e1d37913b9f18bdbd52"
+    },
+    {
+      "section": "15",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "a6af9827d34f3c299001fc7997b7853050fe8c816c08fb3fe321365a0597717d"
+    },
+    {
+      "section": "16",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "147479ba5778180515510c20b788f6961cda2bffca8cf33bbbddc19950b76206"
+    },
+    {
+      "section": "17",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "8c94c7dd4c7e24a106f5bfe55fd62718995e3e601eb18d9dd0c6c361375de56f"
+    },
+    {
+      "section": "18",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "ee3f355c52c43e26eb86a0a0feef0441faa45e2584f29f1ce7860970620041a4"
+    },
+    {
+      "section": "19",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "bebeb24d24c321daa2b2fcac21ebdb8932d604b41bb7dd855f0fb88b61f01a9c"
+    },
+    {
+      "section": "20",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "9b5a383393db182ea16c67f1128e882fdc0538be3349c1d1a9a46451972917b3"
+    },
+    {
+      "section": "21",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "170faf3fddb1f52a0ca95666f1bbd500f929a3bb60f8ba23ea79a2f52680813a"
+    },
+    {
+      "section": "22",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "887c80f98861e3fdd262f270ed4ca0db095925eb22006a19f8c2ec8355ca6028"
+    },
+    {
+      "section": "27",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "73200c4791dddae0d93362dcd1f7695b85339cc4f43053399a82635def4e178c"
+    },
+    {
+      "section": "29",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "d294771dfb5e579ac5e88c18086d8a2bac1ef05d27072a8368a2891d4489c84c"
+    },
+    {
+      "section": "35",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "8c90204e169ca3f0690d53081d18599445629be04ce7e5bcacd926128af130dd"
+    },
+    {
+      "section": "37",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "ae504ab6665553c187af7826084e7c409f39241f6c736ca0285a863526fcfeda"
+    },
+    {
+      "section": "40",
+      "document": "docs/SYSTEMS.md",
+      "sha256": "6c0911aacd99aa4a764b3a851f6327c1d098a5108cfa72c20c5a1033d42687e0"
+    },
+    {
+      "section": "23",
+      "document": "docs/NPCS_AND_RELATIONSHIPS.md",
+      "sha256": "03787c25ad4fb691fe4eb81f8d7df168a4cc394925b4701769df3d97becfd008"
+    },
+    {
+      "section": "24",
+      "document": "docs/NPCS_AND_RELATIONSHIPS.md",
+      "sha256": "3494863383e87540177b6f949c910a98244f5e1bed0089104ceb331b22f44a27"
+    },
+    {
+      "section": "25",
+      "document": "docs/NPCS_AND_RELATIONSHIPS.md",
+      "sha256": "b541f08bafc27013b3b9f62c77391cf328b71676a35e373255968ff2c45549c0"
+    },
+    {
+      "section": "33",
+      "document": "docs/NPCS_AND_RELATIONSHIPS.md",
+      "sha256": "872a3161c56e2ee359e706e07cbdc439b9d7bad8d2d3c1a1d3fcaf93fed8a3fb"
+    },
+    {
+      "section": "26",
+      "document": "docs/STORY_BIBLE.md",
+      "sha256": "614702fb1ff6378bc9d1934cccff09b77a01c41d02b04bb979119a70f2828957"
+    },
+    {
+      "section": "32",
+      "document": "docs/STORY_BIBLE.md",
+      "sha256": "df9e18b9bcb2ddfa13973d0ed86461f2f7f6900799431040de21f911fdd0469e"
+    },
+    {
+      "section": "31",
+      "document": "docs/CONTENT_TARGETS.md",
+      "sha256": "47eccc24eaba3e7e37fde93107ad9ac569cbdc2e35ffc844e1c1f81bda0ef596"
+    },
+    {
+      "section": "42",
+      "document": "docs/TEST_PLAN.md",
+      "sha256": "89e5e70247a944493f4baf47c5fe8eae6d363a646a897f95eede2fb01ca71c59"
+    },
+    {
+      "section": "46",
+      "document": "docs/TEST_PLAN.md",
+      "sha256": "9a4a87f98d843aeefe1e7462bcc34f4501342fa01507a414c460abe6034d321c"
+    },
+    {
+      "section": "44",
+      "document": "docs/PHASES.md",
+      "sha256": "fb0a042b0d98e94b0a787376d2569043801521ec96db902bb4acba02361d8981"
+    }
+  ]
+}
