@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { Authority, IntentSchema, type Intent } from '../game/authority';
-import { parseWorld, PlayerSchema, type World } from '../game/model';
+import { parseWorld, PlayerSchema, PROTOCOL_VERSION, type World } from '../game/model';
 import type { GameDatabase, Mirror } from '../persistence/database';
 import type { Pairing } from './webrtc';
 import type { Transport } from './transport';
 
-const Hello = z.object({ kind: z.literal('hello'), protocol: z.literal(1), worldId: z.string().uuid(), epoch: z.string().uuid(),
+const Hello = z.object({ kind: z.literal('hello'), protocol: z.literal(PROTOCOL_VERSION), worldId: z.string().uuid(), epoch: z.string().uuid(),
   id: z.string().uuid(), key: z.string().uuid(), revision: z.number().int().nonnegative(),
   name: PlayerSchema.shape.name, appearance: PlayerSchema.shape.appearance }).strict();
 const Action = z.object({ kind: z.literal('intent'), sequence: z.number().int().positive(), intent: IntentSchema }).strict();
@@ -37,9 +37,12 @@ export class HostSession {
     } else {
       const action = Action.parse(raw);
       if (action.intent.kind === 'move') {
-        const now = performance.now();
-        if (now - this.lastMove < 80) return;
-        this.lastMove = now;
+        // Space accepted steps instead of silently dropping an intent the guest
+        // is awaiting. Browser frame jitter must not leave input unacknowledged.
+        const delay = 110 - (performance.now() - this.lastMove);
+        if (delay > 0) await new Promise<void>(resolve => setTimeout(resolve, delay));
+        if (this.closed) return;
+        this.lastMove = performance.now();
       }
       await this.authority.dispatch(this.guestId, action.sequence, action.intent);
       this.publish(action.intent.kind === 'move');
@@ -53,6 +56,7 @@ export class HostSession {
     else this.transport.send({ kind: 'snapshot', world });
   }
   close() { this.closed = true; this.guestId = undefined; this.transport.close(); }
+  async flush() { await this.queue; await this.authority.flush(); }
 }
 
 const Positions = z.object({ kind: z.literal('positions'), worldId: z.string().uuid(), epoch: z.string().uuid(), revision: z.number().int().nonnegative(),
@@ -63,12 +67,14 @@ export class GuestSession {
   sequence = 0;
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
+  private inFlight = new Set<Promise<void>>();
+  private lastFailure: unknown;
   connected = false;
   private pending = new Map<number, { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   constructor(private transport: Transport, private database: GameDatabase, private identity: { id: string; key: string; name: string; appearance: 'amber' | 'moss' | 'violet' },
     private pairing: Pairing, private mirror: Mirror | undefined, private update: (world: World) => void, private status: (text: string) => void) {
     transport.onState = state => {
-      if (state === 'open') transport.send({ kind: 'hello', protocol: 1, ...identity, worldId: pairing.worldId, epoch: pairing.epoch, revision: mirror?.world.revision ?? 0 });
+      if (state === 'open') transport.send({ kind: 'hello', protocol: PROTOCOL_VERSION, ...identity, worldId: pairing.worldId, epoch: pairing.epoch, revision: mirror?.world.revision ?? 0 });
       else { this.connected = false; this.failPending('The host connection closed.'); this.status('The host connection closed. Your recovery copy is kept. Return to the title and pair again.'); }
     };
     transport.onMessage = raw => {
@@ -108,13 +114,17 @@ export class GuestSession {
   dispatch(intent: Intent) {
     if (!this.connected) return Promise.reject(Error('Reconnect to the host before continuing.'));
     const sequence = ++this.sequence;
-    return new Promise<void>((resolve, reject) => {
+    const result = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(sequence); reject(Error('The host did not confirm that action. Reconnect before trying again.')); }, 8000);
       this.pending.set(sequence, { resolve, reject, timer });
       try { this.transport.send({ kind: 'intent', sequence, intent }); }
       catch (error) { clearTimeout(timer); this.pending.delete(sequence); reject(error); }
     });
+    this.inFlight.add(result);
+    void result.then(() => { this.inFlight.delete(result); this.lastFailure = undefined; }, error => { this.inFlight.delete(result); this.lastFailure = error; });
+    return result;
   }
+  async flush() { await Promise.all(this.inFlight); await this.queue; if (this.lastFailure) throw this.lastFailure; }
   private failPending(message: string) {
     for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(Error(message)); }
     this.pending.clear();

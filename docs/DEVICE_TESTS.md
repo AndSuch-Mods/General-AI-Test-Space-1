@@ -12,6 +12,9 @@ Record the two phone models, iOS versions, network type, build commit, installat
 4. Close the installed app. Disconnect internet and cold-launch it. Both slots and their separate progress must load.
 5. Import the backup into a disposable occupied slot. Cancel once and confirm once. Cancellation must leave progress unchanged.
 6. Install a newer build. It must wait for an explicit restart at the title screen and preserve both worlds.
+7. Walk into every side of the bed, desk, chest and other solid furnishings. Check scale, left/right strides, occlusion and the closer camera. No feet should enter furniture.
+8. Drag from several places on the left side. Release, cancel, rotate and open inventory while holding. Movement must stop. Tap the right side near furniture and test the action choices.
+9. Toggle both candles, inspect the furnishings, assign cacao to a quick slot and reload. The lights and personal quick-slot choices must persist. Review flicker and fire against the room pixel style.
 
 ## Two resident household
 
@@ -23,5 +26,6 @@ Record the two phone models, iOS versions, network type, build commit, installat
 6. Background, lock and force-close each phone in separate runs, including immediately after a reward. Rejoin and check for duplicate rewards or lost acknowledged actions.
 7. Repeat with internet disconnected while the local Wi-Fi router stays on. A reachable local network is still required. Record network isolation failures separately.
 8. Restore an older host backup while keeping a newer guest mirror. The guest must refuse the stale host without erasing either copy.
+9. Have either player toggle candles and use the shared chest. Race withdrawals, interrupt a transfer and reconnect. Count the total cacao across both inventories and the chest before and after; it must be conserved.
 
 Phase 2 adds separate maps and simulation stress tests. Phase 3 adds multi-day sessions, time scale, fatigue and sleep. Do not mark those systems passed from this arrival-room checklist.

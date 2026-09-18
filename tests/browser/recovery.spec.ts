@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
+import { inventory } from './controls';
 
 test('the default renderer opens the arrival room without script errors', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -7,7 +8,7 @@ test('the default renderer opens the arrival room without script errors', async 
   await page.getByRole('button', { name: /^Single Player/ }).click();
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await expect(page.locator('#game-canvas canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Journal & satchel' }).click();
+  await inventory(page, 'journal');
   await expect(page.getByText('The first page is waiting.')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -36,7 +37,7 @@ test('an update waits for explicit restart and preserves the saved resident', as
     await page.getByLabel('Your name', { exact: true }).fill('Update keeper');
     await page.getByRole('button', { name: 'Enter the castle' }).click();
     await expect(page.locator('canvas')).toBeVisible();
-    await page.getByRole('button', { name: 'Save & title' }).click();
+    await page.getByRole('button', { name: 'Save and return to title' }).click();
     await writeFile(path, original + '\n// Explicit-update integration check\n');
     await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())!.update(); });
     await expect(page.getByRole('button', { name: 'Update ready · restart' })).toBeVisible({ timeout: 20000 });
@@ -53,7 +54,7 @@ test('malformed import is rejected and occupied slots require confirmation', asy
   await page.getByLabel('Your name', { exact: true }).fill('Original keeper');
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await expect(page.locator('canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Save & title' }).click();
+  await page.getByRole('button', { name: 'Save and return to title' }).click();
   await page.getByRole('button', { name: 'Backups', exact: true }).click();
   await page.locator('#import-save').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{broken') });
   await expect(page.locator('#toast')).toBeVisible();

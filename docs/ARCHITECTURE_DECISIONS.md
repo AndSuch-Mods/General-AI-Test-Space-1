@@ -22,7 +22,7 @@ A newer guest recovery revision stops the join. Different world/timeline IDs als
 
 The arrival hall is a small playable integration slice. Reading the letter and opening the welcome parcel are personal, and lighting the hearth changes the shared world. The second resident can do either. This is a starting room in the actual game architecture, not the complete first-release loop.
 
-Bounded movement uses 14-pixel steps at up to 10 Hz, with visual interpolation. Each accepted step currently commits durably. Phase 2 must replace that expensive provisional cadence with a fixed host simulation, tick-based input validation and checkpoint batching while preserving durable item/world transactions. Remote movement has a session rate limit. Collision beyond room bounds and zone interest management are not implemented.
+Movement uses bounded 14-pixel steps with a 110 ms input cadence and collision-safe visual interpolation. Room objects share explicit rendering rectangles, collision footprints and reachable actions. The host spaces incoming movement and acknowledges every processed sequence, avoiding the former silent-drop stall. Each accepted step still commits durably. Phase 2 must replace that expensive provisional cadence with a fixed host simulation and checkpoint batching while preserving durable item/world transactions. Zone interest management is not implemented. See ROOM_AND_CONTROLS.md for the revised room, controls and protocol 2 contract.
 
 The world clock schema starts at 18:00 and includes `secondsPerGameMinute = 1`. The conversion function is tested. The clock does not yet advance in gameplay; shared time, sleep and fatigue are Phase 3. No fixed-hour forced sleep is introduced.
 

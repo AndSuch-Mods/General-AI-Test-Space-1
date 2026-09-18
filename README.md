@@ -24,9 +24,9 @@ The source repository and GitHub Pages site are public. Local saves stay on the 
 
 ## Current playable slice
 
-Create a resident, enter the castle, walk with the touch pad or WASD/arrows, and use Interact or E near the letter, hearth and welcome parcel. The journal shows personal discoveries and inventory alongside the shared household state. Co-op uses the same authoritative world as solo play. A returning second resident keeps their identity and belongings.
+Create a resident and enter the castle. Drag the left side to walk and tap the right side near furniture to interact. Desktop controls use WASD/arrows and E or Space. `I` opens items, missions, journal and co-op controls; `ESC` saves and returns to the title. Assign owned items to five quick slots. Candles and the household chest are shared, while discoveries and belongings stay personal.
 
-The title and room now use detailed original generated art with a twelve-pose resident sheet. These assets are integrated into the playable scene. The exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md` and the content ledger.
+The title uses original generated castle art. The room uses separate furniture and material layers, a consistent native pixel scale, directional residents, animated lights and authoritative collision. The exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md`, the [content ledger](docs/CONTENT_LEDGER.md), and [room and controls](docs/ROOM_AND_CONTROLS.md).
 
 The full game loop remains in development. Physical iPhone acceptance results are not yet available; see [the device checklist](docs/DEVICE_TESTS.md).
 

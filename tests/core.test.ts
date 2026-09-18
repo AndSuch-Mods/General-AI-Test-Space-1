@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Authority } from '../src/game/authority';
-import { createPlayer, createWorld, parseWorld } from '../src/game/model';
+import { createPlayer, createWorld, parseWorld, PROTOCOL_VERSION } from '../src/game/model';
 import { gameMinutes } from '../src/game/time';
 import { GameDatabase, parseBackup } from '../src/persistence/database';
 import { decodePairing, encodePairing, WebRTCTransport } from '../src/networking/webrtc';
@@ -120,7 +120,7 @@ describe('protocol and content', () => {
     expect(offer.sdp).toBe(sdp);
   });
   it('encodes pairing and rejects truncated, malformed, or incompatible codes', () => {
-    const pair = { version: 1 as const, session: crypto.randomUUID(), worldId: crypto.randomUUID(), epoch: crypto.randomUUID(), type: 'offer' as const, sdp: 'v=0\r\n' + 'a'.repeat(100) };
+    const pair = { version: PROTOCOL_VERSION as typeof PROTOCOL_VERSION, session: crypto.randomUUID(), worldId: crypto.randomUUID(), epoch: crypto.randomUUID(), type: 'offer' as const, sdp: 'v=0\r\n' + 'a'.repeat(100) };
     expect(decodePairing(encodePairing(pair))).toEqual(pair);
     expect(() => decodePairing('wrong')).toThrow();
     expect(() => decodePairing('TW1:!')).toThrow();
@@ -162,12 +162,14 @@ describe('protocol and content', () => {
     const host = new Authority(world(), async () => {}); const guestId = crypto.randomUUID();
     const identity = { id: guestId, key: crypto.randomUUID(), name: 'Guest', appearance: 'moss' as const };
     const hostSession = new HostSession(a, host, () => {});
-    const guest = new GuestSession(b, database(), identity, { version: 1, session: crypto.randomUUID(), worldId: host.world.worldId, epoch: host.world.epoch, type: 'offer', sdp: '' }, undefined, () => {}, () => {});
+    const guest = new GuestSession(b, database(), identity, { version: PROTOCOL_VERSION, session: crypto.randomUUID(), worldId: host.world.worldId, epoch: host.world.epoch, type: 'offer', sdp: '' }, undefined, () => {}, () => {});
     b.onState('open');
     await expect.poll(() => guest.connected).toBe(true);
     await guest.dispatch({ kind: 'move', dx: 1, dy: 0 });
+    // An immediate second request must be spaced and acknowledged, never dropped.
+    await guest.dispatch({ kind: 'move', dx: 1, dy: 0 });
     expect(guest.world?.players[guestId].x).toBe(host.world.players[guestId].x);
-    expect(guest.world?.lastSequence[guestId]).toBe(1);
+    expect(guest.world?.lastSequence[guestId]).toBe(2);
     hostSession.close(); guest.close();
   });
 });

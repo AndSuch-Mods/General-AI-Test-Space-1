@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1, arrival-room rework
+
+- Replaced the furnished background image with separate native pixel layers, furniture and effects. Added a closer following camera, corrected side profiles and distance-based walk animation.
+- Added host-authoritative furniture collision, depth sorting, reachable object actions, shared candle switches and shared chest transfers. Old saved positions inside furniture move safely to clear floor without losing progress.
+- Replaced persistent arrows and large HUD panels with a floating thumbstick, right-side interaction taps, compact clock/I/ESC controls and five persistent personal quick slots. Missions and co-op controls live inside inventory.
+- Added matching animated fireplace and candle lighting. Retained the original art and exact generation prompts as development records.
+- Fixed unacknowledged rate-limited guest movement. Exit waits for durable work; an unconfirmed guest action keeps its recovery copy and permits reconnect.
+- Expanded collision, persistence, storage, touch, animation and browser regression checks. Protocol 2 rejects mismatched clients; existing schema 1 saves remain supported. Later phases remain on hold for this correction milestone.
+
 ## 0.1.0, in development
 
 - Selected the first empty approved repository and preserved the full master specification.

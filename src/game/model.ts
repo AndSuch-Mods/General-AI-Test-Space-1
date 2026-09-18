@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.0';
-export const PROTOCOL_VERSION = 1;
+export const BUILD_VERSION = '0.1.1';
+export const PROTOCOL_VERSION = 2;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);

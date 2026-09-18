@@ -1,13 +1,15 @@
 import './style.css';
-import { createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
+import { BUILD_VERSION, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
 import { Authority, type Intent } from '../game/authority';
-import { arrival, validateContent } from '../content/arrival';
+import { arrival, validateContent, type ArrivalId } from '../content/arrival';
+import { nearestInteractable } from '../content/room';
 import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
 import { WebRTCTransport, decodePairing, encodePairing } from '../networking/webrtc';
 import { GuestSession, HostSession } from '../networking/session';
 import { scanPairing, showPairingQR } from '../ui/pairing';
+import { mountTouchControls, type TouchControls } from '../ui/touch-controls';
 
 validateContent();
 const app = document.querySelector<HTMLElement>('#app')!;
@@ -25,6 +27,15 @@ let sequence = 0;
 let modal: HTMLDialogElement | undefined;
 let modalCleanup: (() => void) | undefined;
 let moving = false;
+let interacting = false;
+let exiting = false;
+let touchControls: TouchControls | undefined;
+let playGeneration = 0;
+let menuRefresh: (() => void) | undefined;
+type InventoryTab = 'items' | 'missions' | 'journal' | 'household' | 'session';
+interface QuickSettings { slots: (string | null)[]; selected: number; seen: string }
+let quickSettings: QuickSettings = { slots: [null, null, null, null, null], selected: 0, seen: '' };
+let settingsQueue = Promise.resolve();
 let toastTimer: ReturnType<typeof setTimeout>;
 const offline = new OfflinePackage(refreshOffline);
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -33,7 +44,7 @@ function fail(error: unknown) { toast(error instanceof Error ? error.message : '
 function on(id: string, action: () => unknown) {
   document.getElementById(id)?.addEventListener('click', () => { Promise.resolve().then(action).catch(fail); });
 }
-function closeModal() { modalCleanup?.(); modalCleanup = undefined; modal?.close(); modal?.remove(); modal = undefined; }
+function closeModal() { touchControls?.stop(); menuRefresh = undefined; modalCleanup?.(); modalCleanup = undefined; modal?.close(); modal?.remove(); modal = undefined; }
 function dialog(title: string, body: string) {
   closeModal();
   modal = document.createElement('dialog'); modal.className = 'panel-dialog';
@@ -48,6 +59,8 @@ function refreshOffline() {
   const update = document.getElementById('apply-update'); if (update) update.hidden = !offline.updateReady;
 }
 async function title() {
+  playGeneration += 1;
+  touchControls?.destroy(); touchControls = undefined;
   closeModal();
   hostSession?.close(); guestSession?.close(); transport?.close();
   hostSession = undefined; guestSession = undefined; transport = undefined;
@@ -64,7 +77,7 @@ async function title() {
     <p class="menu-note">One household. Two stories.<br>Play alone, or share the castle with someone nearby.</p>
     <div class="menu-links"><button id="backups">Backups</button><span>·</span><button id="settings">Settings & help</button></div>
     </div>
-    <footer><div class="offline"><span class="status-dot"></span><span id="offline-label"></span><button id="offline-install">Make Available Offline</button><button id="apply-update" hidden>Update ready · restart</button></div><span class="build-label">EARLY DEVELOPMENT · 0.1.0</span></footer>
+    <footer><div class="offline"><span class="status-dot"></span><span id="offline-label"></span><button id="offline-install">Make Available Offline</button><button id="apply-update" hidden>Update ready · restart</button></div><span class="build-label">EARLY DEVELOPMENT · ${BUILD_VERSION}</span></footer>
   </section>`;
   on('slot-1', () => { slot = 1; return title(); }); on('slot-2', () => { slot = 2; return title(); });
   on('solo', () => begin(false)); on('host', () => begin(true)); on('join', joinDialog);
@@ -93,7 +106,8 @@ async function enterHost(saved: World) {
   world = saved; localId = saved.hostId; sequence = saved.lastSequence[localId] ?? 0;
   authority = new Authority(saved, state => db.save(slot, state));
   authority.subscribe(state => { const previous = world; world = state; updateHud(); sharedPresentation(previous, state); });
-  await play();
+  try { await authority.prepareRoom(); await play(); }
+  catch (error) { await title(); throw error; }
 }
 function sharedPresentation(previous: World | undefined, next: World) {
   if (previous && !previous.story.flags.hearth && next.story.flags.hearth) {
@@ -105,40 +119,76 @@ async function dispatch(intent: Intent) {
   else if (authority) { await authority.dispatch(localId, ++sequence, intent); hostSession?.publish(intent.kind === 'move'); }
 }
 function move(dx: number, dy: number) {
-  if (moving || modal || document.hidden) return;
+  if (moving || controlsBlocked()) return;
   moving = true; void dispatch({ kind: 'move', dx, dy }).catch(fail).finally(() => { moving = false; });
 }
+function controlsBlocked() { return !!modal || interacting || exiting || document.hidden; }
 async function interact() {
-  if (!world || modal) return;
-  const player = world.players[localId];
-  const nearest = [...arrival].sort((a, b) => Math.hypot(player.x - a.x, player.y - a.y) - Math.hypot(player.x - b.x, player.y - b.y))[0];
-  if (Math.hypot(player.x - nearest.x, player.y - nearest.y) > 105) { toast('Walk closer to the letter, hearth, or welcome parcel.'); return; }
-  await dispatch({ kind: 'interact', target: nearest.id });
-  dialog(nearest.title, `<p class="story-text">${escape(nearest.text)}</p><p class="muted">${nearest.scope === 'personal' ? 'Added to your own journal.' : 'The hearth is lit for the whole household.'}</p><button id="finish-story" class="primary">Carry on<span>→</span></button>`);
-  on('finish-story', closeModal);
+  if (!world || controlsBlocked()) return;
+  touchControls?.stop();
+  const nearest = nearestInteractable(world.players[localId]);
+  if (!nearest) { toast('Move closer to something you want to examine.'); return; }
+  if (nearest.actions.length === 1) { await performInteraction(nearest.actions[0]); return; }
+  const choices = nearest.actions.map(id => arrival.find(entry => entry.id === id)!);
+  const panel = dialog(nearest.label, `<div class="dialogue-choices">${choices.map((entry, index) => `<button data-action="${entry.id}" data-choice="${index}"><kbd>${String.fromCharCode(65 + index)}</kbd><span>${escape(entry.label)}</span></button>`).join('')}</div>`);
+  panel.classList.add('story-dialog');
+  for (const choice of panel.querySelectorAll<HTMLButtonElement>('[data-action]')) choice.addEventListener('click', () => { void performInteraction(choice.dataset.action as ArrivalId).catch(fail); });
+}
+async function performInteraction(target: ArrivalId) {
+  if (interacting || exiting) return;
+  interacting = true; touchControls?.stop();
+  try {
+    await dispatch({ kind: 'interact', target });
+    if (target === 'chest') { chestDialog(); return; }
+    const entry = arrival.find(event => event.id === target)!;
+    const panel = dialog(entry.title, `<p class="story-text">${escape(entry.text)}</p><button id="finish-story" class="story-continue" data-choice="0"><kbd>A</kbd>Carry on<span>→</span></button>`);
+    panel.classList.add('story-dialog'); on('finish-story', closeModal);
+  } finally { interacting = false; }
+}
+async function leaveGame() {
+  if (exiting) return;
+  exiting = true; touchControls?.stop();
+  const leave = document.getElementById('leave') as HTMLButtonElement | null;
+  if (leave) { leave.disabled = true; leave.setAttribute('aria-label', 'Finishing save'); }
+  try {
+    if (!guestSession) hostSession?.close();
+    await settingsQueue;
+    if (guestSession) await guestSession.flush();
+    else { await hostSession?.flush(); await authority?.flush(); }
+    await title();
+  } catch (error) {
+    if (guestSession) {
+      // Unacknowledged guest work cannot be called saved. Keep the existing
+      // recovery mirror, release the broken session and allow a fresh join.
+      await title();
+      toast('The last action could not be confirmed. Your saved recovery copy is kept. Rejoin for the host’s latest progress.');
+    } else throw error;
+  } finally { exiting = false; if (leave) { leave.disabled = false; leave.setAttribute('aria-label', 'Save and return to title'); } }
 }
 async function play() {
   closeModal();
+  touchControls?.destroy();
+  const generation = ++playGeneration;
+  const savedQuick = (await db.settings.get(quickSettingsKey()))?.value as Partial<QuickSettings> | undefined;
+  quickSettings = { slots: Array.from({ length: 5 }, (_, index) => typeof savedQuick?.slots?.[index] === 'string' ? savedQuick.slots[index] : null),
+    selected: Number.isInteger(savedQuick?.selected) && savedQuick!.selected! >= 0 && savedQuick!.selected! < 5 ? savedQuick!.selected! : 0,
+    seen: typeof savedQuick?.seen === 'string' ? savedQuick.seen : '' };
+  if (generation !== playGeneration) return;
   app.innerHTML = `<section class="play-screen"><div id="game-canvas" aria-label="Castle arrival hall"></div>
-    <header class="game-hud"><div><span class="eyebrow">The castle</span><strong id="resident-label"></strong></div><div class="hud-actions"><button id="journal">Journal & satchel</button><button id="session">Co-op</button><button id="leave">Save & title</button></div></header>
-    <div class="chapter-note"><span>I</span><div>A household begins<small>Read the letter. Light the hearth. Settle in.</small></div></div>
-    <div class="touch-pad" aria-label="Movement controls"><button id="move-up" aria-label="Move up">↑</button><button id="move-left" aria-label="Move left">←</button><button id="move-down" aria-label="Move down">↓</button><button id="move-right" aria-label="Move right">→</button></div>
-    <button id="interact" class="interact-button">Interact<small>E</small></button><p class="save-state" id="save-state">Saved on this device</p>
-    <div class="arrival-help">WASD / arrows to walk · E to interact</div></section>`;
-  on('interact', interact); on('journal', journal); on('session', () => guestSession ? toast('You are the second resident. Return to the title to leave or reconnect.') : hostDialog());
-  on('leave', async () => { if (moving) { toast('Finishing the current save. Try again in a moment.'); return; } await title(); });
-  for (const [name, dx, dy] of [['up', 0, -1], ['left', -1, 0], ['down', 0, 1], ['right', 1, 0]] as const) {
-    const button = document.getElementById(`move-${name}`)!;
-    let timer: ReturnType<typeof setInterval> | undefined;
-    const stop = () => { clearInterval(timer); timer = undefined; };
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); move(dx, dy); timer = setInterval(() => move(dx, dy), 110); });
-    button.addEventListener('pointerup', stop); button.addEventListener('pointercancel', stop); button.addEventListener('lostpointercapture', stop);
-  }
+    <div id="touch-surface" aria-label="Drag the left side to move; tap the right side to interact"><div id="thumbstick" hidden aria-hidden="true"><div id="thumbstick-knob"></div></div></div>
+    <span id="resident-label" class="sr-only"></span><span id="save-state" class="sr-only" aria-live="polite"></span>
+    <header class="game-hud"><div class="hud-clock" aria-label="World time"><span class="clock-moon" aria-hidden="true">☾</span><time id="game-clock">18:00</time></div><button id="inventory-toggle" class="hud-button" aria-label="Inventory and missions"><span>I</span><span id="notification-dot" hidden aria-label="New mission or discovery"></span></button><button id="leave" class="hud-button" aria-label="Save and return to title"><span>ESC</span></button></header>
+    <div class="quickbar" role="group" aria-label="Quick slots">${Array.from({ length: 5 }, (_, index) => `<button id="quick-slot-${index + 1}" class="quick-slot" aria-label="Quick slot ${index + 1}"><span class="slot-key">${index + 1}</span><span class="quick-item"></span><span class="quick-count"></span></button>`).join('')}<button id="inventory-more" class="quick-more" aria-label="Open inventory">···</button></div></section>`;
+  on('inventory-toggle', () => inventory(quickSettings.seen !== notificationState() ? 'missions' : 'items'));
+  on('inventory-more', () => inventory()); on('leave', leaveGame);
+  for (let index = 0; index < 5; index++) on(`quick-slot-${index + 1}`, () => selectQuickSlot(index));
+  touchControls = mountTouchControls(document.getElementById('touch-surface')!, move, () => { void interact().catch(fail); }, controlsBlocked);
   updateHud();
   const { mountArrival } = await import('../game/scenes/arrival-scene');
+  if (generation !== playGeneration) return;
   destroyScene?.();
   destroyScene = await mountArrival(document.getElementById('game-canvas')!, () => ({ world: world!, localId,
-    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])] }), move, () => { void interact().catch(fail); }, () => !!modal || document.hidden);
+    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])] }), move, () => { void interact().catch(fail); }, controlsBlocked);
   updateHud();
 }
 function updateHud() {
@@ -147,11 +197,110 @@ function updateHud() {
   if (label) label.textContent = `${world.players[localId].name} · ${guestSession ? 'Player 2' : 'Player 1'}`;
   const saved = document.getElementById('save-state');
   if (saved) saved.textContent = guestSession ? guestSession.connected ? 'Host saved · recovery copy on this device' : 'Disconnected · waiting for host' : 'Saved on this device';
+  const clock = document.getElementById('game-clock');
+  if (clock) { const minutes = Math.floor(world.clock.totalMinutes) % 1440; clock.textContent = `${Math.floor(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}`; }
+  const badge = document.getElementById('notification-dot');
+  if (badge) badge.hidden = quickSettings.seen === notificationState();
+  document.getElementById('inventory-toggle')?.setAttribute('aria-label', `Inventory and missions${badge && !badge.hidden ? ', new updates' : ''}`);
+  for (let index = 0; index < 5; index++) {
+    const button = document.getElementById(`quick-slot-${index + 1}`); if (!button) continue;
+    const item = quickSettings.slots[index], count = item ? world.players[localId].inventory[item] ?? 0 : 0;
+    button.setAttribute('aria-pressed', String(quickSettings.selected === index));
+    button.setAttribute('aria-label', `Quick slot ${index + 1}${item ? `: ${itemName(item)}, ${count}` : ': empty'}`);
+    button.querySelector('.quick-item')!.innerHTML = item ? itemIcon(item) : '';
+    button.querySelector('.quick-count')!.textContent = count ? String(count) : '';
+    button.classList.toggle('unavailable', !!item && !count);
+  }
+  menuRefresh?.();
 }
-function journal() {
-  if (!world) return;
+function quickSettingsKey() { return `quickSlots:${world!.worldId}:${localId}`; }
+function saveQuickSettings() {
+  const key = quickSettingsKey(), value = structuredClone(quickSettings);
+  settingsQueue = settingsQueue.catch(() => undefined).then(async () => { await db.settings.put({ key, value }); });
+  void settingsQueue.catch(fail);
+}
+function notificationState() {
+  if (!world) return '';
   const player = world.players[localId];
-  dialog('Your journal & satchel', `<p class="eyebrow">${escape(player.name)} · Personal discoveries</p><div class="journal-entries">${player.discoveries.length ? player.discoveries.map(id => `<p>✧ ${escape(arrival.find(e => e.id === id)?.title ?? id)}</p>`).join('') : '<p>The first page is waiting.</p>'}</div><h3>Satchel</h3><p>${Object.entries(player.inventory).map(([id, count]) => `${count} ${escape(id.replaceAll('-', ' '))}`).join('<br>') || 'Your satchel is empty.'}</p><h3>Our household</h3><p>${world.story.flags.hearth ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">Your discoveries and belongings are yours. Changes to the house belong to everyone.</p>`);
+  return JSON.stringify([player.discoveries, player.quests, world.quests]);
+}
+function itemName(id: string) { return id === 'cacao-bean' ? 'Cacao bean' : id.replaceAll('-', ' '); }
+function itemIcon(id: string) { return id === 'cacao-bean' ? '<span class="cacao-icon" aria-hidden="true"></span>' : '<span class="unknown-item" aria-hidden="true">◇</span>'; }
+function selectQuickSlot(index: number) {
+  if (!world || exiting || interacting) return;
+  const item = quickSettings.slots[index], wasSelected = quickSettings.selected === index;
+  quickSettings.selected = index; saveQuickSettings(); updateHud();
+  if (!item) inventory('items');
+  else if (wasSelected) itemDetails(item);
+}
+function inventory(tab: InventoryTab = 'items') {
+  if (!world || exiting) return;
+  if (tab === 'missions' || tab === 'journal') { quickSettings.seen = notificationState(); saveQuickSettings(); }
+  const tabs = [['items', 'Satchel'], ['missions', 'Missions'], ['journal', 'Journal'], ['household', 'Household'], ['session', 'Co-op']] as const;
+  const panel = dialog('Your satchel', `<nav class="inventory-tabs" aria-label="Satchel sections">${tabs.map(([key, label]) => `<button id="tab-${key}" aria-pressed="${tab === key}">${label}</button>`).join('')}</nav><div id="inventory-content"></div>`);
+  panel.classList.add('inventory-dialog');
+  for (const [key] of tabs) on(`tab-${key}`, () => inventory(key));
+  let previousContents = '';
+  const refresh = () => {
+    if (!world || modal !== panel) return;
+    const player = world.players[localId], contents = panel.querySelector<HTMLElement>('#inventory-content')!;
+    const nextContents = JSON.stringify(tab === 'items' ? player.inventory : tab === 'missions' ? [player.discoveries, world.story.flags] :
+      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
+    if (nextContents === previousContents) return;
+    previousContents = nextContents;
+    if (tab === 'items') {
+      const owned = Object.entries(player.inventory).filter(([, count]) => count > 0);
+      contents.innerHTML = `<p class="muted inventory-intro">Choose an item to inspect it or place it in a quick slot.</p><div class="inventory-grid">${owned.map(([id, count]) => `<button class="inventory-item" data-item="${escape(id)}" aria-label="${escape(itemName(id))}, ${count}">${itemIcon(id)}<span>${escape(itemName(id))}</span><b>×${count}</b></button>`).join('')}${Array.from({ length: Math.max(0, 10 - owned.length) }, () => '<div class="empty-item" aria-hidden="true"></div>').join('')}</div>${owned.length ? '' : '<p class="empty-satchel">Your satchel is empty. Look for the welcome parcel.</p>'}`;
+      for (const button of contents.querySelectorAll<HTMLButtonElement>('[data-item]')) button.addEventListener('click', () => itemDetails(button.dataset.item!));
+    } else if (tab === 'missions') {
+      const steps = [{ done: player.discoveries.includes('letter'), title: 'Read the sealed letter', note: 'Personal · On the writing desk.' },
+        { done: !!world.story.flags.hearth, title: 'Light the household hearth', note: 'Shared · Either resident can bring the fire back.' },
+        { done: player.discoveries.includes('pantry'), title: 'Open your welcome parcel', note: 'Personal · A parcel waits by the pantry.' }];
+      contents.innerHTML = `<h3>A household begins</h3><div class="mission-list">${steps.map(step => `<div class="mission-row ${step.done ? 'complete' : ''}"><span aria-label="${step.done ? 'Complete' : 'Open'}">${step.done ? '✓' : '○'}</span><div><strong>${step.title}</strong><p class="muted">${step.note}</p></div></div>`).join('')}</div>`;
+    } else if (tab === 'journal') {
+      contents.innerHTML = `<p class="muted">${escape(player.name)} · Personal discoveries</p><div class="journal-entries">${player.discoveries.length ? player.discoveries.map(id => {
+        const entry = arrival.find(event => event.id === id);
+        return `<details><summary>${escape(entry?.title ?? id)}</summary><p>${escape(entry?.text ?? '')}</p></details>`;
+      }).join('') : '<p>The first page is waiting.</p>'}</div>`;
+    } else if (tab === 'household') {
+      contents.innerHTML = `<h3>The castle household</h3><p>${world.story.flags.hearth ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+    } else {
+      contents.innerHTML = `<h3>${guestSession ? guestSession.connected ? 'Together in the castle' : 'Connection closed' : hostSession?.guestId ? 'The household is together' : 'Invite someone home'}</h3><p>${guestSession ? 'You are the second resident. Your belongings and discoveries are saved with this household, with a recovery copy on this device.' : 'A second resident can join this world over the same reachable Wi-Fi. You can continue alone after they leave.'}</p>${guestSession ? '<p class="muted">Use ESC to save and return to the title. Join Co-op there to reconnect.</p>' : '<button id="session" class="primary">Co-op session<span>→</span></button>'}<h3>Controls</h3><p class="muted">Drag anywhere on the left side to walk. Tap the right side near an object to interact. Keyboard: WASD or arrows, E to interact, I for this satchel, ESC to save and leave. The clock currently remains at the arrival hour while the day cycle is in development.</p>`;
+      on('session', hostDialog);
+    }
+  };
+  menuRefresh = refresh; refresh(); updateHud();
+}
+function itemDetails(id: string) {
+  if (!world) return;
+  const count = world.players[localId].inventory[id] ?? 0;
+  const panel = dialog(itemName(id), `<div class="item-description">${itemIcon(id)}<div><p>${count} in your satchel</p><p class="muted">${id === 'cacao-bean' ? 'A bitter, fragrant ingredient from Rook’s welcome parcel. Keep it for the kitchen.' : 'An item carried by this resident.'}</p></div></div><h3>Place in a quick slot</h3><div class="assign-slots">${Array.from({ length: 5 }, (_, index) => `<button id="assign-slot-${index + 1}" ${count ? '' : 'disabled'} aria-label="Assign to quick slot ${index + 1}">${index + 1}</button>`).join('')}</div><p class="muted">Quick slots refer to your own items. They do not move or copy them.</p><div class="button-row"><button id="back-to-items">Back to satchel</button><button id="clear-quick" ${quickSettings.slots.includes(id) ? '' : 'disabled'}>Clear from quick slots</button></div>`);
+  panel.classList.add('inventory-dialog');
+  for (let index = 0; index < 5; index++) on(`assign-slot-${index + 1}`, () => {
+    quickSettings.slots[index] = id; quickSettings.selected = index; saveQuickSettings(); closeModal(); updateHud();
+  });
+  on('back-to-items', () => inventory('items'));
+  on('clear-quick', () => { quickSettings.slots = quickSettings.slots.map(item => item === id ? null : item); saveQuickSettings(); closeModal(); updateHud(); });
+}
+function chestDialog() {
+  const panel = dialog('Household chest', '<p class="muted">Shared storage. Both residents use the same chest.</p><div id="chest-content"></div>');
+  let busy = false;
+  let previousContents = '';
+  const refresh = () => {
+    if (!world || modal !== panel) return;
+    const personal = world.players[localId].inventory['cacao-bean'] ?? 0, shared = world.chest['cacao-bean'] ?? 0;
+    const nextContents = `${personal}:${shared}:${busy}`;
+    if (nextContents === previousContents) return;
+    previousContents = nextContents;
+    panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3><p>${personal} cacao bean${personal === 1 ? '' : 's'}</p><button id="chest-deposit" ${personal && !busy ? '' : 'disabled'}>Deposit one →</button></div><div><h3>Household chest</h3><p>${shared} cacao bean${shared === 1 ? '' : 's'}</p><button id="chest-withdraw" ${shared && !busy ? '' : 'disabled'}>← Take one</button></div></div>`;
+    const transfer = async (direction: 'deposit' | 'withdraw') => {
+      if (busy) return; busy = true; refresh();
+      try { await dispatch({ kind: 'transfer', direction, item: 'cacao-bean', count: 1 }); }
+      finally { busy = false; refresh(); }
+    };
+    on('chest-deposit', () => transfer('deposit')); on('chest-withdraw', () => transfer('withdraw'));
+  };
+  menuRefresh = refresh; refresh();
 }
 async function hostDialog() {
   if (!authority || !world) return;
@@ -188,7 +337,7 @@ async function scanIntoInput() {
   modalCleanup = () => { cleanup?.(); stop(); };
 }
 function joinDialog() {
-  dialog('Join the household', `<p class="muted">Ask the host to open Co-op inside their world. Scan their offer, or paste its complete code.</p><label>Your name<input id="guest-name" maxlength="24" value="Companion" /></label>${appearanceField()}<label>Host offer<textarea id="pair-input" placeholder="TW1:…" spellcheck="false"></textarea></label><div class="button-row"><button id="scan">Scan offer QR</button><button id="create-answer" class="primary">Create answer</button></div><video id="camera" hidden></video><p id="scan-status" class="muted"></p>`);
+  dialog('Join the household', `<p class="muted">Ask the host to open I, then Co-op inside their world. Scan their offer, or paste its complete code.</p><label>Your name<input id="guest-name" maxlength="24" value="Companion" /></label>${appearanceField()}<label>Host offer<textarea id="pair-input" placeholder="TW1:…" spellcheck="false"></textarea></label><div class="button-row"><button id="scan">Scan offer QR</button><button id="create-answer" class="primary">Create answer</button></div><video id="camera" hidden></video><p id="scan-status" class="muted"></p>`);
   on('scan', scanIntoInput);
   on('create-answer', async () => {
     const offer = decodePairing((document.getElementById('pair-input') as HTMLTextAreaElement).value);
@@ -253,8 +402,24 @@ async function settingsDialog() {
     void db.settings.put({ key: 'reducedMotion', value: checked }).catch(fail);
   });
 }
-window.addEventListener('pagehide', () => { hostSession?.close(); guestSession?.close(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { hostSession?.close(); guestSession?.close(); } });
+document.addEventListener('keydown', event => {
+  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+  if (modal) {
+    if (event.key === 'Escape') { event.preventDefault(); closeModal(); return; }
+    const index = event.key.toLowerCase().charCodeAt(0) - 97;
+    if (event.key.length === 1 && index >= 0 && index < 5) {
+      const choice = modal.querySelector<HTMLButtonElement>(`[data-choice="${index}"]`);
+      if (choice) { event.preventDefault(); choice.click(); }
+    }
+    return;
+  }
+  if (!world || exiting || interacting) return;
+  if (event.key === 'Escape') { event.preventDefault(); void leaveGame().catch(fail); }
+  else if (event.key.toLowerCase() === 'i') { event.preventDefault(); inventory(quickSettings.seen !== notificationState() ? 'missions' : 'items'); }
+  else if (/^[1-5]$/.test(event.key)) { event.preventDefault(); selectQuickSlot(Number(event.key) - 1); }
+});
+window.addEventListener('pagehide', () => { touchControls?.stop(); hostSession?.close(); guestSession?.close(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { touchControls?.stop(); hostSession?.close(); guestSession?.close(); } });
 void (async () => {
   document.documentElement.classList.toggle('reduced-motion', (await db.settings.get('reducedMotion'))?.value === true);
   await title(); await offline.start();

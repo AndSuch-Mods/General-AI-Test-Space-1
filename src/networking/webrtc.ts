@@ -52,10 +52,10 @@ export class WebRTCTransport implements Transport {
     return sdp;
   }
   async offer(worldId: string, epoch: string): Promise<Pairing> {
-    this.attach(this.peer.createDataChannel('twilight-v1', { ordered: true }));
+    this.attach(this.peer.createDataChannel(`twilight-v${PROTOCOL_VERSION}`, { ordered: true }));
     await this.peer.setLocalDescription(await this.peer.createOffer());
     await this.gather();
-    return { version: 1, session: crypto.randomUUID(), worldId, epoch, type: 'offer', sdp: this.localSdp() };
+    return { version: PROTOCOL_VERSION, session: crypto.randomUUID(), worldId, epoch, type: 'offer', sdp: this.localSdp() };
   }
   async answer(offer: Pairing): Promise<Pairing> {
     if (offer.type !== 'offer') throw Error('The guest needs the host offer code.');

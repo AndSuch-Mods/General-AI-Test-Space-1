@@ -1,5 +1,17 @@
 # Validation record
 
+## Room and controls rework, 0.1.1
+
+- Specification hash and all 53 sections, lint, TypeScript, 23 unit tests and production build pass locally.
+- The browser suite now has ten scenarios per engine. Local Chromium passed the nine solo/offline/recovery/room cases. Its expanded real-peer test passed after fixing silently dropped movement requests and routing around the new solid furniture.
+- Local Windows WebKit passed nine cases. Its runtime has no RTCPeerConnection, so the peer case is explicitly skipped there. The macOS 15 CI job runs that actual peer test before deployment.
+- New checks exercise left/right profiles, closer camera scale, solid bed collision, furniture dialogue, candle state across reloads, mission notifications, persistent quick-slot references, compact controls and cancelled touch input. Core tests cover every solid from accessible sides, swept collision, diagonal speed, all furnishing actions, old-position repair, storage rollback and simultaneous shared-chest withdrawals.
+- The peer test now includes guest deposit and host withdrawal, separate resulting inventories, dropout and rejoin with the actual HTTP server stopped.
+- Landscape art and interface were inspected at 844 by 390 and 667 by 375. All compact control hit areas remain at least 44 by 44 CSS pixels. Hearth and candle lighting are separate animated layers.
+- The current offline package is approximately 12.2 MB before compression. Earlier art is retained as development history. Physical iPhone acceptance remains open.
+
+The [checkpoint Actions runs](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions) record final Chromium and macOS WebKit outcomes for each commit. Both jobs must pass before Pages deploys. The room rework does not close the future map, time, sleep or full inventory-system gates.
+
 ## Art and Phase 1 checkpoint, 2026-09-18
 
 `f4f0e85b59b612a527df31033103b17ac6c40aa1` contains the first integrated detailed art pass. Every repository file was checked against the workspace's Git blob hash before the checkpoint was published.

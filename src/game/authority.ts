@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { arrival } from '../content/arrival';
 import { createPlayer, parseWorld, type Player, type World } from './model';
+import { canInteract, canStand, moveInRoom, objectForAction, safePosition } from '../content/room';
 
 export const IntentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('move'), dx: z.number().min(-1).max(1), dy: z.number().min(-1).max(1) }).strict(),
-  z.object({ kind: z.literal('interact'), target: z.enum(['letter', 'hearth', 'pantry']) }).strict(),
+  z.object({ kind: z.literal('interact'), target: z.enum(arrival.map(event => event.id)) }).strict(),
+  z.object({ kind: z.literal('transfer'), direction: z.enum(['deposit', 'withdraw']), item: z.literal('cacao-bean'), count: z.number().int().positive().max(999) }).strict(),
 ]);
 export type Intent = z.infer<typeof IntentSchema>;
 export type CommitWorld = (world: World) => Promise<void>;
@@ -13,6 +15,7 @@ export type CommitWorld = (world: World) => Promise<void>;
 export class Authority {
   private queue: Promise<unknown> = Promise.resolve();
   private listeners = new Set<(world: World) => void>();
+  private lastFailure: unknown;
   constructor(public world: World, private commit: CommitWorld) { this.world = parseWorld(world); }
   subscribe(fn: (world: World) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private transaction<T>(mutate: (draft: World) => T): Promise<T> {
@@ -21,13 +24,24 @@ export class Authority {
       const value = mutate(draft);
       draft.revision += 1;
       parseWorld(draft);
-      await this.commit(draft); // Publish only after durable commit. Failure leaves live state unchanged.
+      // A rejected interaction did not change state and must not prevent exit.
+      // A storage failure does block a claim that all accepted work was saved.
+      try { await this.commit(draft); }
+      catch (error) { this.lastFailure = error; throw error; }
+      this.lastFailure = undefined;
       this.world = draft;
       for (const listener of this.listeners) listener(this.world);
       return value;
     });
     this.queue = result.catch(() => undefined);
     return result;
+  }
+  async flush() { await this.queue; if (this.lastFailure) throw this.lastFailure; }
+  async prepareRoom() {
+    if (Object.values(this.world.players).every(canStand)) return;
+    await this.transaction(world => {
+      for (const player of Object.values(world.players)) Object.assign(player, safePosition(player));
+    });
   }
   async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; worldId: string; epoch: string; revision: number }) {
     if (identity.worldId !== this.world.worldId || identity.epoch !== this.world.epoch) throw Error('This character belongs to a different world or timeline.');
@@ -54,16 +68,24 @@ export class Authority {
       if (!player) throw Error('Unknown resident');
       if (sequence <= (world.lastSequence[actor] ?? 0)) return false;
       if (intent.kind === 'move') {
-        const length = Math.hypot(intent.dx, intent.dy) || 1;
         // One bounded step per request; the session rate-limits remote movement to 10 Hz.
-        player.x = Math.max(48, Math.min(912, player.x + intent.dx / Math.max(1, length) * 14));
-        player.y = Math.max(190, Math.min(484, player.y + intent.dy / Math.max(1, length) * 14));
+        Object.assign(player, moveInRoom(player, intent.dx, intent.dy));
+      } else if (intent.kind === 'transfer') {
+        if (!canInteract(player, objectForAction('chest'))) throw Error('Move closer to the household chest.');
+        const from = intent.direction === 'deposit' ? player.inventory : world.chest;
+        const to = intent.direction === 'deposit' ? world.chest : player.inventory;
+        if ((from[intent.item] ?? 0) < intent.count) throw Error('That stack has changed. Choose an available amount.');
+        from[intent.item] -= intent.count;
+        if (!from[intent.item]) delete from[intent.item];
+        to[intent.item] = (to[intent.item] ?? 0) + intent.count;
       } else {
         const event = arrival.find(entry => entry.id === intent.target)!;
-        if (Math.hypot(player.x - event.x, player.y - event.y) > 105) throw Error('Move closer to interact.');
-        if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
+        if (!canInteract(player, objectForAction(event.id))) throw Error('Move closer to interact.');
+        if (event.id === 'candle-desk' || event.id === 'candle-table') {
+          world.story.flags[event.id] = !(world.story.flags[event.id] ?? true);
+        } else if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
           player.discoveries.push(event.id);
-          player.quests['a-household-begins'] = player.discoveries.includes('letter') && player.discoveries.includes('pantry') ? 'complete' : 'started';
+          if (event.id === 'letter' || event.id === 'pantry') player.quests['a-household-begins'] = player.discoveries.includes('letter') && player.discoveries.includes('pantry') ? 'complete' : 'started';
           if (event.id === 'pantry') player.inventory['cacao-bean'] = (player.inventory['cacao-bean'] ?? 0) + 3;
         } else if (event.scope === 'shared_world' && !world.story.flags[event.id]) {
           world.story.flags[event.id] = true;

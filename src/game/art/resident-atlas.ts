@@ -1,28 +1,29 @@
-/** Original generated resident sheet. Rectangles are measured, not an assumed grid. */
-export const RESIDENT_TEXTURE = 'resident-amber';
-export const RESIDENT_IMAGE = 'art/residents.png';
-export const RESIDENT_FRAME_WIDTH = 200;
-export const RESIDENT_FRAME_HEIGHT = 320;
-/** All poses use the same foot position after their source rectangles are aligned. */
-export const RESIDENT_ORIGIN = { x: 0.5, y: 310 / 320 } as const;
+/** Original generated art, measured pose by pose. See ART_RESIDENT_V2_PROMPT.md. */
+export const RESIDENT_TEXTURE = 'resident-amber-v2';
+export const RESIDENT_IMAGE = 'art/residents-v2.png';
+export const RESIDENT_FRAME_WIDTH = 248;
+export const RESIDENT_FRAME_HEIGHT = 372;
+export const RESIDENT_DISPLAY_WIDTH = 32;
+export const RESIDENT_DISPLAY_HEIGHT = 48;
+/** Soles align here in every source crop, independent of direction or stride. */
+export const RESIDENT_ORIGIN = { x: 0.5, y: 370 / RESIDENT_FRAME_HEIGHT } as const;
 export type ResidentFacing = 'down' | 'left' | 'right' | 'up';
-export type ResidentPose = 'step-left' | 'idle' | 'step-right';
+export type ResidentPose = 'idle' | 'step-left' | 'passing' | 'step-right';
 export const RESIDENT_DIRECTIONS: readonly ResidentFacing[] = ['down', 'left', 'right', 'up'];
-export const RESIDENT_POSES: readonly ResidentPose[] = ['step-left', 'idle', 'step-right'];
+export const RESIDENT_POSES: readonly ResidentPose[] = ['idle', 'step-left', 'passing', 'step-right'];
 
-const columns = [112, 442, 772] as const;
-const rowTops = {
-  down: [35, 27, 35],
-  left: [385, 388, 385],
-  right: [738, 740, 738],
-  up: [1086, 1078, 1090],
-} as const;
+// Left mirrors the genuine right profile, never the front-facing row.
+const sourceRows = [
+  { facing: 'down', centers: [154, 444, 736, 1024], soles: [399, 398, 398, 398] },
+  { facing: 'right', centers: [155, 437, 731, 1019], soles: [836, 836, 836, 836] },
+  { facing: 'up', centers: [155, 441, 734, 1023], soles: [1253, 1253, 1253, 1253] },
+] as const;
 
-export const RESIDENT_FRAMES = RESIDENT_DIRECTIONS.flatMap(facing =>
+export const RESIDENT_FRAMES = sourceRows.flatMap(row =>
   RESIDENT_POSES.map((pose, column) => ({
-    name: `${facing}-${pose}`,
-    x: columns[column],
-    y: rowTops[facing][column],
+    name: `${row.facing}-${pose}`,
+    x: row.centers[column] - RESIDENT_FRAME_WIDTH / 2,
+    y: row.soles[column] - 370,
     width: RESIDENT_FRAME_WIDTH,
     height: RESIDENT_FRAME_HEIGHT,
   })),

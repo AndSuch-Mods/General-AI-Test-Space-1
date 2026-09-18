@@ -10,6 +10,7 @@ Before planning or implementation, read all of:
 - `docs/GAME_DESIGN.md`, `docs/PROJECT_RULES.md`, `docs/CONTENT_TARGETS.md`
 - `docs/MULTIPLAYER.md`, `docs/TECHNICAL_ARCHITECTURE.md`, `docs/ARCHITECTURE_DECISIONS.md`
 - `docs/SAVE_FORMAT.md`, `docs/OFFLINE_AND_PWA.md`, `docs/TEST_PLAN.md`
+- `docs/ROOM_AND_CONTROLS.md`, which records the user's revised room and touch requirements
 
 Before changing content or the associated systems, also read `docs/SYSTEMS.md`, `docs/STORY_BIBLE.md`, `docs/WORLD_BIBLE.md`, `docs/NPCS_AND_RELATIONSHIPS.md`, `docs/REFERENCE_AND_ART.md`, and `docs/CONTENT_LEDGER.md`. Read `docs/PHASES.md` before advancing phases.
 
@@ -25,6 +26,7 @@ The unchanged master is `docs/master/Haunted_Chocolatier_Twilight_AGENTS.md`. `d
 - Use a configurable `secondsPerGameMinute`, default 1.0. Schedules and timers use game time. Never force sleep at a fixed hour. Preserve the master fatigue and relationship rules.
 - Save exactly two normal worlds in IndexedDB with both profiles. Keep cache, app settings and guest mirrors separate. Validate imports, retain recovery copies, migrate explicitly, and never wipe saves on update. Never replace newer progress silently.
 - All final art, writing, maps, code, music and other content must be original or clearly licensed. Public references inform only broad design qualities. Track temporary original assets for replacement.
+- Build rooms from floor/wall layers and individual objects, with one native pixel scale shared by residents, furniture and effects. Solid objects need authoritative collision and reachable interactions. Never use a furnished background painting as a substitute for this. Preserve the compact HUD and floating thumbstick direction in `docs/ROOM_AND_CONTROLS.md`.
 - Expand original content autonomously within the bibles and density targets. Do not inflate counts with shallow filler. Preserve castle home, town life, supernatural wilderness, chocolate magic, deliberate shields, interactive cooking, fishing, relationships and the Stillroom Circle/Curator story. The supernatural survives the ending.
 - At each milestone run relevant lint, types, unit and browser tests, persistence and offline checks, and solo/co-op regressions. Fix failures before expanding. Update roadmap, changelog, implementation status and content ledger, then commit a stable checkpoint.
 - Before completing content phases, record the emptiness audit in `docs/CONTENT_LEDGER.md`. Real two-iPhone testing is required before calling co-op stable. Do not imply emulation proves device reliability.
