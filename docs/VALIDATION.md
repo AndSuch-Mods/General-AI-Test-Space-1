@@ -2,6 +2,8 @@
 
 ## 0.1.5 character and bed checkpoint
 
+Commit `7e01239` passed all 53 unit checks and all 20 browser cases on both Chromium and macOS WebKit in Actions run `35647925855`. This includes actual DataChannel reconnection, the occupied-bed reaction, custom profiles, journal synchronization, solo play, save recovery and origin-stopped offline play. A renderer fixture separately confirmed that historical reaction counters do not replay and a new reaction clears. Subsequent icon packaging changes preserve the supplied source and include 180, 192 and 512 pixel PNGs in the offline manifest. Main deployment initially encountered an external Google apt mirror size mismatch before browser installation; its failed runner was retried.
+
 Specification coverage, lint, types, production build and all 53 unit tests pass locally. New checks cover older-save migration, complete personal look persistence, moved-bed crossings, cooldown/idempotency, failed-save rollback and guest dawn-report delivery. Visual review checked every customization option and stable heads across all walking poses.
 
 Full browser results belong to this checkpoint's Actions run. The preceding 0.1.4 branch passed 19 Chromium and 19 macOS WebKit cases, but its main deployment rerun hit a Chromium reconnect failure, so Pages did not publish that revision. Local 0.1.5 broad testing also hit a movement-driver timeout under VM load; it was stopped while final preview/layout edits were in progress. These attempts are not counted as passing acceptance. Physical two-iPhone checks remain pending.

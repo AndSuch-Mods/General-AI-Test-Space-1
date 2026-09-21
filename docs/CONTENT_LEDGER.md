@@ -20,7 +20,7 @@
 | Room-material title | Title presentation | Uses the room's wallpaper and wood with Select game menu | Original reusable textures; former exterior image retained as history |
 | Resident | Persistent character | Four directions, four walk phases, 32 by 48 native frame at 64 by 96 display | Shared body, clothing, hair and skin choices with a live creation preview |
 | Room doors and old west stair | Shared architecture | Room/landing travel and stair repair clue | Original generated door poses/stair, opening animation |
-| App icon | Application asset | Original geometric cacao/moon design | Working icon |
+| App icon | Application asset | User-supplied moonlit castle artwork, preserved in docs/art | iOS touch and PWA icons; provenance in ART_HOME_ICON.md |
 
 Current art uses `public/art/room-v2-props.png`, `public/art/room-v2-materials.png`, `public/art/room-v2-flames.png`, `public/art/room-v3-doors-stairs.png` and `public/art/residents-v2.png`. Exact built-in prompts are in [room provenance](ART_ROOM_V2_PROMPT.md), [new doorway provenance](ART_ROOM_V3_PROMPT.md) and [resident provenance](ART_RESIDENT_V2_PROMPT.md). Former title/interior paintings, first resident sheet and SVG generator remain as development history. Window views, garment masks and UI are original code. No existing game's assets were downloaded or copied. System fonts are used; dependency licenses remain with their packages.
 

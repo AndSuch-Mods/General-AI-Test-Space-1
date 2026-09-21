@@ -2,6 +2,7 @@
 
 ## 0.1.5
 
+- Replaced the home-screen icon with the user's supplied moonlit castle artwork, including iOS and manifest sizes in the offline package.
 - Added male/female creation, four outfits, six clothing colors, four hairstyles, five hair colors and five skin tones, with live shared preview/gameplay artwork.
 - Added a synchronized sleepy, annoyed reaction when a player crosses an occupied bed, with a small toss, pixel huff and blanket sound. Sleep continues.
 - Preserved each resident's choices through save, backup and reconnect. Schema 5 migrates older profiles; protocol 6 synchronizes reactions.
