@@ -164,7 +164,7 @@ async function begin(hosting: boolean) {
   });
 }
 function characterFields(id: string, name: string) {
-  const choice = (key: keyof CharacterLook, label: string, options: readonly string[]) => `<label>${label}<select data-look="${key}">${options.map(value => `<option value="${value}" ${DEFAULT_LOOK[key] === value ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`).join('')}</select></label>`;
+  const choice = (key: keyof CharacterLook, label: string, options: readonly string[]) => `<label>${label}<select aria-label="${label}" data-look="${key}">${options.map(value => `<option value="${value}" ${DEFAULT_LOOK[key] === value ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`).join('')}</select></label>`;
   return `<div class="character-layout"><div class="resident-preview-frame"><canvas id="resident-preview" width="128" height="144" aria-label="Your resident appearance"></canvas></div><div class="character-fields"><label>Your name<input id="${id}" name="playerName" maxlength="24" required autocomplete="off" value="${name}" /></label>${choice('body', 'Character', BODY_OPTIONS)}${choice('outfit', 'Outfit', OUTFIT_OPTIONS)}${appearanceField()}${choice('hairStyle', 'Hair style', HAIR_STYLE_OPTIONS)}${choice('hairColor', 'Hair color', HAIR_COLOR_OPTIONS)}${choice('skinTone', 'Skin tone', SKIN_TONE_OPTIONS)}</div></div>`;
 }
 function readCharacterLook(panel: HTMLDialogElement): CharacterLook {

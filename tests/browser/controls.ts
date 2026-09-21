@@ -28,6 +28,17 @@ async function moveTo(page: Page, key: string, axis: 'x' | 'y', sign: number, ta
     // Protocol/VM latency can delay key-up after polling. Release well before a narrow
     // waypoint, then release each fine movement only after the game has observed it.
     if (await progress() < -84) {
+      await page.evaluate(({ coordinate, target, sign, key, timeout }) => {
+        const element = document.querySelector('#game-canvas')!;
+        const code = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 }[key]!;
+        const observer = new MutationObserver(() => {
+          if (sign * (Number(element.getAttribute(`data-player-${coordinate}`)) - target) < -84) return;
+          observer.disconnect(); clearTimeout(timer);
+          window.dispatchEvent(new KeyboardEvent('keyup', { key, code: key, keyCode: code, which: code, bubbles: true }));
+        });
+        const timer = setTimeout(() => observer.disconnect(), timeout);
+        observer.observe(element, { attributes: true, attributeFilter: [`data-player-${coordinate}`] });
+      }, { coordinate: axis, target, sign, key, timeout });
       await page.keyboard.down(key);
       try { await expect.poll(progress, { timeout, intervals: [30] }).toBeGreaterThanOrEqual(-84); }
       finally { await page.keyboard.up(key); }

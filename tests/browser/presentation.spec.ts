@@ -87,7 +87,7 @@ test('creation choices change the native preview and survive entering and reopen
   const pixels = () => canvas.evaluate(el => (el as HTMLCanvasElement).toDataURL());
   const choices = [['Character', 'female'], ['Hair style', 'long'], ['Hair color', 'copper'], ['Skin tone', 'brown'], ['Outfit', 'dress'], ['Clothing color', 'wine']];
   for (const [label, value] of choices) {
-    const before = await pixels(); await page.getByLabel(label, { exact: true }).selectOption(value);
+    const before = await pixels(); await page.getByRole('combobox', { name: label, exact: true }).selectOption(value);
     await expect.poll(pixels).not.toBe(before);
   }
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
