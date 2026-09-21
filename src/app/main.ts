@@ -2,7 +2,7 @@ import './style.css';
 import { BUILD_VERSION, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
 import { Authority, type Intent } from '../game/authority';
 import { arrival, validateContent, type ArrivalId } from '../content/arrival';
-import { FURNITURE_IDS, getRoomObjects, objectOffset, inBedEntry, type FurnitureId, nearestInteractable } from '../content/room';
+import { canArrangeRoom, FURNITURE_IDS, getRoomObjects, objectOffset, inBedEntry, roomFlag, roomLayout, roomOwner, type FurnitureId, nearestInteractable } from '../content/room';
 import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
@@ -23,6 +23,8 @@ const sound = new HouseholdAudio();
 let arranging: { id: FurnitureId; x: number; y: number; expected: { x: number; y: number }; error: string | null } | undefined;
 let bedEntryLatched = false;
 let lastFootstep = 0;
+let dawnUntil = 0;
+let dawnTimer: ReturnType<typeof setTimeout> | undefined;
 document.addEventListener('pointerdown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
 document.addEventListener('keydown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
 const app = document.querySelector<HTMLElement>('#app')!;
@@ -78,7 +80,7 @@ async function closeModal(reason: 'back' | 'authored-exit' = 'back') {
       const target = world!.players[localId].interaction!;
       disposeModal();
       await dispatch({ kind: 'close-interaction' });
-      if (!Object.values(world!.players).some(p => p.interaction === target)) await roomPresentation.wait(target, false);
+      if (!Object.values(world!.players).some(p => p.map === world!.players[localId].map && p.interaction === target)) await roomPresentation.wait(target, false);
     }
     finally { interacting = false; refreshActionButtons(); }
   } else disposeModal();
@@ -185,21 +187,22 @@ async function enterHost(saved: World) {
   catch (error) { await title(); throw error; }
 }
 function sharedPresentation(previous: World | undefined, next: World) {
-  if (previous && !previous.story.flags.hearth && next.story.flags.hearth) {
-    sound.cue('ignite');
-  }
-  if (previous?.story.flags.hearth && !next.story.flags.hearth) sound.cue('extinguish');
   const oldPlayer = previous?.players[localId], currentPlayer = next.players[localId];
   if (oldPlayer && currentPlayer) {
+    if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, 'hearth') !== roomFlag(next, currentPlayer.map, 'hearth')) sound.cue(roomFlag(next, currentPlayer.map, 'hearth') ? 'ignite' : 'extinguish');
     if (oldPlayer.map !== currentPlayer.map) sound.cue('door');
     else if (Math.hypot(oldPlayer.x - currentPlayer.x, oldPlayer.y - currentPlayer.y) > 1 && !currentPlayer.fatigue.sleeping && performance.now() - lastFootstep > 250) { sound.cue('step'); lastFootstep = performance.now(); }
     if (oldPlayer.fatigue.sleeping !== currentPlayer.fatigue.sleeping) sound.cue(currentPlayer.fatigue.sleeping ? 'sleep' : 'wake');
-    for (const id of ['candle-desk', 'candle-table']) if ((previous!.story.flags[id] ?? true) !== (next.story.flags[id] ?? true)) sound.cue(next.story.flags[id] ? 'ignite' : 'extinguish');
+    for (const id of ['candle-desk', 'candle-table']) if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, id, true) !== roomFlag(next, currentPlayer.map, id, true)) sound.cue(roomFlag(next, currentPlayer.map, id, true) ? 'ignite' : 'extinguish');
     const activeIds = [next.hostId, ...(guestSession || hostSession?.guestId ? [next.guestId!] : [])];
     for (const target of ['chest', 'pantry', 'desk']) {
-      const was = activeIds.some(id => previous?.players[id]?.interaction === target);
-      const is = activeIds.some(id => next.players[id]?.interaction === target);
-      if (was !== is && currentPlayer.map === 'castle') sound.cue(is ? 'open' : 'close');
+      const was = activeIds.some(id => previous?.players[id]?.map === currentPlayer.map && previous?.players[id]?.interaction === target);
+      const is = activeIds.some(id => next.players[id]?.map === currentPlayer.map && next.players[id]?.interaction === target);
+      if (was !== is) sound.cue(is ? 'open' : 'close');
+    }
+    if (next.clock.totalMinutes - previous!.clock.totalMinutes > 30 && activeIds.every(id => previous!.players[id]?.fatigue.sleeping)) {
+      dawnUntil = performance.now() + 1200; clearTimeout(dawnTimer);
+      dawnTimer = setTimeout(updateHud, 1250); updateHud();
     }
   }
   const before = previous?.players[localId]?.fatigue, player = next.players[localId];
@@ -219,19 +222,19 @@ function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
   if (arranging) {
     arranging.x += Math.sign(dx) * 8; arranging.y += Math.sign(dy) * 8;
-    arranging.error = placementError(world!, arranging.id, arranging); refreshArrangement(); return;
+    arranging.error = placementError(world!, arranging.id, arranging, world!.players[localId].map); refreshArrangement(); return;
   }
   moving = true; void dispatch({ kind: 'move', dx, dy }).then(() => {
-    const entered = inBedEntry(world!.players[localId], world!.layout);
+    const entered = inBedEntry(world!.players[localId], roomLayout(world!, world!.players[localId].map));
     if (entered && !bedEntryLatched) { bedEntryLatched = true; sleepPrompt(); }
     if (!entered) bedEntryLatched = false;
   }).catch(fail).finally(() => { moving = false; });
 }
-function controlsBlocked() { return !!modal || interacting || exiting || document.hidden || !!world?.players[localId]?.fatigue.sleeping; }
+function controlsBlocked() { return !!modal || interacting || exiting || document.hidden || performance.now() < dawnUntil || !!world?.players[localId]?.fatigue.sleeping; }
 async function interact() {
   if (!world || controlsBlocked()) return;
   touchControls?.stop();
-  const nearest = nearestInteractable(world.players[localId], world.layout);
+  const nearest = nearestInteractable(world.players[localId], roomLayout(world, world.players[localId].map));
   if (nearest) await performInteraction(nearest.actions[0]);
 }
 function sleepPrompt() {
@@ -246,7 +249,8 @@ async function performInteraction(target: ArrivalId) {
   interacting = true; touchControls?.stop(); refreshActionButtons();
   try {
     await dispatch({ kind: 'interact', target });
-    if (target === 'door-out' || target === 'door-home' || target === 'hearth' || target.startsWith('candle-')) return;
+    if (target.startsWith('door-') || target === 'hearth' || target.startsWith('candle-')) return;
+    if (target === 'journal') { sound.cue('paper'); dailyJournal(); return; }
     if (target === 'chest' || target === 'pantry' || target === 'desk') await roomPresentation.wait(target, true);
     if (target === 'chest') { chestDialog(); return; }
     if (target === 'letter' || target === 'bookshelf') sound.cue('paper');
@@ -258,7 +262,7 @@ async function performInteraction(target: ArrivalId) {
 function refreshArrangement() {
   const bar = document.getElementById('arrange-bar');
   if (!bar || !arranging) return;
-  const label = getRoomObjects('castle').find(o => o.id === arranging!.id)!.label;
+  const label = getRoomObjects(world!.players[localId].map).find(o => o.id === arranging!.id)!.label;
   bar.querySelector('strong')!.textContent = label;
   bar.querySelector('small')!.textContent = arranging.error ?? 'Move with the stick · A place · B cancel';
   bar.classList.toggle('invalid', !!arranging.error);
@@ -268,17 +272,25 @@ function endArrangement() {
   document.querySelector('.quickbar')?.classList.remove('arranging');
 }
 function arrangeRoom() {
-  if (world!.players[localId].map !== 'castle') return;
-  const panel = dialog('Arrange room', '<p class="muted">Choose a piece. Move it with the stick, A places it, B cancels.</p><div class="furnishing-list">' + FURNITURE_IDS.map(id => '<button data-furnishing="' + id + '">' + getRoomObjects('castle').find(o => o.id === id)!.label + '</button>').join('') + '</div>');
+  const map = world!.players[localId].map;
+  if (!canArrangeRoom(world!, localId, map)) return;
+  const pieces = getRoomObjects(map).filter(o => FURNITURE_IDS.includes(o.id as FurnitureId));
+  const panel = dialog('Arrange room', '<p class="muted">Choose a piece. Move it with the stick, A places it, B cancels.</p><div class="furnishing-list">' + pieces.map(o => '<button data-furnishing="' + o.id + '">' + o.label + '</button>').join('') + '</div>');
   panel.classList.add('arrange-picker');
   for (const button of panel.querySelectorAll<HTMLButtonElement>('[data-furnishing]')) button.addEventListener('click', () => {
-    const id = button.dataset.furnishing as FurnitureId, offset = objectOffset(id, world!.layout);
+    const id = button.dataset.furnishing as FurnitureId, offset = objectOffset(id, roomLayout(world!, map));
     arranging = { id, x: offset.x, y: offset.y, expected: { x: offset.x, y: offset.y }, error: null };
     disposeModal();
     document.querySelector('.quickbar')?.classList.add('arranging');
     const bar = document.createElement('div'); bar.id = 'arrange-bar'; bar.innerHTML = '<strong></strong><small></small>';
     document.querySelector('.play-screen')!.append(bar); refreshArrangement();
   });
+}
+function dailyJournal() {
+  const report = world!.dayReports.at(-1), personal = report?.players[localId];
+  const body = report ? `<p class="muted">Day ${report.day + 1} · recorded at dawn</p><div class="daily-columns"><section><h3>Our household</h3>${report.shared.length ? report.shared.map(kind => `<p>${escape(arrival.find(event => event.id === kind)?.title ?? 'A change in the household')}</p>`).join('') : '<p>No shared milestones recorded.</p>'}</section><section><h3>Your day</h3>${personal ? `<p>${personal.rested ? 'You rested until morning.' : 'You were awake when dawn arrived.'}</p><p>At dawn: ${personal.discoveries} discoveries, ${personal.recipes} known recipes, ${personal.completedQuests} completed personal quests.</p>` : '<p>Your record begins with your first morning here.</p>'}</section></div>` : '<p>The first entry will be ready after dawn. Each page keeps the household\'s shared milestones and your own record.</p>';
+  const panel = dialog('Yesterday at the castle', body + '<button id="finish-story" data-primary="true">A · Close journal</button>', 'object');
+  panel.classList.add('story-dialog', 'daily-journal'); on('finish-story', closeModal);
 }
 async function leaveGame() {
   if (exiting) return;
@@ -314,6 +326,7 @@ async function play() {
     <span id="resident-label" class="sr-only"></span><span id="save-state" class="sr-only" aria-live="polite"></span>
     <header class="game-hud"><div class="hud-clock" aria-label="World time"><span class="clock-moon" aria-hidden="true">☾</span><time id="game-clock">18:00</time></div><button id="inventory-toggle" class="hud-button" aria-label="Inventory and missions"><span>I</span><span id="notification-dot" hidden aria-label="New mission or discovery"></span></button><button id="leave" class="hud-button" aria-label="Save and return to title"><span>ESC</span></button></header>
     <div class="quickbar" role="group" aria-label="Quick slots">${Array.from({ length: QUICK_SLOT_COUNT }, (_, index) => `<button id="quick-slot-${index + 1}" class="quick-slot" aria-label="Quick slot ${index + 1}"><span class="slot-key">${index + 1}</span><span class="quick-item"></span><span class="quick-count"></span></button>`).join('')}</div>
+    <div id="night-transition" hidden aria-hidden="true"><span>☾</span></div>
     <div id="sleep-overlay" hidden role="status"><span id="sleep-label"></span><small>B · Wake up</small></div>
     <div id="game-actions" class="game-actions"><button id="action-b" class="action-key" aria-label="Back"><span>B</span></button><button id="action-a" class="action-key" aria-label="Interact"><span>A</span></button></div></section>`;
   on('inventory-toggle', () => inventory(quickSettings.seen !== notificationState() ? 'missions' : 'items'));
@@ -379,6 +392,8 @@ function refreshActionButtons() {
   const a = document.getElementById('action-a') as HTMLButtonElement | null;
   const b = document.getElementById('action-b') as HTMLButtonElement | null;
   const sleeping = !!world?.players[localId]?.fatigue.sleeping;
+  const inventoryButton = document.getElementById('inventory-toggle') as HTMLButtonElement | null;
+  if (inventoryButton) inventoryButton.disabled = interacting || exiting || sleeping || performance.now() < dawnUntil;
   if (a) { a.disabled = interacting || exiting || sleeping || !!modal && modal.querySelectorAll('[data-primary="true"]').length !== 1; a.setAttribute('aria-label', modal ? 'Continue' : 'Interact'); }
   if (b) { b.disabled = interacting || exiting || !!modal && modalKind === 'conversation'; b.setAttribute('aria-label', sleeping ? 'Wake up' : 'Back'); }
 }
@@ -395,13 +410,17 @@ function updateHud() {
   const badge = document.getElementById('notification-dot');
   if (badge) badge.hidden = quickSettings.seen === notificationState();
   document.getElementById('inventory-toggle')?.setAttribute('aria-label', `Inventory and missions${badge && !badge.hidden ? ', new updates' : ''}`);
-  sound.setScene({ map: world.players[localId].map, night: phase === 'night' || phase === 'late-night', hearth: !!world.story.flags.hearth });
+  sound.setScene({ map: world.players[localId].map, night: phase === 'night' || phase === 'late-night', hearth: roomFlag(world, world.players[localId].map, 'hearth') });
   const player = world.players[localId], sleepOverlay = document.getElementById('sleep-overlay');
+  const activeIds = [world.hostId, ...(guestSession || hostSession?.guestId ? [world.guestId!] : [])];
+  const allSleeping = activeIds.every(id => world!.players[id]?.fatigue.sleeping);
+  const transition = document.getElementById('night-transition');
+  if (transition) { transition.hidden = !allSleeping && performance.now() >= dawnUntil; transition.classList.toggle('dawn', !allSleeping); }
   if (sleepOverlay) {
     sleepOverlay.hidden = !player.fatigue.sleeping;
     if (player.fatigue.sleeping) {
       touchControls?.stop();
-      document.getElementById('sleep-label')!.textContent = `Asleep until ${clockLabel(player.fatigue.wakeAt ?? world.clock.totalMinutes)}`;
+      document.getElementById('sleep-label')!.textContent = allSleeping ? 'The castle rests until morning' : `Asleep until ${clockLabel(player.fatigue.wakeAt ?? world.clock.totalMinutes)}`;
     }
   }
   const inventoryButton = document.getElementById('inventory-toggle') as HTMLButtonElement | null;
@@ -436,7 +455,7 @@ function selectQuickSlot(index: number) {
   quickSettings.selected = index; saveQuickSettings(); updateHud();
 }
 function inventory(tab: InventoryTab = 'items') {
-  if (!world || exiting || world.players[localId].fatigue.sleeping) return;
+  if (!world || exiting || interacting || world.players[localId].fatigue.sleeping) return;
   endArrangement();
   if (tab === 'missions' || tab === 'journal') { quickSettings.seen = notificationState(); saveQuickSettings(); }
   const tabs = [['items', 'Satchel'], ['missions', 'Missions'], ['journal', 'Journal'], ['household', 'Household'], ['session', 'Co-op']] as const;
@@ -448,7 +467,7 @@ function inventory(tab: InventoryTab = 'items') {
     if (!world || modal !== panel) return;
     const player = world.players[localId], contents = panel.querySelector<HTMLElement>('#inventory-content')!;
     const nextContents = JSON.stringify(tab === 'items' ? player.inventory : tab === 'missions' ? [player.discoveries, world.story.flags] :
-      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, world.story.flags.hearth, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
+      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, world.story.flags, player.map, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
     if (nextContents === previousContents) return;
     previousContents = nextContents;
     if (tab === 'items') {
@@ -466,7 +485,7 @@ function inventory(tab: InventoryTab = 'items') {
         return `<details><summary>${escape(entry?.title ?? id)}</summary><p>${escape(entry?.text ?? '')}</p></details>`;
       }).join('') : '<p>The first page is waiting.</p>'}</div>`;
     } else if (tab === 'household') {
-      contents.innerHTML = `<button id="arrange-room" ${player.map === 'castle' ? '' : 'disabled'}>Arrange room</button><h3>The castle household</h3><p>${world.story.flags.hearth ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+      contents.innerHTML = `<button id="arrange-room" ${canArrangeRoom(world, localId, player.map) ? '' : 'disabled'}>Arrange room</button>${roomOwner(world, player.map) && roomOwner(world, player.map) !== localId ? '<p class="muted">Only this bedroom’s owner can rearrange its furniture. You may use everything here.</p>' : ''}<h3>The castle household</h3><p>${roomFlag(world, player.map, 'hearth') ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
       on('arrange-room', arrangeRoom);
     } else {
       contents.innerHTML = `<h3>${guestSession ? guestSession.connected ? 'Together in the castle' : 'Connection closed' : hostSession?.guestId ? 'The household is together' : 'Invite someone home'}</h3><p>${guestSession ? 'You are the second resident. Your belongings and discoveries are saved with this household, with a recovery copy on this device.' : 'A second resident can join this world over the same reachable Wi-Fi. You can continue alone after they leave.'}</p>${guestSession ? '<p class="muted">Use ESC to save and return to the title. Join Co-op there to reconnect.</p>' : '<button id="session" class="primary">Co-op session<span>→</span></button>'}<h3>Controls</h3><p class="muted">Drag on the left side to walk. A interacts or continues; B goes back. Choose dialogue responses directly. Keyboard: WASD or arrows, E to interact, B to go back, I for this satchel, ESC to save and leave.</p>`;

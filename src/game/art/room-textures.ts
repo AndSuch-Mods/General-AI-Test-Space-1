@@ -9,14 +9,15 @@ export function inWindowPane(x: number, y: number) {
   return y >= 14 || Math.abs(x - 13.5) <= y - 7;
 }
 export function buildRoomTextures(scene: Phaser.Scene) {
-  const props = scene.textures.createCanvas('props-native', 256, 240)!;
+  // Eighty-pixel cells fit the wider two-resident bed without overlapping the desk.
+  const props = scene.textures.createCanvas('props-native', 320, 320)!;
   props.context.imageSmoothingEnabled = false;
   const source = scene.textures.get(ROOM_TEXTURE).getSourceImage() as HTMLImageElement;
   ROOM_FRAMES.forEach((frame, index) => {
     const object = getRoomObjects().find(object => object.id === frame.name || frame.name === 'window' && object.id === 'window-west');
     const size = object?.bounds ?? ({ candle: { width: 10, height: 24 }, letter: { width: 22, height: 16 }, parcel: { width: 22, height: 26 } }[frame.name as 'candle' | 'letter' | 'parcel']);
     const width = Math.ceil(size.width / ENV_PIXEL), height = Math.ceil(size.height / ENV_PIXEL);
-    const x = index % 4 * 64, y = Math.floor(index / 4) * 80;
+    const x = index % 4 * 80, y = Math.floor(index / 4) * 80;
     props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
     if (frame.name === 'window') for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
       if (inWindowPane(px, py)) props.context.clearRect(x + px, y + py, 1, 1);
@@ -39,6 +40,44 @@ export function buildRoomTextures(scene: Phaser.Scene) {
       props.add('desk-right', 0, x + 39, y + 17, 11, 8);
     }
   });
+  // Original walnut seat frames reuse the room's burgundy quilt weave as upholstery.
+  const bedSource = ROOM_FRAMES.find(frame => frame.name === 'bed')!;
+  const seat = (name: 'sofa' | 'armchair', x: number, y: number, width: number, height: number) => {
+    const c = props.context;
+    const rect = (px: number, py: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x + px, y + py, w, h); };
+    const cloth = (px: number, py: number, w: number, h: number) => c.drawImage(source, bedSource.x + 25, bedSource.y + 170, bedSource.width - 50, 110, x + px, y + py, w, h);
+    const arm = name === 'sofa' ? 9 : 7, backBottom = name === 'sofa' ? 25 : 20;
+    rect(4, 3, width - 8, height - 7, '#251d29');
+    rect(7, 1, width - 14, 4, '#805735'); rect(8, 2, width - 16, 1, '#ad7d4d');
+    rect(5, 5, width - 10, backBottom - 2, '#58372f');
+    cloth(arm, 6, width - arm * 2, backBottom - 7);
+    rect(arm, backBottom - 1, width - arm * 2, 2, '#432634');
+    cloth(arm - 1, backBottom + 1, width - arm * 2 + 2, 9);
+    rect(arm - 1, backBottom, width - arm * 2 + 2, 1, '#9a626a');
+    rect(arm - 1, backBottom + 9, width - arm * 2 + 2, 4, '#49303b');
+    for (const side of [0, width - arm]) {
+      rect(side, backBottom - 10, arm, 22, '#2d222a');
+      rect(side + 1, backBottom - 12, arm - 2, 6, '#8b6140');
+      rect(side + 2, backBottom - 11, arm - 3, 2, '#b48654');
+      rect(side + 2, backBottom - 5, arm - 4, 16, '#694530');
+      rect(side + 2, height - 5, 4, 5, '#30222a');
+      rect(side + 2, height - 5, 2, 3, '#815437');
+    }
+    for (let px = arm + 5; px < width - arm; px += 12) rect(px, backBottom + 11, 1, 1, '#b18b52');
+    if (name === 'sofa') for (const divider of [27, 45]) {
+      rect(divider, 7, 1, 16, '#55313e'); rect(divider, backBottom + 2, 1, 7, '#56313d');
+    }
+    props.add(name, 0, x, y, width, height);
+  };
+  seat('sofa', 0, 240, 73, 44); seat('armchair', 80, 240, 33, 35);
+  // A closed forest-green journal with a brass clasp, distinct from the sealed letter.
+  const notebook = props.context;
+  notebook.fillStyle = '#251e29'; notebook.fillRect(160, 240, 9, 7);
+  notebook.fillStyle = '#53715b'; notebook.fillRect(161, 240, 7, 5);
+  notebook.fillStyle = '#314b3b'; notebook.fillRect(162, 241, 6, 4);
+  notebook.fillStyle = '#baa782'; notebook.fillRect(161, 245, 7, 1);
+  notebook.fillStyle = '#bf9a58'; notebook.fillRect(167, 242, 2, 1); notebook.fillRect(161, 241, 1, 3);
+  props.add('journal', 0, 160, 240, 9, 7);
   props.refresh();
   const materials = scene.textures.createCanvas('materials-native', 128, 68)!;
   materials.context.imageSmoothingEnabled = false;

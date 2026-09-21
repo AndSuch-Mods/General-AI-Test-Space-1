@@ -1,9 +1,9 @@
 import type { ArrivalId } from './arrival';
 
 export type Rect = { x: number; y: number; width: number; height: number };
-export type RoomMap = 'castle' | 'landing';
+export type RoomMap = 'castle' | 'bedroom-2' | 'living' | 'landing';
 export type Position = { x: number; y: number; map?: RoomMap };
-export const FURNITURE_IDS = ['bed', 'desk', 'side-table', 'bookshelf', 'pantry', 'chest', 'candle-desk', 'candle-table', 'carpet', 'plant'] as const;
+export const FURNITURE_IDS = ['bed', 'desk', 'side-table', 'bookshelf', 'pantry', 'chest', 'candle-desk', 'candle-table', 'carpet', 'plant', 'sofa', 'armchair'] as const;
 export type FurnitureId = typeof FURNITURE_IDS[number];
 export type RoomLayout = Partial<Record<FurnitureId, { x: number; y: number }>>;
 export type RoomObject = {
@@ -14,16 +14,17 @@ export const ROOM_SIZE = { width: 960, height: 540 };
 export const WALK_AREA: Rect = { x: 80, y: 210, width: 800, height: 266 };
 export const INTERACT_RANGE = 58;
 export const PLAYER_FOOT = { halfWidth: 12, height: 10 };
-export const BED_ENTRY: Rect = { x: 146, y: 288, width: 108, height: 28 };
-export const BED_REST = { x: 200, y: 334 };
+export const BED_ENTRY: Rect = { x: 106, y: 288, width: 148, height: 28 };
+export const BED_REST = { x: 180, y: 334 };
 export const BED_EXIT = { x: 270, y: 300 };
 
 // Rendering, host collision and interaction reach all share these authored objects.
 // The lower footprint is solid; tall backs may correctly occlude a resident behind them.
 export const roomObjects: readonly RoomObject[] = [
-  { id: 'bed', label: 'Carved bed', bounds: { x: 150, y: 210, width: 100, height: 130 }, collisions: [{ x: 150, y: 244, width: 100, height: 34 }, { x: 150, y: 316, width: 100, height: 24 }], anchor: { x: 252, y: 302 }, depth: 340, actions: ['bed'] },
+  { id: 'bed', label: 'Carved double bed', bounds: { x: 110, y: 210, width: 140, height: 130 }, collisions: [{ x: 110, y: 244, width: 140, height: 34 }, { x: 110, y: 316, width: 140, height: 24 }], anchor: { x: 252, y: 302 }, depth: 340, actions: ['bed'] },
   { id: 'desk', label: 'Writing desk', bounds: { x: 330, y: 220, width: 105, height: 65 }, collision: { x: 330, y: 251, width: 105, height: 32 }, anchor: { x: 382, y: 289 }, depth: 283, actions: [] },
   { id: 'letter', label: 'Sealed letter', bounds: { x: 357, y: 226, width: 22, height: 16 }, anchor: { x: 362, y: 290 }, depth: 284, actions: ['letter'] },
+  { id: 'journal', label: 'Daily journal', bounds: { x: 382, y: 231, width: 18, height: 14 }, anchor: { x: 386, y: 294 }, depth: 284, actions: ['journal'] },
   { id: 'candle-desk', label: 'Desk candle', bounds: { x: 405, y: 215, width: 10, height: 24 }, anchor: { x: 423, y: 290 }, depth: 284, actions: ['candle-desk'] },
   { id: 'candle-table', label: 'Bedside candle', bounds: { x: 263, y: 382, width: 10, height: 24 }, anchor: { x: 272, y: 446 }, depth: 439, actions: ['candle-table'] },
   { id: 'carpet', label: 'Woven carpet', bounds: { x: 338, y: 316, width: 318, height: 132 }, anchor: { x: 497, y: 448 }, depth: -90, actions: [] },
@@ -35,21 +36,29 @@ export const roomObjects: readonly RoomObject[] = [
   { id: 'side-table', label: 'Bedside table', bounds: { x: 240, y: 390, width: 60, height: 48 }, collision: { x: 240, y: 414, width: 60, height: 24 }, anchor: { x: 272, y: 446 }, depth: 438, actions: [] },
   { id: 'window-west', label: 'West window', bounds: { x: 244, y: 122, width: 52, height: 80 }, anchor: { x: 270, y: 218 }, depth: 202, actions: ['window-west'] },
   { id: 'window-east', label: 'East window', bounds: { x: 430, y: 122, width: 52, height: 80 }, anchor: { x: 456, y: 220 }, depth: 202, actions: ['window-east'] },
-  { id: 'door-out', label: 'Castle landing', bounds: { x: 642, y: 76, width: 86, height: 136 }, collision: { x: 642, y: 210, width: 86, height: 6 }, anchor: { x: 685, y: 230 }, depth: 216, actions: ['door-out'] },
+  { id: 'door-out', label: 'Living room', bounds: { x: 642, y: 76, width: 86, height: 136 }, collision: { x: 642, y: 210, width: 86, height: 6 }, anchor: { x: 685, y: 230 }, depth: 216, actions: ['door-out'] },
+];
+const wallDoor = (id: 'door-left' | 'door-right' | 'door-out', label: string, x: number): RoomObject => ({ id, label, bounds: { x, y: 76, width: 86, height: 136 }, collision: { x, y: 210, width: 86, height: 6 }, anchor: { x: x + 43, y: 230 }, depth: 216, actions: [id] });
+export const livingObjects: readonly RoomObject[] = [
+  ...roomObjects.filter(o => ['bookshelf', 'pantry', 'chest', 'plant', 'side-table', 'candle-table', 'carpet', 'hearth'].includes(o.id)),
+  { id: 'window-west', label: 'Living room window', bounds: { x: 286, y: 122, width: 52, height: 80 }, anchor: { x: 312, y: 220 }, depth: 202, actions: ['window-west'] },
+  { id: 'sofa', label: 'Plum sofa', bounds: { x: 330, y: 270, width: 146, height: 88 }, collision: { x: 330, y: 314, width: 146, height: 44 }, anchor: { x: 403, y: 370 }, depth: 358, actions: [] },
+  { id: 'armchair', label: 'Reading chair', bounds: { x: 572, y: 372, width: 66, height: 70 }, collision: { x: 572, y: 408, width: 66, height: 34 }, anchor: { x: 560, y: 444 }, depth: 442, actions: [] },
+  wallDoor('door-left', 'Player 1 bedroom', 180), wallDoor('door-right', 'Player 2 bedroom', 640), wallDoor('door-out', 'Castle landing', 385),
 ];
 export const landingObjects: readonly RoomObject[] = [
-  { id: 'door-home', label: 'Your room', bounds: { x: 437, y: 76, width: 86, height: 136 }, collision: { x: 437, y: 210, width: 86, height: 6 }, anchor: { x: 480, y: 230 }, depth: 216, actions: ['door-home'] },
+  { id: 'door-home', label: 'Living room', bounds: { x: 437, y: 76, width: 86, height: 136 }, collision: { x: 437, y: 210, width: 86, height: 6 }, anchor: { x: 480, y: 230 }, depth: 216, actions: ['door-home'] },
   { id: 'window-west', label: 'West window', bounds: { x: 244, y: 122, width: 52, height: 80 }, anchor: { x: 270, y: 220 }, depth: 202, actions: ['window-west'] },
   { id: 'window-east', label: 'East window', bounds: { x: 654, y: 122, width: 52, height: 80 }, anchor: { x: 680, y: 220 }, depth: 202, actions: ['window-east'] },
   { id: 'landing-stairs', label: 'Old west stair', bounds: { x: 740, y: 340, width: 120, height: 108 }, collision: { x: 740, y: 356, width: 120, height: 92 }, anchor: { x: 800, y: 456 }, depth: 448, actions: ['landing-stairs'] },
 ];
 export function objectOffset(id: string, layout: RoomLayout = {}): Position {
-  const parent = id === 'letter' || id === 'candle-desk' ? 'desk' : id === 'candle-table' ? 'side-table' : undefined;
+  const parent = id === 'letter' || id === 'journal' || id === 'candle-desk' ? 'desk' : id === 'candle-table' ? 'side-table' : undefined;
   return layout[id as FurnitureId] ?? (parent ? layout[parent] : undefined) ?? { x: 0, y: 0 };
 }
 export function getRoomObjects(map: RoomMap = 'castle', layout: RoomLayout = {}): readonly RoomObject[] {
   if (map === 'landing') return landingObjects;
-  const objects = roomObjects.map(object => {
+  const objects = (map === 'living' ? livingObjects : roomObjects).map(object => {
     const delta = objectOffset(object.id, layout);
     if (!delta.x && !delta.y) return object;
     const shifted = <T extends Position>(p: T): T => ({ ...p, x: p.x + delta.x, y: p.y + delta.y });
@@ -66,8 +75,16 @@ export function getRoomObjects(map: RoomMap = 'castle', layout: RoomLayout = {})
 export const objectColliders = (object: RoomObject): readonly Rect[] => object.collisions ?? (object.collision ? [object.collision] : []);
 export function inBedEntry(position: Position, layout: RoomLayout = {}) {
   const delta = objectOffset('bed', layout);
-  return (position.map ?? 'castle') === 'castle' && position.x >= BED_ENTRY.x + delta.x && position.x <= BED_ENTRY.x + delta.x + BED_ENTRY.width && position.y >= BED_ENTRY.y + delta.y && position.y <= BED_ENTRY.y + delta.y + BED_ENTRY.height;
+  return isBedroom(position.map ?? 'castle') && position.x >= BED_ENTRY.x + delta.x && position.x <= BED_ENTRY.x + delta.x + BED_ENTRY.width && position.y >= BED_ENTRY.y + delta.y && position.y <= BED_ENTRY.y + delta.y + BED_ENTRY.height;
 }
+
+type Household = { layout: RoomLayout; roomLayouts?: Partial<Record<RoomMap, RoomLayout>>; hostId: string; guestId: string | null; story: { flags: Record<string, boolean> } };
+export const isBedroom = (map: RoomMap) => map === 'castle' || map === 'bedroom-2';
+export function roomLayout(world: Pick<Household, 'layout' | 'roomLayouts'>, map: RoomMap): RoomLayout { return map === 'castle' ? world.layout : world.roomLayouts?.[map] ?? {}; }
+export function roomOwner(world: Pick<Household, 'hostId' | 'guestId'>, map: RoomMap) { return map === 'castle' ? world.hostId : map === 'bedroom-2' ? world.guestId : null; }
+export function canArrangeRoom(world: Pick<Household, 'hostId' | 'guestId'>, actor: string, map: RoomMap) { return map === 'living' || isBedroom(map) && roomOwner(world, map) === actor; }
+export function roomFlagKey(map: RoomMap, id: string) { return map === 'castle' ? id : `${map}:${id}`; }
+export function roomFlag(world: Pick<Household, 'story'>, map: RoomMap, id: string, fallback = false) { return world.story.flags[roomFlagKey(map, id)] ?? fallback; }
 
 function overlap(a: Rect, b: Rect) {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;

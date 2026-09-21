@@ -1,5 +1,11 @@
 import type { Scope } from '../game/model';
 export const arrival = [
+  { id: 'journal', label: 'Read your daily journal', x: 386, y: 294, scope: 'personal' as Scope,
+    title: 'Yesterday at the castle', text: 'A record of the household and your own day.' },
+  { id: 'door-left', label: 'Enter Player 1 bedroom', x: 223, y: 230, scope: 'personal' as Scope,
+    title: 'The west bedroom', text: 'The quiet room on the left.' },
+  { id: 'door-right', label: 'Enter Player 2 bedroom', x: 683, y: 230, scope: 'personal' as Scope,
+    title: 'The east bedroom', text: 'The quiet room on the right.' },
   { id: 'letter', label: 'Read the sealed letter', x: 330, y: 275, scope: 'personal' as Scope,
     title: 'A letter that waited', text: 'The paper smells faintly of orange peel. "If the house lets you in, leave a light burning. Some memories need a way home." Beneath the signature, someone has pressed a ring of six tiny spoons into the wax.' },
   { id: 'hearth', label: 'Light the household hearth', x: 552, y: 265, scope: 'shared_world' as Scope,

@@ -40,14 +40,14 @@ test('bed entry advances solo time, windows change, menus pause and the new day 
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
 });
 
-test('exit door reaches a saved landing and returns through its own door', async ({ page }) => {
+test('exit door reaches a saved living room and returns through its own door', async ({ page }) => {
   await create(page);
   await walkTo(page, 'y', 258); await walkTo(page, 'x', 685);
   await action(page);
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'landing');
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-home');
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-left');
   await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'landing');
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
   await action(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-out');
@@ -76,7 +76,7 @@ test('co-op residents separate maps, keep time through private menus and rest in
     await expect.poll(() => minutes(guest), { timeout: 6000 }).toBeGreaterThan(before);
     await host.locator('#action-b').click();
     await walkTo(guest, 'y', 258); await walkTo(guest, 'x', 685); await action(guest);
-    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'landing');
+    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await expect.poll(async () => (await host.locator('#game-canvas').getAttribute('data-visible-players'))?.split(',').length).toBe(1);
     await bed(host);
@@ -88,10 +88,14 @@ test('co-op residents separate maps, keep time through private menus and rest in
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
     await host.locator('#action-b').click();
     await expect(host.locator('#sleep-overlay')).toBeHidden();
-    await action(guest); // Return through the landing's door.
+    await action(guest); // Return through the living room's left door.
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await bed(guest); await expect(guest.locator('#sleep-overlay')).toBeVisible();
     await bed(host);
+    const hx = Number(await host.locator('#game-canvas').getAttribute('data-player-x'));
+    const gx = Number(await guest.locator('#game-canvas').getAttribute('data-player-x'));
+    expect(Math.abs(hx - gx)).toBe(54);
+    await expect(host.locator('#night-transition')).toBeVisible();
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
     await expect(host.locator('#sleep-overlay')).toBeHidden();

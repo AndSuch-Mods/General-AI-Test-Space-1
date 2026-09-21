@@ -1,5 +1,7 @@
 # Content ledger
 
+0.1.4 adds the shared living room, a second bedroom, original code-native sofa/chair/journal artwork and the previous-day record. These are household systems and rooms, not additional completed story chapters or quest content. The earlier emptiness audit and later content targets remain open.
+
 ## Current authored content
 
 | Content | Scope | Implementation | Final asset status |

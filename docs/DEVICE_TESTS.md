@@ -1,5 +1,7 @@
 # iPhone acceptance record
 
+Household acceptance additions: verify both phones can visit either bedroom but only its owner can place furniture; both can arrange the living room; lights and chest poses stay in their own room; two heads fit visibly under one quilt; one sleeper never freezes the other; all present residents sleeping plays the night transition; rejoining preserves room layout and daily journals. Listen for original music/effects, mute persistence and iOS audio interruption behavior.
+
 Status: not yet performed on physical iPhones. Browser automation is recorded separately in `VALIDATION.md` and does not close these gates.
 
 Record the two phone models, iOS versions, network type, build commit, installation date and results. Use disposable world saves and export them before recovery experiments.

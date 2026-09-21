@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld } from '../src/game/model';
-import { FURNITURE_IDS, getRoomObjects, objectOffset } from '../src/content/room';
+import { FURNITURE_IDS, getRoomObjects, objectOffset, roomLayout } from '../src/content/room';
 import { placementError } from '../src/content/furnishing';
 import { GameDatabase } from '../src/persistence/database';
 import { nextWakeMinute, startSleep, wakePlayer } from '../src/game/time';
@@ -11,11 +11,14 @@ describe('shared room arrangement', () => {
   it('can relocate every requested furnishing with its action and collision geometry', async () => {
     for (const id of FURNITURE_IDS) {
       const world = createWorld(createPlayer('Keeper'));
-      const offset = [{ x: -16, y: 0 }, { x: 16, y: 0 }, { x: 0, y: 16 }, { x: 0, y: -16 }].find(p => !placementError(world, id, p));
+      const map = id === 'sofa' || id === 'armchair' ? 'living' : 'castle';
+      world.players[world.hostId].map = map;
+      if (map === 'living') world.players[world.hostId].y = 464;
+      const offset = [{ x: -16, y: 0 }, { x: 16, y: 0 }, { x: 0, y: 16 }, { x: 0, y: -16 }].find(p => !placementError(world, id, p, map));
       expect(offset, id).toBeDefined();
       const host = new Authority(world, async () => {});
       await host.dispatch(world.hostId, 1, { kind: 'place', target: id, ...offset!, expected: { x: 0, y: 0 } });
-      const before = getRoomObjects().find(o => o.id === id)!, after = getRoomObjects('castle', host.world.layout).find(o => o.id === id)!;
+      const before = getRoomObjects(map).find(o => o.id === id)!, after = getRoomObjects(map, roomLayout(host.world, map)).find(o => o.id === id)!;
       expect(after.bounds.x).toBe(before.bounds.x + offset!.x);
       expect(after.bounds.y).toBe(before.bounds.y + offset!.y);
     }
@@ -41,7 +44,7 @@ describe('shared room arrangement', () => {
       const failing = new Authority(host.world, async () => { throw Error('Disk full'); });
       await expect(failing.dispatch(world.hostId, 2, { kind: 'place', target: 'carpet', x: 16, y: 8, expected: { x: 8, y: 8 } })).rejects.toThrow('Disk full');
       expect(failing.world).toEqual(host.world);
-      const { layout: _layout, ...old } = world; void _layout;
+      const { layout: _layout, roomLayouts: _rooms, dayReports: _days, ...old } = world; void _layout; void _rooms; void _days;
       const migrated = parseWorld({ ...old, schemaVersion: 2 });
       expect(migrated.players).toEqual(world.players); expect(migrated.layout).toEqual({});
     } finally { await database.delete(); }

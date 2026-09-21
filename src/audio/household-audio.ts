@@ -1,5 +1,6 @@
+import type { RoomMap } from '../content/room';
 export type HouseholdCue = 'step' | 'open' | 'close' | 'paper' | 'ignite' | 'extinguish' | 'door' | 'place' | 'sleep' | 'wake' | 'ui';
-export type HouseholdSoundScene = { map: 'castle' | 'landing'; night: boolean; hearth: boolean };
+export type HouseholdSoundScene = { map: RoomMap; night: boolean; hearth: boolean };
 type Bus = 'music' | 'effect';
 type Voice = { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; bus: Bus };
 
@@ -85,7 +86,7 @@ export class HouseholdAudio {
     this.scene = { ...scene };
     if (!this.context || this.disposed) return;
     this.roomFilter!.frequency.setTargetAtTime(scene.map === 'landing' ? 1650 : scene.night ? 2400 : 3300, this.context.currentTime, 1.2);
-    if (!scene.hearth || scene.map !== 'castle') this.nextCrackle = 0;
+    if (!scene.hearth || scene.map === 'landing') this.nextCrackle = 0;
   }
 
   cue(name: HouseholdCue) {
@@ -183,7 +184,7 @@ export class HouseholdAudio {
       if (pitch !== null) this.note(pitch, at + (beat % 2 ? .014 : 0), 1.65, (beat === 0 ? .13 : .105) * roomLevel, 'music');
       this.scoreStep = (this.scoreStep + 1) % 128; this.nextNote += EIGHTH;
     }
-    if (this.scene.hearth && this.scene.map === 'castle' && now >= this.nextCrackle) {
+    if (this.scene.hearth && this.scene.map !== 'landing' && now >= this.nextCrackle) {
       const pattern = [.7, 1.4, .9, 1.9, 1.2, .6, 1.7];
       this.noiseVoice(now + .01, .028 + this.crackleStep % 3 * .015, 1150 + this.crackleStep % 4 * 280, .018, true);
       this.nextCrackle = now + pattern[this.crackleStep % pattern.length]; this.crackleStep++;

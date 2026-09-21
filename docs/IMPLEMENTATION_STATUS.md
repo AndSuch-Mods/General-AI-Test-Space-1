@@ -1,5 +1,7 @@
 # Implementation status
 
+Current local build: 0.1.4. Shared living room, owned bedrooms, two-person beds, settling/night animations and daily journals are implemented. All 49 unit tests, specification coverage, lint, types and the build pass. Full browser and physical-device acceptance remain recorded separately in VALIDATION.md and DEVICE_TESTS.md. This is still an early playable household slice, not the finished game.
+
 The 0.1.3 correction adds direct A actions, compact bottom sheets, original Web Audio music/SFX, next-06:00 confirmed sleep and host-validated shared furnishing layouts. Forty-five unit tests pass; current browser and deployment outcomes are recorded in VALIDATION.md and Actions.
 
 Phase 1 is in progress. Do not describe it as a complete game or stable iPhone co-op release.

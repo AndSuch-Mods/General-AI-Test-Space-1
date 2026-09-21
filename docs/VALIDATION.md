@@ -1,5 +1,12 @@
 # Validation record
 
+## Shared living room and private bedrooms, 0.1.4
+
+- Master hash and 53 sections, lint, TypeScript, 49 unit tests and production build pass locally. New authority tests cover forbidden visitor edits, allowed visitor use, independent lights and layouts, shared living-room edits, room travel, two sleeping positions, settling time, dawn reports and persisted report reload.
+- The browser suite now contains 19 scenarios per engine. The additional bedroom scenario checks visiting the second bedroom, ownership controls, sleep animation, night transition and the daily journal across reload. The existing actual-peer sleep scenario now checks separated positions in one bed.
+- The preceding 0.1.3 checkpoint passed 16 of 18 cases in each CI engine. It exposed a real race: opening inventory before a container finished closing could leave its close button inactive. Inventory now waits until that animation completes. WebKit also reported an internal error on emulated-offline reload; the audio case still checks live output offline, then tests persisted mute with emulation restored. Separate real-origin-shutdown cases retain cold offline save/load coverage.
+- The full Chromium and macOS WebKit run gates deployment. Its final result is recorded in the exact checkpoint Actions run. Physical two-iPhone acceptance remains open.
+
 ## Direct household controls, arrangement and audio, 0.1.3
 
 - Master hash and all 53 sections, lint, TypeScript, 45 unit tests and production build pass locally. New checks cover all ten movable pieces, collisions and reachable paths, concurrent edits, duplicate commands, failed-save rollback, attachment offsets, schema 2 migration, hearth toggling and sleep until the next 06:00.

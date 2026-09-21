@@ -1,5 +1,7 @@
 # Haunted Chocolatier: Twilight
 
+The household now has a shared living room and two private bedrooms. Enter the left bedroom for Player 1 or the right for Player 2. Only the owner can rearrange a bedroom; both residents can use its furnishings and share its double bed. The green desk journal records the previous day after dawn. See docs/HOUSEHOLD_ROOMS.md.
+
 An original iPhone-first PWA about keeping a haunted castle, knowing a small town, and making chocolate from a wilderness that remembers too much. Full solo play and optional two-iPhone local co-op use the same saved world.
 
 This is a long-term game project. The current work is Phase 1; the complete first playable release and mature content targets remain open. See [the roadmap](ROADMAP.md) for the tested state, not just the intended feature list.

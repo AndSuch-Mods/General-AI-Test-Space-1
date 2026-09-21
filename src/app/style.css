@@ -194,6 +194,18 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 #sleep-overlay { position: absolute; bottom: max(80px, calc(env(safe-area-inset-bottom) + 66px)); left: 50%; transform: translateX(-50%); z-index: 3; padding: 12px 21px; border: 1px solid #958569; background: #1b2131e8; color: #e2d5b9; text-align: center; pointer-events: none; }
 #sleep-label { display: block; font: 17px Georgia, serif; }
 #sleep-overlay small { display: block; margin-top: 7px; font-size: 11px; color: #b8bfb8; }
+#night-transition { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; background: #12172cdb; animation: night-settles 1.4s ease-in both; }
+#night-transition span { position: absolute; top: 18%; left: 18%; color: #e6d9ad; font: 52px Georgia, serif; animation: moon-crossing 2s ease-in-out both; }
+#night-transition.dawn { background: linear-gradient(#827a8fb0, #d6ad7a80); animation: dawn-clears 1.2s ease-out both; }
+#night-transition.dawn span { display: none; }
+.daily-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.daily-columns h3 { margin: 0 0 5px; font-size: 14px; }
+.daily-columns p { margin: 5px 0; }
+@keyframes night-settles { from { opacity: 0; } to { opacity: 1; } }
+@keyframes moon-crossing { from { transform: translate(0,20px); } to { transform: translate(55vw,-20px); } }
+@keyframes dawn-clears { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #night-transition,#night-transition span { animation-duration: .01s; } }
+.reduced-motion #night-transition,.reduced-motion #night-transition span { animation-duration: .01s; }
 @media (max-height: 480px) {
  .title-screen { padding-top: 14px; padding-bottom: 24px; }
  .title-copy h1 { font-size: clamp(29px, 4.3vw, 42px); }

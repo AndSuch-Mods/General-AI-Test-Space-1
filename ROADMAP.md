@@ -1,5 +1,7 @@
 # Roadmap
 
+Current household revision: shared living room, owned bedrooms, two-person beds and dawn journals. Validate room permissions, visitors, shared rest and saved reports before expanding content. This does not complete later town or story phases.
+
 Current phase: **Phase 1, implementation in progress**.
 
 The 2026-09-21 household correction adds original offline music and material sounds, direct object actions, compact bottom sheets, confirmed next-morning sleep, and shared saved furniture arrangement. Rendering fixes cover the right eye, candle depth and wall-set walnut doors. See docs/ROOM_LAYOUT.md. This does not advance a content phase.

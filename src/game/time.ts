@@ -1,5 +1,5 @@
 import { DEFAULT_TIME, type Player, type World } from './model';
-import { BED_EXIT, BED_REST, objectOffset, safePosition, type RoomLayout } from '../content/room';
+import { BED_EXIT, BED_REST, isBedroom, objectOffset, roomLayout, safePosition, type RoomLayout } from '../content/room';
 export const SLEEP_RULES = { minimumMinutes: 8 * 60, morningMinute: 6 * 60, eveningMinute: 18 * 60, terminalMinutes: 12 * 60 };
 export type DayPhase = 'dawn' | 'day' | 'dusk' | 'night' | 'late-night';
 export function gameMinutes(realSeconds: number, secondsPerGameMinute = DEFAULT_TIME.secondsPerGameMinute) {
@@ -31,9 +31,9 @@ export function nextWakeMinute(now: number) {
   const morning = Math.floor(now / 1440) * 1440 + SLEEP_RULES.morningMinute + (time >= SLEEP_RULES.morningMinute ? 1440 : 0);
   return morning;
 }
-export function startSleep(player: Player, minute: number, layout: RoomLayout = {}) {
+export function startSleep(player: Player, minute: number, layout: RoomLayout = {}, side: 'left' | 'right' = 'left') {
   const offset = objectOffset('bed', layout);
-  Object.assign(player, { map: 'castle', x: BED_REST.x + offset.x, y: BED_REST.y + offset.y, interaction: null });
+  Object.assign(player, { map: isBedroom(player.map) ? player.map : 'castle', x: BED_REST.x + offset.x + (side === 'left' ? -27 : 27), y: BED_REST.y + offset.y, interaction: null });
   Object.assign(player.fatigue, { sleeping: true, sleepStartedAt: minute, wakeAt: nextWakeMinute(minute) });
 }
 export function energyCap(player: Player) {
@@ -48,12 +48,13 @@ export function wakePlayer(player: Player, minute: number, layout: RoomLayout = 
   } else player.energy = Math.min(energyCap(player), player.energy + slept / 8);
   Object.assign(player.fatigue, { sleeping: false, sleepStartedAt: null, wakeAt: null });
   const offset = objectOffset('bed', layout);
-  Object.assign(player, { map: 'castle', ...safePosition({ x: BED_EXIT.x + offset.x, y: BED_EXIT.y + offset.y }, 'castle', layout) });
+  Object.assign(player, safePosition({ x: BED_EXIT.x + offset.x + (player.x > BED_REST.x + offset.x ? 28 : 0), y: BED_EXIT.y + offset.y }, player.map, layout));
 }
 /** Advances only present residents. Absent profiles accrue no new fatigue. */
 export function advanceWorldClock(world: World, minutes: number, activeIds: readonly string[]) {
   if (!Number.isFinite(minutes) || minutes < 0) throw Error('Invalid clock advancement');
   const start = world.clock.totalMinutes, end = start + minutes;
+  const rested = new Set(Object.values(world.players).filter(p => p.fatigue.sleeping && p.fatigue.wakeAt! <= end).map(p => p.id));
   for (const id of activeIds) {
     const player = world.players[id];
     if (!player) continue;
@@ -63,7 +64,7 @@ export function advanceWorldClock(world: World, minutes: number, activeIds: read
       if (player.fatigue.sleeping) {
         if (player.fatigue.wakeAt! > end) break;
         cursor = Math.max(cursor, player.fatigue.wakeAt!);
-        wakePlayer(player, player.fatigue.wakeAt!, world.layout);
+        wakePlayer(player, player.fatigue.wakeAt!, roomLayout(world, player.map));
         if (cursor >= end) break;
       }
       const sunrise = (Math.floor((cursor - SLEEP_RULES.morningMinute) / 1440) + 1) * 1440 + SLEEP_RULES.morningMinute;
@@ -72,7 +73,9 @@ export function advanceWorldClock(world: World, minutes: number, activeIds: read
         const remaining = SLEEP_RULES.terminalMinutes - player.fatigue.terminalMinutes;
         if (stop - cursor >= remaining) {
           player.fatigue.terminalMinutes = SLEEP_RULES.terminalMinutes;
-          player.energy = 0; startSleep(player, cursor + remaining, world.layout);
+          player.energy = 0;
+          player.map = player.id === world.hostId ? 'castle' : 'bedroom-2';
+          startSleep(player, cursor + remaining, roomLayout(world, player.map), player.id === world.hostId ? 'left' : 'right');
           // Collapse recovery is personal; the other resident can remain active.
           cursor += remaining;
           continue;
@@ -85,6 +88,15 @@ export function advanceWorldClock(world: World, minutes: number, activeIds: read
     }
   }
   world.clock.totalMinutes = end;
+  for (let morning = (Math.floor((start - 360) / 1440) + 1) * 1440 + 360; morning <= end; morning += 1440) {
+    const day = Math.floor((morning - 360) / 1440) - 1;
+    if (world.dayReports.some(report => report.day === day)) continue;
+    world.dayReports.push({ day, morning,
+      shared: world.events.filter(event => event.minute >= morning - 1440 && event.minute < morning).map(event => event.kind),
+      players: Object.fromEntries(Object.values(world.players).map(player => [player.id, { name: player.name, discoveries: player.discoveries.length, recipes: player.recipes.length,
+        completedQuests: Object.values(player.quests).filter(state => state === 'complete').length, rested: rested.has(player.id) }])) });
+    world.dayReports = world.dayReports.slice(-60);
+  }
 }
 export function fatigueMessage(player: Player) {
   const nights = player.fatigue.consecutiveAllNighters;

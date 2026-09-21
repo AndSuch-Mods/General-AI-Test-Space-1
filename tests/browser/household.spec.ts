@@ -61,6 +61,9 @@ test('original audio produces a signal offline and obeys persisted sound/music s
   await expect.poll(signal, { timeout: 5000 }).toBeLessThan(.000005);
   await page.locator('#music-enabled').check(); await expect.poll(signal).toBeGreaterThan(.00001);
   await page.locator('#audio-enabled').uncheck(); await expect.poll(signal).toBeLessThan(.000005);
-  await page.locator('#close-dialog').click(); await page.reload(); await page.locator('#settings').click();
+  await page.locator('#close-dialog').click();
+  // Audio above is verified offline; persistence below is independent of WebKit's
+  // emulated-offline reload bug. Cold offline navigation has its own origin-stop test.
+  await context.setOffline(false); await page.reload(); await page.locator('#settings').click();
   await expect(page.locator('#audio-enabled')).not.toBeChecked(); expect(await signal()).toBe(0);
 });

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { World } from '../model';
-import { ROOM_SIZE, getRoomObjects, objectColliders, canInteract, nearestInteractable, moveInRoom, objectOffset, type RoomLayout, type FurnitureId, type RoomMap, type RoomObject } from '../../content/room';
+import { ROOM_SIZE, getRoomObjects, objectColliders, canInteract, nearestInteractable, moveInRoom, objectOffset, roomLayout, roomFlag, type RoomLayout, type FurnitureId, type RoomMap, type RoomObject } from '../../content/room';
 import { RESIDENT_FRAMES, RESIDENT_IMAGE, RESIDENT_ORIGIN, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT, type ResidentFacing } from '../art/resident-atlas';
 import { residentFrame } from '../art/resident-animation';
 import { residentCanvas, type ResidentAppearance } from '../art/resident-appearance';
@@ -14,6 +14,7 @@ import type { RoomPresentation } from '../presentation';
 type Resident = {
   container: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image;
   facing: ResidentFacing; distance: number; lastTravel: number; map: RoomMap; sleeping: boolean;
+  settlingAt: number; settleFrom: { x: number; y: number };
 };
 type Furnishing = { object: RoomObject; amount: number; base?: Phaser.GameObjects.Image; parts: Phaser.GameObjects.Image[]; shade: Phaser.GameObjects.Graphics };
 
@@ -57,18 +58,26 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       // Resolve source art to a single native character grid once, never per animation frame.
       const source = this.textures.get('resident-source').getSourceImage() as HTMLImageElement;
       for (const appearance of ['amber', 'moss', 'violet'] as ResidentAppearance[]) {
-        const texture = this.textures.createCanvas(`resident-${appearance}`, RESIDENT_NATIVE_WIDTH * RESIDENT_FRAMES.length, RESIDENT_NATIVE_HEIGHT)!;
+        const texture = this.textures.createCanvas(`resident-${appearance}`, RESIDENT_NATIVE_WIDTH * (RESIDENT_FRAMES.length + 1), RESIDENT_NATIVE_HEIGHT)!;
         texture.context.imageSmoothingEnabled = false;
         RESIDENT_FRAMES.forEach((frame, index) => {
           texture.context.drawImage(residentCanvas(source, frame.name, appearance), index * RESIDENT_NATIVE_WIDTH, 0);
           texture.add(frame.name, 0, index * RESIDENT_NATIVE_WIDTH, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
         });
+        // Keep the resident's authored face and close only the eye clusters for rest.
+        const restX = RESIDENT_FRAMES.length * RESIDENT_NATIVE_WIDTH;
+        texture.context.drawImage(residentCanvas(source, 'down-idle', appearance), restX, 0);
+        for (const x of [13, 18]) {
+          texture.context.fillStyle = '#cfaa83'; texture.context.fillRect(restX + x, 14, 2, 2);
+          texture.context.fillStyle = '#57403b'; texture.context.fillRect(restX + x, 15, 2, 1);
+        }
+        texture.add('down-rest', 0, restX, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
         texture.refresh();
       }
       this.windowSky = new RoomWindowSky(this);
       const current = state();
       this.roomMap = current.world.players[current.localId].map;
-      this.layout = current.world.layout; this.layoutKey = JSON.stringify(this.layout);
+      this.layout = roomLayout(current.world, this.roomMap); this.layoutKey = JSON.stringify(this.layout);
       this.buildRoom();
       this.illumination = this.add.graphics().setDepth(800);
       this.fire = this.add.image(556, 232, 'flames-native', 'fire-0').setOrigin(.5, 1).setScale(2).setTint(0xe9cfad).setDepth(243);
@@ -96,7 +105,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       trim.fillStyle(0x37262b); trim.fillRect(64, 70, 16, 418); trim.fillRect(880, 70, 16, 418); trim.fillRect(64, 476, 832, 14);
       trim.fillStyle(0x87624b); trim.fillRect(78, 76, 2, 401); trim.fillRect(880, 76, 2, 401); trim.fillRect(80, 476, 800, 2);
       // A woven floor layer remains walkable, distinct from the furniture above it.
-      if (this.roomMap === 'castle') {
+      if (getRoomObjects(this.roomMap, this.layout).some(object => object.id === 'carpet')) {
       const rugOffset = objectOffset('carpet', this.layout);
       const rug = this.add.graphics().setDepth(-90).setPosition(rugOffset.x, rugOffset.y);
       rug.fillStyle(0x342435); rug.fillRect(338, 316, 318, 132);
@@ -153,13 +162,14 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           }
         }
       }
-      if (this.roomMap === 'castle') {
-        const pantry = getRoomObjects('castle', this.layout).find(o => o.id === 'pantry')!;
+      const pantry = getRoomObjects(this.roomMap, this.layout).find(o => o.id === 'pantry');
+      if (pantry) {
         this.add.image(pantry.bounds.x + 49, pantry.bounds.y + 85, 'props-native', 'parcel').setScale(2).setDepth(pantry.depth + 1);
       }
       const arrangement = state().arranging;
-      if (arrangement && this.roomMap === 'castle') {
-        const object = getRoomObjects('castle', this.layout).find(o => o.id === arrangement.id)!;
+      const arrangedObject = arrangement && getRoomObjects(this.roomMap, this.layout).find(o => o.id === arrangement.id);
+      if (arrangement && arrangedObject) {
+        const object = arrangedObject;
         const outline = this.add.graphics().setDepth(1000);
         outline.lineStyle(2, arrangement.error ? 0xd88872 : 0xc9cc91, 1);
         outline.strokeRect(object.bounds.x - 2, object.bounds.y - 2, object.bounds.width + 4, object.bounds.height + 4);
@@ -205,7 +215,10 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const frame = Math.floor(clock / 115);
       if (frame === this.effectFrame) return;
       this.effectFrame = frame;
-      this.fire.setVisible(this.roomMap === 'castle' && Boolean(world.story.flags.hearth)).setFrame(`fire-${frame % 6}`);
+      const hearth = getRoomObjects(this.roomMap, this.layout).find(object => object.id === 'hearth');
+      const hearthLit = !!hearth && roomFlag(world, this.roomMap, 'hearth');
+      this.fire.setVisible(hearthLit).setFrame(`fire-${frame % 6}`);
+      if (hearth) this.fire.setPosition(hearth.bounds.x + 56, hearth.bounds.y + 102).setDepth(hearth.depth + 1);
       this.illumination.clear();
       // Pixel-stepped light pools stay restrained enough to keep all furniture readable.
       const pool = (x: number, y: number, radius: number, color: number, strength: number) => {
@@ -219,11 +232,11 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         }
       };
       for (const window of getRoomObjects(this.roomMap, this.layout).filter(object => object.id.startsWith('window'))) pool(window.bounds.x + 26, 243, 145, daylight(world.clock.totalMinutes) > .5 ? 0xb5c4ba : 0x859ccb, .022);
-      if (this.roomMap === 'castle' && world.story.flags.hearth) pool(556, 258, 202, 0xf1a147, .028);
+      if (hearth && hearthLit) pool(hearth.bounds.x + 56, hearth.bounds.y + 128, 202, 0xf1a147, .028);
       const candles = getRoomObjects(this.roomMap, this.layout).filter(object => object.id.startsWith('candle-'));
       for (const [index, candle] of candles.entries()) {
         const flames = this.candleFlames.get(candle.id)!; flames.clear();
-        if (world.story.flags[candle.id] === false) continue;
+        if (!roomFlag(world, this.roomMap, candle.id, true)) continue;
         const sway = reducedMotion ? 0 : [0, 0, 1, 0, -1, 0][(frame + index * 2) % 6];
         const x = Math.round((candle.bounds.x + 5) / 2) * 2 + sway * 2, y = candle.bounds.y;
         flames.fillStyle(0xb84e31); flames.fillRect(x - 2, y - 8, 4, 8);
@@ -244,7 +257,8 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     update(time: number, delta: number) {
       const current = state();
       const local = current.world.players[current.localId];
-      const previewLayout = current.arranging ? { ...current.world.layout, [current.arranging.id]: { x: current.arranging.x, y: current.arranging.y } } : current.world.layout;
+      const savedLayout = roomLayout(current.world, local.map);
+      const previewLayout = current.arranging ? { ...savedLayout, [current.arranging.id]: { x: current.arranging.x, y: current.arranging.y } } : savedLayout;
       const layoutKey = JSON.stringify(previewLayout) + (current.arranging?.error ?? '');
       if (local.map !== this.roomMap || layoutKey !== this.layoutKey || !!current.arranging !== this.wasArranging) {
         this.roomMap = local.map; this.layout = previewLayout; this.layoutKey = layoutKey; this.wasArranging = !!current.arranging;
@@ -256,7 +270,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       this.ambience.setAlpha(.14 - outdoorLight / 20 * .12);
       this.animateFurnishings(current, delta);
       // Always respond to shared switches even if animation is reduced or the room is paused.
-      const lightState = `${Boolean(current.world.story.flags.hearth)}:${current.world.story.flags['candle-desk'] !== false}:${current.world.story.flags['candle-table'] !== false}`;
+      const lightState = `${roomFlag(current.world, this.roomMap, 'hearth')}:${roomFlag(current.world, this.roomMap, 'candle-desk', true)}:${roomFlag(current.world, this.roomMap, 'candle-table', true)}`;
       if (parent.dataset.lightState !== lightState) { parent.dataset.lightState = lightState; this.effectFrame = -1; }
       this.effects(time, current.world);
       for (const [id, actor] of this.actors) actor.container.setVisible(current.activeIds.includes(id) && current.world.players[id]?.map === this.roomMap);
@@ -271,14 +285,19 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           const parts: Phaser.GameObjects.GameObject[] = [shadow, sprite];
           if (id !== current.localId) parts.push(this.add.text(0, -102, p.name, { fontSize: '9px', fontFamily: 'sans-serif', color: '#d7e5d7', stroke: '#211b24', strokeThickness: 3 }).setOrigin(.5));
           const container = this.add.container(p.x, p.y, parts);
-          actor = { container, sprite, facing: 'down', distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping }; this.actors.set(id, actor);
+          actor = { container, sprite, facing: 'down', distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, settlingAt: -Infinity, settleFrom: { x: p.x, y: p.y } }; this.actors.set(id, actor);
         }
         if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping) {
           if (id === current.localId && p.fatigue.sleeping && !actor.sleeping) {
             for (const [name, key] of Object.entries(this.keys)) if (key.isDown) this.blockedKeys.add(name);
             this.input.keyboard!.resetKeys();
           }
-          actor.container.setPosition(p.x, p.y); actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.lastTravel = -Infinity;
+          if (p.fatigue.sleeping && !actor.sleeping && actor.map === p.map && !reducedMotion) {
+            actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
+          } else {
+            actor.container.setPosition(p.x, p.y); actor.settlingAt = -Infinity;
+          }
+          actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.lastTravel = -Infinity;
         }
         const dx = p.x - actor.container.x, dy = p.y - actor.container.y;
         const remaining = Math.hypot(dx, dy);
@@ -286,33 +305,42 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         if (moving) {
           actor.facing = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up';
           const amount = Math.min(remaining, Math.max(0, delta) * .14);
-          const next = moveInRoom(actor.container, dx / remaining, dy / remaining, amount, p.map, current.world.layout);
+          const next = moveInRoom(actor.container, dx / remaining, dy / remaining, amount, p.map, roomLayout(current.world, p.map));
           const travelled = Math.hypot(next.x - actor.container.x, next.y - actor.container.y);
           actor.distance += travelled;
           if (travelled > .01) actor.lastTravel = time;
           actor.container.setPosition(next.x, next.y);
         } else if (remaining <= .35) actor.container.setPosition(p.x, p.y);
-        if (p.fatigue.sleeping) { actor.facing = 'down'; actor.container.setPosition(p.x, p.y); }
+        const sleepProgress = p.fatigue.sleeping ? Math.min(1, Math.max(0, (time - actor.settlingAt) / 420)) : 0;
+        const settled = sleepProgress * sleepProgress * (3 - 2 * sleepProgress);
+        if (p.fatigue.sleeping) {
+          actor.facing = 'down';
+          // Each resident settles into the personal side saved by the host, under the quilt.
+          actor.container.setPosition(actor.settleFrom.x + (p.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (p.y - actor.settleFrom.y) * settled);
+        }
         const pose = residentFrame(actor.facing, actor.distance, !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
-        actor.sprite.setFrame(pose.frame).setFlipX(pose.flipX).setY(p.fatigue.sleeping ? -16 : 0);
-        actor.container.setDepth(p.fatigue.sleeping ? 300 + objectOffset('bed', current.world.layout).y : actor.container.y);
+        actor.sprite.setFrame(sleepProgress > .45 ? 'down-rest' : pose.frame).setFlipX(pose.flipX).setY(-Math.round(8 * settled) * 2);
+        actor.container.setDepth(p.fatigue.sleeping ? 300 + objectOffset('bed', roomLayout(current.world, p.map)).y : actor.container.y);
         if (id === current.localId) {
-          if (current.arranging) {
-            const object = getRoomObjects('castle', this.layout).find(o => o.id === current.arranging!.id)!;
+          const arrangedObject = current.arranging && getRoomObjects(this.roomMap, this.layout).find(o => o.id === current.arranging!.id);
+          if (arrangedObject) {
+            const object = arrangedObject;
             this.cameras.main.stopFollow(); this.cameras.main.centerOn(object.bounds.x + object.bounds.width / 2, object.bounds.y + object.bounds.height / 2 + 60); this.followed = '';
           } else if (this.followed !== id) { this.cameras.main.startFollow(actor.container, true, .15, .15, 0, 90); this.followed = id; }
           telemetry('playerX', Number(p.x.toFixed(2))); telemetry('playerY', Number(p.y.toFixed(2)));
-          telemetry('playerFacing', actor.facing); telemetry('playerFrame', pose.frame); telemetry('playerFlipX', String(pose.flipX));
-          telemetry('nearestObject', nearestInteractable(p, current.world.layout)?.id ?? '');
+          telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(pose.flipX));
+          telemetry('nearestObject', nearestInteractable(p, savedLayout)?.id ?? '');
           telemetry('residentWidth', actor.sprite.displayWidth); telemetry('residentHeight', actor.sprite.displayHeight);
           telemetry('playerMap', p.map); telemetry('renderedMap', this.roomMap); telemetry('playerSleeping', String(p.fatigue.sleeping));
           telemetry('playerHeight', actor.sprite.displayHeight); telemetry('sleeping', String(p.fatigue.sleeping));
+          telemetry('sleepPoseProgress', Number(sleepProgress.toFixed(2)));
         }
       }
-      telemetry('layout', JSON.stringify(current.world.layout));
+      telemetry('layout', JSON.stringify(savedLayout));
       telemetry('arranging', current.arranging?.id ?? '');
       telemetry('placementX', current.arranging?.x ?? 0);
-      telemetry('candleDeskDepth', getRoomObjects('castle', this.layout).find(o => o.id === 'candle-desk')!.depth + .1);
+      const deskCandle = getRoomObjects(this.roomMap, this.layout).find(o => o.id === 'candle-desk');
+      telemetry('candleDeskDepth', deskCandle ? deskCandle.depth + .1 : 0);
       telemetry('cameraX', Math.round(this.cameras.main.scrollX)); telemetry('cameraY', Math.round(this.cameras.main.scrollY));
       telemetry('renderScale', Number((parent.clientWidth / this.scale.width).toFixed(3)));
       telemetry('totalMinutes', current.world.clock.totalMinutes);
@@ -337,5 +365,3 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
   resize.observe(parent);
   return () => { resize.disconnect(); game.destroy(true); };
 }
-
-

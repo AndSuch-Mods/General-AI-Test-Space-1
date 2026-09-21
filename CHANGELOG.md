@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Added a shared living room with original plum sofa and reading chair, left and right bedrooms, and a connection to the landing.
+- Saved each room's arrangement and lights separately. The authority permits bedroom arrangement only for its owner; visitors may still use the room.
+- Widened both beds for two residents, with separate sleeping positions, a settling pose and a shared night-to-morning transition.
+- Added personal desk journals with persisted shared and individual dawn reports. Schema 4 migrates older saves; protocol 5 keeps both peers on the same room rules.
+- Kept walking faces consistent and fixed the container-close/inventory-opening race found in the preceding checkpoint's CI checks.
+
 ## 0.1.3, sound and household actions
 
 - Added original composed music, material sound effects, hearth ambience and saved sound/music switches. Audio runs locally offline and suspends when hidden.

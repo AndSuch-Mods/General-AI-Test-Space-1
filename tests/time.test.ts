@@ -69,8 +69,8 @@ describe('shared clock and personal rest', () => {
     expect(authority.world.players[player.id].fatigue.sleeping).toBe(false);
     await authority.dispatch(player.id, 2, { kind: 'sleep' });
     expect(authority.world.players[player.id].fatigue.sleeping).toBe(true);
-    expect(authority.world.players[player.id].x).toBe(BED_REST.x);
-    await authority.advanceTime(1, { activeIds: [player.id], paused: false });
+    expect(authority.world.players[player.id].x).toBe(BED_REST.x - 27);
+    await authority.advanceTime(2, { activeIds: [player.id], paused: false });
     const rested = authority.world.players[player.id];
     expect(authority.world.clock.totalMinutes).toBe(1800);
     expect(rested.fatigue).toEqual({ sleeping: false, sleepStartedAt: null, wakeAt: null, consecutiveAllNighters: 0, terminalMinutes: 0 });
@@ -89,7 +89,7 @@ describe('shared clock and personal rest', () => {
     expect(authority.world.players[host].fatigue.sleeping).toBe(false);
     Object.assign(authority.world.players[host], { x: 242, y: 302 });
     await authority.dispatch(host, 1, { kind: 'sleep' });
-    await authority.advanceTime(1, { activeIds: [host, guest], paused: false });
+    await authority.advanceTime(2, { activeIds: [host, guest], paused: false });
     expect(authority.world.clock.totalMinutes).toBe(1800);
     expect(Object.values(authority.world.players).every(player => !player.fatigue.sleeping)).toBe(true);
   });
@@ -111,7 +111,7 @@ describe('shared clock and personal rest', () => {
       await db.save(1, world, { create: true });
       expect((await db.load(1))?.world).toEqual(world);
       const authority = new Authority(world, async () => { throw Error('Disk full'); });
-      await expect(authority.advanceTime(1, { activeIds: [world.hostId], paused: false })).rejects.toThrow('Disk full');
+      await expect(authority.advanceTime(2, { activeIds: [world.hostId], paused: false })).rejects.toThrow('Disk full');
       expect(authority.world).toEqual(world);
     } finally { await db.delete(); }
   });
@@ -128,15 +128,15 @@ describe('maps, containers and migration', () => {
     const host = authority.world.hostId, guest = await addGuest(authority);
     Object.assign(authority.world.players[guest], { x: 685, y: 258 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'door-out' });
-    expect(authority.world.players[guest].map).toBe('landing');
+    expect(authority.world.players[guest].map).toBe('living');
     expect(authority.world.players[host].map).toBe('castle');
     await expect(authority.dispatch(guest, 2, { kind: 'interact', target: 'chest' })).rejects.toThrow('closer');
-    await authority.dispatch(guest, 3, { kind: 'interact', target: 'door-home' });
+    await authority.dispatch(guest, 3, { kind: 'interact', target: 'door-left' });
     expect(authority.world.players[guest].map).toBe('castle');
     expect(canStand(authority.world.players[guest])).toBe(true);
   });
   it('gives both maps valid solids and reachable furnishing interactions', () => {
-    for (const map of ['castle', 'landing'] as const) for (const object of getRoomObjects(map)) {
+    for (const map of ['castle', 'bedroom-2', 'living', 'landing'] as const) for (const object of getRoomObjects(map)) {
       for (const rect of objectColliders(object)) expect(canStand({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, map }), object.id).toBe(false);
       expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number]), object.id).toBe(true);
     }
@@ -159,7 +159,7 @@ describe('maps, containers and migration', () => {
     authority.world.players[guest].inventory['cacao-bean'] = 9;
     authority.world.players[guest].discoveries = ['letter'];
     authority.world.story.flags.hearth = true;
-    const { layout: _layout, ...legacyBase } = authority.world; void _layout;
+    const { layout: _layout, roomLayouts: _rooms, dayReports: _days, ...legacyBase } = authority.world; void _layout; void _rooms; void _days;
     const legacy = { ...legacyBase, schemaVersion: 1, players: Object.fromEntries(Object.entries(authority.world.players).map(([id, player]) => {
       const { interaction: _interaction, fatigue, ...rest } = player;
       const { sleepStartedAt: _start, wakeAt: _end, ...oldFatigue } = fatigue;
@@ -167,7 +167,7 @@ describe('maps, containers and migration', () => {
       return [id, { ...rest, fatigue: oldFatigue }];
     })) };
     const migrated = parseWorld(legacy);
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.worldId).toBe(authority.world.worldId);
     expect(migrated.revision).toBe(authority.world.revision);
     expect(migrated.players[guest].inventory).toEqual({ 'cacao-bean': 9 });
