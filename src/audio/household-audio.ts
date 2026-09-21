@@ -1,5 +1,5 @@
 import type { RoomMap } from '../content/room';
-export type HouseholdCue = 'step' | 'open' | 'close' | 'paper' | 'ignite' | 'extinguish' | 'door' | 'place' | 'sleep' | 'wake' | 'ui';
+export type HouseholdCue = 'step' | 'open' | 'close' | 'paper' | 'ignite' | 'extinguish' | 'door' | 'place' | 'sleep' | 'wake' | 'disturbed' | 'ui';
 export type HouseholdSoundScene = { map: RoomMap; night: boolean; hearth: boolean };
 type Bus = 'music' | 'effect';
 type Voice = { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; bus: Bus };
@@ -105,6 +105,7 @@ export class HouseholdAudio {
       case 'extinguish': rustle(.32, 1700, .054, 0, true); break;
       case 'door': tone(190, 105, .46, .065); rustle(.43, 410, .078, 0, true); tone(89, 39, .19, .066, .31); break;
       case 'place': tone(151, 64, .12, .06); rustle(.065, 1150, .047); break;
+      case 'disturbed': rustle(.24, 740, .048, 0, true); tone(118, 81, .23, .025, .08); break;
       case 'sleep': this.note(65, now, 1.25, .10, 'effect'); this.note(62, now + .27, 1.7, .095, 'effect'); break;
       case 'wake': this.note(62, now, 1.2, .09, 'effect'); this.note(65, now + .22, 1.4, .075, 'effect'); this.note(69, now + .48, 1.7, .067, 'effect'); break;
       case 'ui': tone(420, 285, .065, .019); break;

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+- Added male/female creation, four outfits, six clothing colors, four hairstyles, five hair colors and five skin tones, with live shared preview/gameplay artwork.
+- Added a synchronized sleepy, annoyed reaction when a player crosses an occupied bed, with a small toss, pixel huff and blanket sound. Sleep continues.
+- Preserved each resident's choices through save, backup and reconnect. Schema 5 migrates older profiles; protocol 6 synchronizes reactions.
+- Fixed guest daily reports and recovery mirrors receiving the new morning record immediately.
+
+
 ## 0.1.4
 
 - Added a shared living room with original plum sofa and reading chair, left and right bedrooms, and a connection to the landing.

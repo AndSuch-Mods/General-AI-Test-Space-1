@@ -15,7 +15,7 @@ test('compact resident creation previews clothing changes without tinting the fa
   await page.getByRole('button', { name: /^Single Player/ }).click();
   const canvas = page.locator('#resident-preview');
   await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
-  await expect(page.locator('#new-resident input,#new-resident select')).toHaveCount(2);
+  await expect(page.locator('#new-resident input,#new-resident select')).toHaveCount(7);
   for (const width of [844, 667]) {
     await page.setViewportSize({ width, height: 375 });
     const geometry = await page.locator('.character-layout').evaluate(element => {
@@ -28,11 +28,12 @@ test('compact resident creation previews clothing changes without tinting the fa
     expect(geometry.inputWidth).toBeLessThan(geometry.dialogWidth * 2 / 3);
     expect(geometry.top).toBeGreaterThanOrEqual(0);
     expect(geometry.bottom).toBeLessThanOrEqual(375);
+    expect((await page.locator('.character-submit').boundingBox())!.y + 44).toBeLessThanOrEqual(geometry.bottom);
   }
   const amber = await canvas.evaluate(element => Array.from((element as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, 64, 96).data));
   expect(amber.filter((value, index) => index % 4 === 3 && value > 0).length).toBeGreaterThan(500);
-  for (const appearance of ['moss', 'violet']) {
-    await page.getByLabel('Coat color').selectOption(appearance);
+  for (const appearance of ['moss', 'violet', 'navy', 'wine', 'cream']) {
+    await page.getByLabel('Clothing color').selectOption(appearance);
     await expect(canvas).toHaveAttribute('data-appearance', appearance);
     const pixels = await canvas.evaluate(element => Array.from((element as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, 64, 96).data));
     let changed = 0, protectedChanges = 0;
@@ -48,7 +49,7 @@ test('compact resident creation previews clothing changes without tinting the fa
   await page.getByRole('button', { name: 'Join Co-op', exact: true }).click();
   await expect(page.locator('#guest-name')).toHaveValue('Companion');
   await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', 'down-idle');
-  await page.getByLabel('Coat color').selectOption('moss');
+  await page.getByLabel('Clothing color').selectOption('moss');
   await expect(page.locator('#resident-preview')).toHaveAttribute('data-appearance', 'moss');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -58,6 +59,11 @@ test('compact resident creation previews clothing changes without tinting the fa
     await page.getByRole('button', { name: 'Close dialog' }).click();
   }
   await page.getByRole('button', { name: /^Single Player/ }).click();
+  await page.getByLabel('Character', { exact: true }).selectOption('female');
+  await page.getByLabel('Hair style').selectOption('braid');
+  await page.getByLabel('Hair color').selectOption('silver');
+  await page.getByLabel('Skin tone').selectOption('deep');
+  await page.getByLabel('Outfit', { exact: true }).selectOption('dress');
   const heads = await page.locator('#resident-preview').evaluate(element => new Promise<string[]>((resolve, reject) => {
     const canvas = element as HTMLCanvasElement, samples = new Map<string, string>();
     const capture = () => {
@@ -72,6 +78,23 @@ test('compact resident creation previews clothing changes without tinting the fa
   }));
   expect(new Set(heads).size).toBe(1); // The face must not blink or change with footfall.
   expect(errors).toEqual([]);
+});
+
+test('creation choices change the native preview and survive entering and reopening a world', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  const canvas = page.locator('#resident-preview'); await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
+  const pixels = () => canvas.evaluate(el => (el as HTMLCanvasElement).toDataURL());
+  const choices = [['Character', 'female'], ['Hair style', 'long'], ['Hair color', 'copper'], ['Skin tone', 'brown'], ['Outfit', 'dress'], ['Clothing color', 'wine']];
+  for (const [label, value] of choices) {
+    const before = await pixels(); await page.getByLabel(label, { exact: true }).selectOption(value);
+    await expect.poll(pixels).not.toBe(before);
+  }
+  await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
+  const scene = page.locator('#game-canvas');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v3-wine-female-long-copper-brown-dress');
+  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v3-wine-female-long-copper-brown-dress');
 });
 
 test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {

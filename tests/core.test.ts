@@ -161,7 +161,7 @@ describe('protocol and content', () => {
     }
     const a = new Local(), b = new Local(); a.other = b; b.other = a;
     const host = new Authority(world(), async () => {}); const guestId = crypto.randomUUID();
-    const identity = { id: guestId, key: crypto.randomUUID(), name: 'Guest', appearance: 'moss' as const };
+    const identity = { id: guestId, key: crypto.randomUUID(), name: 'Guest', appearance: 'wine' as const, look: { body: 'female' as const, hairStyle: 'bob' as const, hairColor: 'silver' as const, skinTone: 'deep' as const, outfit: 'vest' as const } };
     const hostSession = new HostSession(a, host, () => {});
     const guest = new GuestSession(b, database(), identity, { version: PROTOCOL_VERSION, session: crypto.randomUUID(), worldId: host.world.worldId, epoch: host.world.epoch, type: 'offer', sdp: '' }, undefined, () => {}, () => {});
     b.onState('open');
@@ -171,6 +171,16 @@ describe('protocol and content', () => {
     await guest.dispatch({ kind: 'move', dx: 1, dy: 0 });
     expect(guest.world?.players[guestId].x).toBe(host.world.players[guestId].x);
     expect(guest.world?.lastSequence[guestId]).toBe(2);
+    expect(guest.world?.players[guestId].look).toEqual(identity.look);
+    Object.assign(host.world.players[host.world.hostId], { x: 242, y: 302 });
+    await host.dispatch(host.world.hostId, 1, { kind: 'sleep' }); hostSession.publish();
+    Object.assign(host.world.players[guestId], { x: 160, y: 302 });
+    await guest.dispatch({ kind: 'move', dx: -1, dy: 0 });
+    expect(guest.world?.players[host.world.hostId].bedDisturbances).toBe(1);
+    await guest.dispatch({ kind: 'sleep' });
+    await host.advanceTime(2, { activeIds: [host.world.hostId, guestId], paused: false }); hostSession.publish(true);
+    await expect.poll(() => guest.world?.dayReports.length).toBe(1);
+    expect(guest.world?.dayReports).toEqual(host.world.dayReports);
     hostSession.close(); guest.close();
   });
 });

@@ -131,4 +131,12 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     wood.add(name, 0, x, 0, 43, 68);
   }
   wood.refresh();
+  // A tiny sleepy huff: stepped cream cloud, plum outline and a brass annoyance mark.
+  const huff = scene.textures.createCanvas('resident-reaction', 14, 12)!;
+  const h = huff.context;
+  h.fillStyle = '#483642'; h.fillRect(3, 1, 7, 8); h.fillRect(1, 3, 11, 4);
+  h.fillStyle = '#d5c6a8'; h.fillRect(3, 2, 7, 6); h.fillRect(2, 3, 9, 3);
+  h.fillStyle = '#9d7052'; h.fillRect(4, 3, 1, 2); h.fillRect(5, 4, 3, 1); h.fillRect(8, 3, 1, 2);
+  h.fillStyle = '#d5c6a8'; h.fillRect(10, 8, 2, 2); h.fillRect(12, 11, 1, 1);
+  huff.refresh();
 }

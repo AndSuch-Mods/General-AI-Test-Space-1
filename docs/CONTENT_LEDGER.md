@@ -1,22 +1,24 @@
 # Content ledger
 
+0.1.5 adds original native character body, garment, hair and skin layers plus a brief occupied-bed reaction. These add personal expression, not story or quest counts.
+
 0.1.4 adds the shared living room, a second bedroom, original code-native sofa/chair/journal artwork and the previous-day record. These are household systems and rooms, not additional completed story chapters or quest content. The earlier emptiness audit and later content targets remain open.
 
 ## Current authored content
 
 | Content | Scope | Implementation | Final asset status |
 | --- | --- | --- | --- |
-| Castle room and landing | Shared spaces | Two connected spaces with separate player occupancy | Separate pixel furniture/materials, solid footprints and depth layers |
+| Castle room and landing | Shared spaces | Two bedrooms, shared living room and landing with separate player occupancy | Separate pixel furniture/materials, solid footprints and depth layers |
 | Sealed letter, six-spoon wax mark | Personal discovery | Desk action and journal entry | Original writing and separate envelope sprite |
 | Household hearth | Shared world event | Either resident lights it; persisted recap | Separate firebox and six-frame pixel fire |
 | Welcome cacao parcel | Personal discovery and reward | Three beans once per resident | Original writing and separate parcel sprite |
 | Candles | Shared reversible world state | Two independently switchable candles | Separate brass bodies, pixel flame animation and flickering light |
 | Household chest | Shared storage | Atomic cacao deposits/withdrawals by either resident | Animated lid, shared opening state and solid footprint |
-| Bed, books, plant, windows, table | Personal discoveries and household functions | Reachable inspection, automatic bed sleep, clock-driven windows | Split quilt/pillow and original pixel layers |
+| Bed, books, plant, windows, table | Personal discoveries and household functions | Direct A actions, confirmed bed sleep and clock-driven windows | Split quilt/pillow and original pixel layers |
 | A household begins | Personal quest | Letter and parcel completion state | Introductory only |
 | A light for the house | Shared quest | Hearth completion state | Introductory only |
 | Room-material title | Title presentation | Uses the room's wallpaper and wood with Select game menu | Original reusable textures; former exterior image retained as history |
-| Resident | Persistent character | Four directions, four walk phases, 32 by 48 native frame at 64 by 96 display | Shared coat-only palettes and live creation preview |
+| Resident | Persistent character | Four directions, four walk phases, 32 by 48 native frame at 64 by 96 display | Shared body, clothing, hair and skin choices with a live creation preview |
 | Room doors and old west stair | Shared architecture | Room/landing travel and stair repair clue | Original generated door poses/stair, opening animation |
 | App icon | Application asset | Original geometric cacao/moon design | Working icon |
 

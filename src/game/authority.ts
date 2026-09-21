@@ -82,7 +82,7 @@ export class Authority {
       }
     });
   }
-  async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; worldId: string; epoch: string; revision: number }) {
+  async join(identity: { id: string; key: string; name: string; appearance: Player['appearance']; look?: Player['look']; worldId: string; epoch: string; revision: number }) {
     if (identity.worldId !== this.world.worldId || identity.epoch !== this.world.epoch) throw Error('This character belongs to a different world or timeline.');
     if (identity.revision > this.world.revision) throw Error('Your recovery copy is newer than the host. Keep both backups; this join was stopped.');
     if (identity.id === this.world.hostId) throw Error('The host and guest must be different residents.');
@@ -92,7 +92,7 @@ export class Authority {
         world.players[world.guestId].interaction = null;
         return world.guestId;
       }
-      const player = createPlayer(identity.name, identity.appearance, identity.id);
+      const player = createPlayer(identity.name, identity.appearance, identity.id, identity.look);
       player.x = 530;
       world.guestId = player.id;
       world.guestKey = identity.key;
@@ -122,7 +122,17 @@ export class Authority {
         placeFurniture(world, actor, intent.target, { x: intent.x, y: intent.y }, intent.expected);
       } else if (intent.kind === 'move') {
         // One bounded step per request; the session rate-limits remote movement to 10 Hz.
+        const before = { x: player.x, y: player.y, map: player.map };
         Object.assign(player, moveInRoom(player, intent.dx, intent.dy, 14, player.map, layout));
+        if (inBedEntry(before, layout) && inBedEntry(player, layout)) {
+          for (const sleeper of Object.values(world.players)) {
+            if (sleeper.id === actor || !this.activeIds.includes(sleeper.id) || sleeper.map !== player.map || !sleeper.fatigue.sleeping) continue;
+            const crossed = before.x < sleeper.x && player.x >= sleeper.x || before.x > sleeper.x && player.x <= sleeper.x;
+            if (crossed && (sleeper.bedDisturbedAt === null || world.clock.totalMinutes - sleeper.bedDisturbedAt >= 3)) {
+              sleeper.bedDisturbances += 1; sleeper.bedDisturbedAt = world.clock.totalMinutes;
+            }
+          }
+        }
         player.interaction = null;
       } else if (intent.kind === 'transfer') {
         const chest = objectForAction('chest', player.map, layout);

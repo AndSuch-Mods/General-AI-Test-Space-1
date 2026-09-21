@@ -10,6 +10,7 @@ Before planning or implementation, read all of:
 - `docs/GAME_DESIGN.md`, `docs/PROJECT_RULES.md`, `docs/CONTENT_TARGETS.md`
 - `docs/MULTIPLAYER.md`, `docs/TECHNICAL_ARCHITECTURE.md`, `docs/ARCHITECTURE_DECISIONS.md`
 - `docs/SAVE_FORMAT.md`, `docs/OFFLINE_AND_PWA.md`, `docs/TEST_PLAN.md`
+- `docs/CHARACTER_CREATION.md`, which defines personal appearance persistence and occupied-bed reactions
 - `docs/ROOM_AND_CONTROLS.md`, which records the user's revised room and touch requirements
 - `docs/TIME_AND_SLEEP.md`, `docs/SAVE_MIGRATIONS.md`, which record the implemented clock, rest and compatibility contracts
 - `docs/ROOM_LAYOUT.md` and `docs/AUDIO.md`, which record the latest direct-action, arrangement, sound and sleep overrides

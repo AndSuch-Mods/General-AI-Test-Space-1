@@ -1,17 +1,21 @@
 import { z } from 'zod';
+import { BODY_OPTIONS, DEFAULT_LOOK, HAIR_COLOR_OPTIONS, HAIR_STYLE_OPTIONS, OUTFIT_OPTIONS, SKIN_TONE_OPTIONS, type CharacterLook } from './art/character-look';
 import { FURNITURE_IDS, getRoomObjects, isBedroom, objectColliders, type RoomMap } from '../content/room';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.4';
-export const PROTOCOL_VERSION = 5;
+export const BUILD_VERSION = '0.1.5';
+export const PROTOCOL_VERSION = 6;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const flags = z.record(z.string().max(80), z.boolean());
 const counters = z.record(z.string().max(80), counter);
 const strings = z.array(z.string().max(120)).max(2000);
+export const CharacterLookSchema = z.object({ body: z.enum(BODY_OPTIONS), hairStyle: z.enum(HAIR_STYLE_OPTIONS), hairColor: z.enum(HAIR_COLOR_OPTIONS), skinTone: z.enum(SKIN_TONE_OPTIONS), outfit: z.enum(OUTFIT_OPTIONS) }).strict();
 export const PlayerSchema = z.object({
-  id, name: z.string().trim().min(1).max(24), appearance: z.enum(['amber', 'moss', 'violet']),
+  id, name: z.string().trim().min(1).max(24), appearance: z.enum(['amber', 'moss', 'violet', 'navy', 'wine', 'cream']),
+  look: CharacterLookSchema.default(() => ({ ...DEFAULT_LOOK })),
+  bedDisturbances: counter.default(0), bedDisturbedAt: z.number().nonnegative().nullable().default(null),
   map: z.enum(['castle', 'bedroom-2', 'living', 'landing']), x: z.number().min(48).max(912), y: z.number().min(190).max(484),
   health: z.number().min(0).max(100), energy: z.number().min(0).max(100),
   fatigue: z.object({ consecutiveAllNighters: counter, terminalMinutes: z.number().nonnegative(), sleeping: z.boolean(),
@@ -29,7 +33,7 @@ const DayReportSchema = z.object({ day: z.number().int().min(-1), morning: z.num
   players: z.record(z.string().uuid(), z.object({ name: z.string().max(24), discoveries: counter, recipes: counter, completedQuests: counter, rested: z.boolean() }).strict()),
 }).strict();
 const WorldBase = z.object({
-  schemaVersion: z.literal(4), game: z.literal(GAME_TITLE), worldId: id, epoch: id,
+  schemaVersion: z.literal(5), game: z.literal(GAME_TITLE), worldId: id, epoch: id,
   layout: LayoutSchema,
   roomLayouts: z.object({ living: LayoutSchema, 'bedroom-2': LayoutSchema }).strict(),
   dayReports: z.array(DayReportSchema).max(60),
@@ -72,14 +76,14 @@ export const WorldSchema = WorldBase.superRefine((world, ctx) => {
 export type World = z.infer<typeof WorldSchema>;
 export type Slot = 1 | 2;
 export type Scope = 'personal' | 'shared_world' | 'cooperative';
-export function createPlayer(name: string, appearance: Player['appearance'] = 'amber', playerId: string = crypto.randomUUID()): Player {
-  return PlayerSchema.parse({ id: playerId, name, appearance, map: 'castle', x: 480, y: 364,
+export function createPlayer(name: string, appearance: Player['appearance'] = 'amber', playerId: string = crypto.randomUUID(), look: CharacterLook = DEFAULT_LOOK): Player {
+  return PlayerSchema.parse({ id: playerId, name, appearance, look, map: 'castle', x: 480, y: 364,
     health: 100, energy: 100, fatigue: { consecutiveAllNighters: 0, terminalMinutes: 0, sleeping: false, sleepStartedAt: null, wakeAt: null }, interaction: null,
     inventory: {}, equipment: {}, money: 0, skills: {}, recipes: [], discoveries: [], friendships: {},
     romance: {}, dialogueHistory: [], giftHistory: [], quests: {}, settings: { controlSize: 1, reducedMotion: false } });
 }
 export function createWorld(player: Player): World {
-  return WorldSchema.parse({ schemaVersion: 4, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [], game: GAME_TITLE, worldId: crypto.randomUUID(), epoch: crypto.randomUUID(),
+  return WorldSchema.parse({ schemaVersion: 5, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [], game: GAME_TITLE, worldId: crypto.randomUUID(), epoch: crypto.randomUUID(),
     revision: 0, seed: crypto.getRandomValues(new Uint32Array(1))[0], rng: 1, createdAt: new Date().toISOString(),
     hostId: player.id, guestId: null, guestKey: null, clock: { totalMinutes: 18 * 60, secondsPerGameMinute: 1 },
     weather: 'clear', story: { chapter: 1, flags: {} }, quests: {}, townChanges: {}, upgrades: {}, unlocks: [], bosses: {},
@@ -90,18 +94,19 @@ const LegacyWorldSchema = WorldBase.omit({ layout: true, roomLayouts: true, dayR
 })) });
 function migrateWorld(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object' || !('schemaVersion' in raw)) return raw;
+  if (raw.schemaVersion === 4) return { ...WorldBase.extend({ schemaVersion: z.literal(4) }).parse(raw), schemaVersion: 5 };
   if (raw.schemaVersion === 3) {
     const old = WorldBase.omit({ roomLayouts: true, dayReports: true }).extend({ schemaVersion: z.literal(3) }).parse(raw);
-    return { ...old, schemaVersion: 4, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [] };
+    return { ...old, schemaVersion: 5, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [] };
   }
   if (raw.schemaVersion === 2) {
     const old = WorldBase.omit({ layout: true, roomLayouts: true, dayReports: true }).extend({ schemaVersion: z.literal(2) }).parse(raw);
-    return { ...old, schemaVersion: 4, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [] };
+    return { ...old, schemaVersion: 5, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [] };
   }
   if (raw.schemaVersion !== 1) return raw;
   const old = LegacyWorldSchema.parse(raw);
   // Schema 1 reserved a sleep flag but had no runnable sleep system or timer.
-  return { ...old, schemaVersion: 4, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [], players: Object.fromEntries(Object.entries(old.players).map(([key, player]) => [key, {
+  return { ...old, schemaVersion: 5, layout: {}, roomLayouts: { living: {}, 'bedroom-2': {} }, dayReports: [], players: Object.fromEntries(Object.entries(old.players).map(([key, player]) => [key, {
     ...player, interaction: null, fatigue: { ...player.fatigue, sleeping: false, sleepStartedAt: null, wakeAt: null },
   }])) };
 }

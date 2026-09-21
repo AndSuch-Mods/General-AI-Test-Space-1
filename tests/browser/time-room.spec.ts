@@ -53,7 +53,7 @@ test('exit door reaches a saved living room and returns through its own door', a
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-out');
 });
 
-test('co-op residents separate maps, keep time through private menus and rest independently', async ({ browser, browserName }) => {
+test('co-op residents separate maps, disturb occupied beds and rest independently', async ({ browser, browserName }, testInfo) => {
   test.setTimeout(180000);
   const first = await browser.newContext({ viewport: { width: 844, height: 390 } });
   const second = await browser.newContext({ viewport: { width: 844, height: 390 } });
@@ -64,6 +64,8 @@ test('co-op residents separate maps, keep time through private menus and rest in
     await inventory(host, 'session'); await host.locator('#session').click();
     await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 });
     await guest.locator('#join').click();
+    await guest.getByLabel('Character', { exact: true }).selectOption('female');
+    await guest.getByLabel('Hair style').selectOption('braid');
     await guest.locator('#pair-input').fill(await host.locator('#pair-output').inputValue());
     await guest.locator('#create-answer').click();
     await expect(guest.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 });
@@ -86,10 +88,27 @@ test('co-op residents separate maps, keep time through private menus and rest in
     expect(await minutes(guest)).toBeGreaterThan(whileResting);
     expect(await minutes(guest)).toBeLessThan(whileResting + 10);
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
-    await host.locator('#action-b').click();
-    await expect(host.locator('#sleep-overlay')).toBeHidden();
     await action(guest); // Return through the living room's left door.
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
+    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-v3-amber-female-braid-chestnut-warm-coat');
+    await walkTo(guest, 'y', 355); await walkTo(guest, 'x', 270); await walkTo(guest, 'y', 302);
+    await guest.keyboard.down('ArrowLeft');
+    try { await expect(guest.locator('#confirm-sleep')).toBeVisible(); } finally { await guest.keyboard.up('ArrowLeft'); }
+    await guest.locator('#cancel-sleep').click();
+    await guest.keyboard.down('ArrowLeft');
+    try { await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-count', '1'); }
+    finally { await guest.keyboard.up('ArrowLeft'); }
+    await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-active', 'true');
+    await expect(host.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'true');
+    await expect.poll(async () => {
+      const reactions = JSON.parse((await guest.locator('#game-canvas').getAttribute('data-bed-reactions'))!);
+      return Object.values(reactions).some(value => (value as { count: number }).count === 1);
+    }).toBe(true);
+    await host.screenshot({ path: testInfo.outputPath('sleepy-reaction.png') });
+    await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-active', 'false');
+    await host.locator('#action-b').click();
+    await expect(host.locator('#sleep-overlay')).toBeHidden();
+    await walkTo(guest, 'x', 270);
     await bed(guest); await expect(guest.locator('#sleep-overlay')).toBeVisible();
     await bed(host);
     await expect.poll(async () => {

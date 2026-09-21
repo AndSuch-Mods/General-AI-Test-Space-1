@@ -1,5 +1,6 @@
 import './style.css';
-import { BUILD_VERSION, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
+import { BUILD_VERSION, CharacterLookSchema, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
+import { BODY_OPTIONS, HAIR_STYLE_OPTIONS, HAIR_COLOR_OPTIONS, SKIN_TONE_OPTIONS, OUTFIT_OPTIONS, DEFAULT_LOOK, type CharacterLook } from '../game/art/character-look';
 import { Authority, type Intent } from '../game/authority';
 import { arrival, validateContent, type ArrivalId } from '../content/arrival';
 import { canArrangeRoom, FURNITURE_IDS, getRoomObjects, objectOffset, inBedEntry, roomFlag, roomLayout, roomOwner, type FurnitureId, nearestInteractable } from '../content/room';
@@ -156,27 +157,33 @@ async function begin(hosting: boolean) {
     void (async () => {
       const name = (document.getElementById('player-name') as HTMLInputElement).value.trim();
       const appearance = (document.getElementById('appearance') as HTMLSelectElement).value as Player['appearance'];
-      const created = createWorld(createPlayer(name, appearance));
+      const created = createWorld(createPlayer(name, appearance, undefined, readCharacterLook(panel)));
       await db.save(slot, created, { create: true });
       await enterHost(created); if (hosting) await hostDialog();
     })().catch(fail);
   });
 }
 function characterFields(id: string, name: string) {
-  return `<div class="character-layout"><div class="resident-preview-frame"><canvas id="resident-preview" width="128" height="144" aria-label="Your resident appearance"></canvas></div><div class="character-fields"><label>Your name<input id="${id}" name="playerName" maxlength="24" required autocomplete="off" value="${name}" /></label>${appearanceField()}</div></div>`;
+  const choice = (key: keyof CharacterLook, label: string, options: readonly string[]) => `<label>${label}<select data-look="${key}">${options.map(value => `<option value="${value}" ${DEFAULT_LOOK[key] === value ? 'selected' : ''}>${value[0].toUpperCase() + value.slice(1)}</option>`).join('')}</select></label>`;
+  return `<div class="character-layout"><div class="resident-preview-frame"><canvas id="resident-preview" width="128" height="144" aria-label="Your resident appearance"></canvas></div><div class="character-fields"><label>Your name<input id="${id}" name="playerName" maxlength="24" required autocomplete="off" value="${name}" /></label>${choice('body', 'Character', BODY_OPTIONS)}${choice('outfit', 'Outfit', OUTFIT_OPTIONS)}${appearanceField()}${choice('hairStyle', 'Hair style', HAIR_STYLE_OPTIONS)}${choice('hairColor', 'Hair color', HAIR_COLOR_OPTIONS)}${choice('skinTone', 'Skin tone', SKIN_TONE_OPTIONS)}</div></div>`;
+}
+function readCharacterLook(panel: HTMLDialogElement): CharacterLook {
+  return CharacterLookSchema.parse(Object.fromEntries([...panel.querySelectorAll<HTMLSelectElement>('select[data-look]')].map(select => [select.dataset.look, select.value])));
 }
 async function prepareResidentPreview(panel: HTMLDialogElement) {
   const { mountResidentPreview } = await import('../ui/resident-preview');
   if (modal !== panel) return;
   const select = panel.querySelector<HTMLSelectElement>('#appearance')!;
-  const preview = await mountResidentPreview(panel.querySelector<HTMLCanvasElement>('#resident-preview')!, select.value as Player['appearance']);
+  const preview = await mountResidentPreview(panel.querySelector<HTMLCanvasElement>('#resident-preview')!, select.value as Player['appearance'], readCharacterLook(panel));
   if (modal !== panel) { preview.destroy(); return; }
   preview.setAppearance(select.value as Player['appearance']);
+  preview.setLook(readCharacterLook(panel));
   select.addEventListener('change', () => preview.setAppearance(select.value as Player['appearance']));
+  panel.querySelectorAll('select[data-look]').forEach(field => field.addEventListener('change', () => preview.setLook(readCharacterLook(panel))));
   const previousCleanup = modalCleanup;
   modalCleanup = () => { previousCleanup?.(); preview.destroy(); };
 }
-function appearanceField() { return '<label>Coat color<select id="appearance"><option value="amber">Hearth amber</option><option value="moss">Woodland moss</option><option value="violet">Evening violet</option></select></label>'; }
+function appearanceField() { return '<label>Clothing color<select id="appearance"><option value="amber">Hearth amber</option><option value="moss">Woodland moss</option><option value="violet">Evening violet</option><option value="navy">Midnight navy</option><option value="wine">Berry wine</option><option value="cream">Warm cream</option></select></label>'; }
 async function enterHost(saved: World) {
   const release = await acquireWorldLock(saved.worldId);
   releaseLock?.(); releaseLock = release;
@@ -195,6 +202,7 @@ function sharedPresentation(previous: World | undefined, next: World) {
     if (oldPlayer.fatigue.sleeping !== currentPlayer.fatigue.sleeping) sound.cue(currentPlayer.fatigue.sleeping ? 'sleep' : 'wake');
     for (const id of ['candle-desk', 'candle-table']) if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, id, true) !== roomFlag(next, currentPlayer.map, id, true)) sound.cue(roomFlag(next, currentPlayer.map, id, true) ? 'ignite' : 'extinguish');
     const activeIds = [next.hostId, ...(guestSession || hostSession?.guestId ? [next.guestId!] : [])];
+    if (activeIds.some(id => previous?.players[id]?.map === currentPlayer.map && next.players[id]?.map === currentPlayer.map && next.players[id].bedDisturbances > previous.players[id].bedDisturbances)) sound.cue('disturbed');
     for (const target of ['chest', 'pantry', 'desk']) {
       const was = activeIds.some(id => previous?.players[id]?.map === currentPlayer.map && previous?.players[id]?.interaction === target);
       const is = activeIds.some(id => next.players[id]?.map === currentPlayer.map && next.players[id]?.interaction === target);
@@ -571,8 +579,8 @@ function joinDialog() {
     const pending = await db.settings.get(`guestIdentity:${offer.worldId}`);
     const existing = pending?.value as { id: string; key: string } | undefined;
     const identity = { id: mirror?.playerId ?? existing?.id ?? crypto.randomUUID(), key: mirror?.key ?? existing?.key ?? crypto.randomUUID(),
-      name: (document.getElementById('guest-name') as HTMLInputElement).value.trim(), appearance: (document.getElementById('appearance') as HTMLSelectElement).value as Player['appearance'] };
-    createPlayer(identity.name, identity.appearance, identity.id);
+      name: (document.getElementById('guest-name') as HTMLInputElement).value.trim(), appearance: (document.getElementById('appearance') as HTMLSelectElement).value as Player['appearance'], look: readCharacterLook(panel) };
+    createPlayer(identity.name, identity.appearance, identity.id, identity.look);
     await db.settings.put({ key: `guestIdentity:${offer.worldId}`, value: identity });
     transport?.close(); transport = new WebRTCTransport();
     let entered = false;

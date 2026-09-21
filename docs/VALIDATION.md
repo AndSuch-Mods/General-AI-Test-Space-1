@@ -1,5 +1,11 @@
 # Validation record
 
+## 0.1.5 character and bed checkpoint
+
+Specification coverage, lint, types, production build and all 53 unit tests pass locally. New checks cover older-save migration, complete personal look persistence, moved-bed crossings, cooldown/idempotency, failed-save rollback and guest dawn-report delivery. Visual review checked every customization option and stable heads across all walking poses.
+
+Full browser results belong to this checkpoint's Actions run. The preceding 0.1.4 branch passed 19 Chromium and 19 macOS WebKit cases, but its main deployment rerun hit a Chromium reconnect failure, so Pages did not publish that revision. Local 0.1.5 broad testing also hit a movement-driver timeout under VM load; it was stopped while final preview/layout edits were in progress. These attempts are not counted as passing acceptance. Physical two-iPhone checks remain pending.
+
 ## Shared living room and private bedrooms, 0.1.4
 
 - Local Chromium passed all 19 scenarios across the full run and a focused rerun. The only initial failure was the cancellation test registering its pointer listener without awaiting registration; that driver race is fixed. The corrected touch case passes locally in Chromium and WebKit. Actual local peer reconnect, shared beds, room separation and offline behavior passed.

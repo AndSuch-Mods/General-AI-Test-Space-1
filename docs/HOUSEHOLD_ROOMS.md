@@ -1,5 +1,8 @@
 # The household rooms
 
+Current override: [CHARACTER_CREATION.md](CHARACTER_CREATION.md) defines the 0.1.5 personal appearance choices, occupied-bed reaction, save schema 5 and protocol 6. Earlier version descriptions below are historical.
+
+
 This records the user's September 21 direction and overrides earlier single-room descriptions.
 
 The living room is shared. Its left door enters Player 1's bedroom; its right door enters Player 2's bedroom. Its middle door reaches the existing landing. Internal map ID `castle` stays Player 1's bedroom so older saved positions and furniture remain usable. The other IDs are `living`, `bedroom-2` and `landing`.

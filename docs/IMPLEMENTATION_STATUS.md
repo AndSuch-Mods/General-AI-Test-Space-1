@@ -1,6 +1,6 @@
 # Implementation status
 
-Current local build: 0.1.4. Shared living room, owned bedrooms, two-person beds, settling/night animations and daily journals are implemented. All 49 unit tests, specification coverage, lint, types and the build pass. Full browser and physical-device acceptance remain recorded separately in VALIDATION.md and DEVICE_TESTS.md. This is still an early playable household slice, not the finished game.
+Current local build: 0.1.5. Shared rooms, owned bedrooms, two-person rest, daily journals, original offline audio, personal character choices and synchronized sleepy reactions are implemented. Specification coverage, lint, types, 53 unit tests and the build pass. Browser and deployment evidence is recorded in VALIDATION.md. Physical-device acceptance remains pending. This is still an early playable household slice.
 
 The 0.1.3 correction adds direct A actions, compact bottom sheets, original Web Audio music/SFX, next-06:00 confirmed sleep and host-validated shared furnishing layouts. Forty-five unit tests pass; current browser and deployment outcomes are recorded in VALIDATION.md and Actions.
 
@@ -17,7 +17,7 @@ Known open gates:
 - Real installation and cold offline start on an iPhone.
 - Two-iPhone Wi-Fi pairing, camera permissions, rotating QR scanning, suspension, reconnect and offline local-network operation.
 - Phase 2 town/forest maps and fixed-rate authoritative simulation. The room/landing connection is implemented; the full three-space slice is not complete.
-- Additional resident designs and equipment layers. Current appearances recolor masked clothing in one original sheet, and left poses mirror its genuine right profile.
+- Equipment layers and later wardrobe changes. Creation currently supports two character bodies, four outfits, four hairstyles and personal hair/skin/clothing palettes on the original native sprite. Left poses mirror the right profile.
 - Phase 3 multi-day device stress, full health/energy integration and schedule consumers of the clock. Basic shared time, personal fatigue and solo/co-op bed sleep are implemented.
 - Combat, storage/crafting, cooking, fishing, NPC schedules, romance, main story and mature content.
 - Guided recovery when guest data is newer than the host. The current safe behavior rejects the join.

@@ -1,17 +1,18 @@
 import { z } from 'zod';
 import { Authority, IntentSchema, type Intent } from '../game/authority';
-import { parseWorld, PlayerSchema, PROTOCOL_VERSION, WorldSchema, type World } from '../game/model';
+import { parseWorld, PlayerSchema, PROTOCOL_VERSION, WorldSchema, type Player, type World } from '../game/model';
 import type { GameDatabase, Mirror } from '../persistence/database';
 import type { Pairing } from './webrtc';
 import type { Transport } from './transport';
 
 const Hello = z.object({ kind: z.literal('hello'), protocol: z.literal(PROTOCOL_VERSION), worldId: z.string().uuid(), epoch: z.string().uuid(),
   id: z.string().uuid(), key: z.string().uuid(), revision: z.number().int().nonnegative(),
-  name: PlayerSchema.shape.name, appearance: PlayerSchema.shape.appearance }).strict();
+  name: PlayerSchema.shape.name, appearance: PlayerSchema.shape.appearance, look: PlayerSchema.shape.look }).strict();
 const Action = z.object({ kind: z.literal('intent'), sequence: z.number().int().positive(), intent: IntentSchema }).strict();
 export class HostSession {
   guestId?: string;
   private lastMove = 0;
+  private lastJournalDay: number | undefined;
   private closed = false;
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private transport: Transport, private authority: Authority, private status: (text: string) => void) {
@@ -52,9 +53,13 @@ export class HostSession {
   publish(positionsOnly = false) {
     if (!this.guestId || !this.transport.ready) return;
     const world = this.authority.world;
+    // Dawn reports are durable shared data and need a full snapshot, even when the
+    // caller normally sends only position/clock updates.
+    positionsOnly &&= world.dayReports.at(-1)?.day === this.lastJournalDay;
+    this.lastJournalDay = world.dayReports.at(-1)?.day;
     if (positionsOnly) this.transport.send({ kind: 'positions', worldId: world.worldId, epoch: world.epoch, revision: world.revision,
       clock: world.clock, weather: world.weather,
-      players: Object.values(world.players).map(p => ({ id: p.id, map: p.map, x: p.x, y: p.y, fatigue: p.fatigue, energy: p.energy, interaction: p.interaction })), lastSequence: world.lastSequence });
+      players: Object.values(world.players).map(p => ({ id: p.id, map: p.map, x: p.x, y: p.y, fatigue: p.fatigue, energy: p.energy, interaction: p.interaction, bedDisturbances: p.bedDisturbances, bedDisturbedAt: p.bedDisturbedAt })), lastSequence: world.lastSequence });
     else this.transport.send({ kind: 'snapshot', world });
   }
   private releaseGuest() {
@@ -67,7 +72,7 @@ export class HostSession {
 
 const Positions = z.object({ kind: z.literal('positions'), worldId: z.string().uuid(), epoch: z.string().uuid(), revision: z.number().int().nonnegative(),
   clock: WorldSchema.shape.clock, weather: WorldSchema.shape.weather,
-  players: z.array(PlayerSchema.pick({ id: true, map: true, x: true, y: true, fatigue: true, energy: true, interaction: true })).max(2),
+  players: z.array(PlayerSchema.pick({ id: true, map: true, x: true, y: true, fatigue: true, energy: true, interaction: true, bedDisturbances: true, bedDisturbedAt: true })).max(2),
   lastSequence: z.record(z.string().uuid(), z.number().int().nonnegative()) });
 export class GuestSession {
   world?: World;
@@ -78,7 +83,7 @@ export class GuestSession {
   private lastFailure: unknown;
   connected = false;
   private pending = new Map<number, { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>();
-  constructor(private transport: Transport, private database: GameDatabase, private identity: { id: string; key: string; name: string; appearance: 'amber' | 'moss' | 'violet' },
+  constructor(private transport: Transport, private database: GameDatabase, private identity: { id: string; key: string; name: string; appearance: Player['appearance']; look?: Player['look'] },
     private pairing: Pairing, private mirror: Mirror | undefined, private update: (world: World) => void, private status: (text: string) => void) {
     transport.onState = state => {
       if (state === 'open') transport.send({ kind: 'hello', protocol: PROTOCOL_VERSION, ...identity, worldId: pairing.worldId, epoch: pairing.epoch, revision: mirror?.world.revision ?? 0 });

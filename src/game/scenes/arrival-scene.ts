@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import type { World } from '../model';
+import type { Player, World } from '../model';
 import { ROOM_SIZE, getRoomObjects, objectColliders, canInteract, nearestInteractable, moveInRoom, objectOffset, roomLayout, roomFlag, type RoomLayout, type FurnitureId, type RoomMap, type RoomObject } from '../../content/room';
 import { RESIDENT_FRAMES, RESIDENT_IMAGE, RESIDENT_ORIGIN, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT, type ResidentFacing } from '../art/resident-atlas';
 import { residentFrame } from '../art/resident-animation';
-import { residentCanvas, type ResidentAppearance } from '../art/resident-appearance';
+import { residentCanvas, residentSkinColor, residentTextureKey } from '../art/resident-appearance';
 import { ROOM_DOOR_IMAGE, ROOM_FLAME_IMAGE, ROOM_IMAGE, ROOM_MATERIAL_IMAGE, ROOM_TEXTURE } from '../art/room-atlas';
 import { buildRoomTextures } from '../art/room-textures';
 import { RoomWindowSky } from '../art/room-windows';
@@ -15,6 +15,7 @@ type Resident = {
   container: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image;
   facing: ResidentFacing; distance: number; lastTravel: number; map: RoomMap; sleeping: boolean;
   settlingAt: number; settleFrom: { x: number; y: number };
+  bedDisturbances: number; reactionAt: number; reaction: Phaser.GameObjects.Image;
 };
 type Furnishing = { object: RoomObject; amount: number; base?: Phaser.GameObjects.Image; parts: Phaser.GameObjects.Image[]; shade: Phaser.GameObjects.Graphics };
 
@@ -55,25 +56,6 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     create() {
       buildRoomTextures(this);
 
-      // Resolve source art to a single native character grid once, never per animation frame.
-      const source = this.textures.get('resident-source').getSourceImage() as HTMLImageElement;
-      for (const appearance of ['amber', 'moss', 'violet'] as ResidentAppearance[]) {
-        const texture = this.textures.createCanvas(`resident-${appearance}`, RESIDENT_NATIVE_WIDTH * (RESIDENT_FRAMES.length + 1), RESIDENT_NATIVE_HEIGHT)!;
-        texture.context.imageSmoothingEnabled = false;
-        RESIDENT_FRAMES.forEach((frame, index) => {
-          texture.context.drawImage(residentCanvas(source, frame.name, appearance), index * RESIDENT_NATIVE_WIDTH, 0);
-          texture.add(frame.name, 0, index * RESIDENT_NATIVE_WIDTH, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
-        });
-        // Keep the resident's authored face and close only the eye clusters for rest.
-        const restX = RESIDENT_FRAMES.length * RESIDENT_NATIVE_WIDTH;
-        texture.context.drawImage(residentCanvas(source, 'down-idle', appearance), restX, 0);
-        for (const x of [13, 18]) {
-          texture.context.fillStyle = '#cfaa83'; texture.context.fillRect(restX + x, 14, 2, 2);
-          texture.context.fillStyle = '#57403b'; texture.context.fillRect(restX + x, 15, 2, 1);
-        }
-        texture.add('down-rest', 0, restX, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
-        texture.refresh();
-      }
       this.windowSky = new RoomWindowSky(this);
       const current = state();
       this.roomMap = current.world.players[current.localId].map;
@@ -91,6 +73,34 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       for (const key of ['E', 'SPACE']) this.input.keyboard!.on(`keydown-${key}`, (event: KeyboardEvent) => {
         if (!event.repeat && !paused()) interact();
       });
+    }
+    private residentTexture(player: Player) {
+      const key = residentTextureKey(player.appearance, player.look);
+      if (this.textures.exists(key)) return key;
+      // Cache the complete look, so residents sharing a coat color keep their own face and hair.
+      const source = this.textures.get('resident-source').getSourceImage() as HTMLImageElement;
+      const texture = this.textures.createCanvas(key, RESIDENT_NATIVE_WIDTH * (RESIDENT_FRAMES.length + 2), RESIDENT_NATIVE_HEIGHT)!;
+      texture.context.imageSmoothingEnabled = false;
+      RESIDENT_FRAMES.forEach((frame, index) => {
+        texture.context.drawImage(residentCanvas(source, frame.name, player.appearance, player.look), index * RESIDENT_NATIVE_WIDTH, 0);
+        texture.add(frame.name, 0, index * RESIDENT_NATIVE_WIDTH, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
+      });
+      for (const [index, name] of ['down-rest', 'down-grumpy'].entries()) {
+        const x = (RESIDENT_FRAMES.length + index) * RESIDENT_NATIVE_WIDTH;
+        texture.context.drawImage(residentCanvas(source, 'down-idle', player.appearance, player.look), x, 0);
+        for (const eye of [13, 18]) {
+          texture.context.fillStyle = residentSkinColor(player.look); texture.context.fillRect(x + eye, 14, 2, 2);
+          texture.context.fillStyle = '#392b31'; texture.context.fillRect(x + eye, 15, 2, 1);
+        }
+        if (name === 'down-grumpy') {
+          texture.context.fillStyle = '#392b31';
+          texture.context.fillRect(x + 12, 12, 2, 1); texture.context.fillRect(x + 14, 13, 1, 1);
+          texture.context.fillRect(x + 19, 12, 2, 1); texture.context.fillRect(x + 18, 13, 1, 1);
+        }
+        texture.add(name, 0, x, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
+      }
+      texture.refresh();
+      return key;
     }
     private buildRoom() {
       for (const item of this.roomDisplay) item.destroy();
@@ -273,20 +283,32 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const lightState = `${roomFlag(current.world, this.roomMap, 'hearth')}:${roomFlag(current.world, this.roomMap, 'candle-desk', true)}:${roomFlag(current.world, this.roomMap, 'candle-table', true)}`;
       if (parent.dataset.lightState !== lightState) { parent.dataset.lightState = lightState; this.effectFrame = -1; }
       this.effects(time, current.world);
-      for (const [id, actor] of this.actors) actor.container.setVisible(current.activeIds.includes(id) && current.world.players[id]?.map === this.roomMap);
+      for (const [id, actor] of this.actors) {
+        const p = current.world.players[id];
+        const visible = current.activeIds.includes(id) && p?.map === this.roomMap;
+        // Events received while absent are history, never a fresh reaction on returning.
+        if (!visible || !actor.container.visible) { actor.bedDisturbances = p?.bedDisturbances ?? 0; actor.reactionAt = -Infinity; }
+        actor.container.setVisible(visible);
+      }
       for (const id of current.activeIds) {
         const p = current.world.players[id]; if (!p) continue;
         if (p.map !== this.roomMap) continue;
+        const texture = this.residentTexture(p);
         let actor = this.actors.get(id);
         if (!actor) {
           const shadow = this.add.ellipse(0, -1, 38, 10, 0x100e1b, .38);
           const initial = residentFrame('down', 0, false);
-          const sprite = this.add.image(0, 0, `resident-${p.appearance}`, initial.frame).setOrigin(RESIDENT_ORIGIN.x, RESIDENT_ORIGIN.y).setDisplaySize(RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT);
-          const parts: Phaser.GameObjects.GameObject[] = [shadow, sprite];
+          const sprite = this.add.image(0, 0, texture, initial.frame).setOrigin(RESIDENT_ORIGIN.x, RESIDENT_ORIGIN.y).setDisplaySize(RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT);
+          const reaction = this.add.image(24, -108, 'resident-reaction').setScale(2).setVisible(false);
+          const parts: Phaser.GameObjects.GameObject[] = [shadow, sprite, reaction];
           if (id !== current.localId) parts.push(this.add.text(0, -102, p.name, { fontSize: '9px', fontFamily: 'sans-serif', color: '#d7e5d7', stroke: '#211b24', strokeThickness: 3 }).setOrigin(.5));
           const container = this.add.container(p.x, p.y, parts);
-          actor = { container, sprite, facing: 'down', distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, settlingAt: -Infinity, settleFrom: { x: p.x, y: p.y } }; this.actors.set(id, actor);
+          actor = { container, sprite, reaction, facing: 'down', distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, settlingAt: -Infinity, settleFrom: { x: p.x, y: p.y }, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
         }
+        if (actor.sprite.texture.key !== texture) actor.sprite.setTexture(texture);
+        if (p.bedDisturbances > actor.bedDisturbances && p.fatigue.sleeping && actor.sleeping && actor.map === p.map) actor.reactionAt = time;
+        actor.bedDisturbances = p.bedDisturbances;
+        if (!p.fatigue.sleeping || actor.map !== p.map) actor.reactionAt = -Infinity;
         if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping) {
           if (id === current.localId && p.fatigue.sleeping && !actor.sleeping) {
             for (const [name, key] of Object.entries(this.keys)) if (key.isDown) this.blockedKeys.add(name);
@@ -319,7 +341,12 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           actor.container.setPosition(actor.settleFrom.x + (p.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (p.y - actor.settleFrom.y) * settled);
         }
         const pose = residentFrame(actor.facing, actor.distance, !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
-        actor.sprite.setFrame(sleepProgress > .45 ? 'down-rest' : pose.frame).setFlipX(pose.flipX).setY(-Math.round(8 * settled) * 2);
+        const reactionElapsed = time - actor.reactionAt, reacting = p.fatigue.sleeping && reactionElapsed < 900;
+        const toss = reacting && !reducedMotion ? [0, -2, -4, -2, 0, 2, 4, 2, 0, 0][Math.floor(reactionElapsed / 90)] : 0;
+        actor.sprite.setFrame(reacting ? 'down-grumpy' : sleepProgress > .45 ? 'down-rest' : pose.frame).setFlipX(pose.flipX)
+          .setPosition(toss, -Math.round(8 * settled) * 2 - (toss ? 2 : 0));
+        actor.reaction.setVisible(reacting).setY(-108 - (reacting && !reducedMotion ? Math.floor(reactionElapsed / 300) * 2 : 0))
+          .setAlpha(reacting ? Math.min(1, (900 - reactionElapsed) / 250) : 0);
         actor.container.setDepth(p.fatigue.sleeping ? 300 + objectOffset('bed', roomLayout(current.world, p.map)).y : actor.container.y);
         if (id === current.localId) {
           const arrangedObject = current.arranging && getRoomObjects(this.roomMap, this.layout).find(o => o.id === current.arranging!.id);
@@ -334,6 +361,8 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           telemetry('playerMap', p.map); telemetry('renderedMap', this.roomMap); telemetry('playerSleeping', String(p.fatigue.sleeping));
           telemetry('playerHeight', actor.sprite.displayHeight); telemetry('sleeping', String(p.fatigue.sleeping));
           telemetry('sleepPoseProgress', Number(sleepProgress.toFixed(2)));
+          telemetry('bedReactionCount', p.bedDisturbances); telemetry('bedReactionActive', String(reacting));
+          telemetry('residentTexture', texture);
         }
       }
       telemetry('layout', JSON.stringify(savedLayout));
@@ -347,6 +376,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       telemetry('dayPhase', dayPhase(current.world.clock.totalMinutes)); telemetry('nightVariant', nightVariant(current.world));
       telemetry('daylight', Number(daylight(current.world.clock.totalMinutes).toFixed(3)));
       telemetry('visiblePlayers', [...this.actors].filter(([, actor]) => actor.container.visible).map(([id]) => id).sort().join(','));
+      telemetry('bedReactions', JSON.stringify(Object.fromEntries([...this.actors].filter(([, actor]) => actor.container.visible).map(([id, actor]) => [id, { count: actor.bedDisturbances, active: actor.reaction.visible }]))));
       this.cooldown -= delta;
       if (!paused() && !local.fatigue.sleeping && this.cooldown <= 0) {
         const down = (name: string) => this.keys[name].isDown && !this.blockedKeys.has(name);

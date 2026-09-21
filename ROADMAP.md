@@ -1,6 +1,6 @@
 # Roadmap
 
-Current household revision: shared living room, owned bedrooms, two-person beds and dawn journals. Validate room permissions, visitors, shared rest and saved reports before expanding content. This does not complete later town or story phases.
+Current household revision: shared living room, owned bedrooms, two-person beds, dawn journals, personal character creation and synchronized sleepy reactions. Device acceptance remains open before expanding content. This does not complete later town or story phases.
 
 Current phase: **Phase 1, implementation in progress**.
 

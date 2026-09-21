@@ -1,5 +1,8 @@
 # Save and protocol revisions
 
+Current override: [CHARACTER_CREATION.md](CHARACTER_CREATION.md) defines the 0.1.5 personal appearance choices, occupied-bed reaction, save schema 5 and protocol 6. Earlier version descriptions below are historical.
+
+
 **Current override:** HOUSEHOLD_ROOMS.md defines the 0.1.4 room permissions, separate layouts, two-person beds, dawn reports, save schema 4 and protocol 5. Earlier single-room descriptions below are historical.
 
 Current override: the 2026-09-21 changes in [ROOM_LAYOUT.md](ROOM_LAYOUT.md) replace inspection menus, automatic sleep, old wake scheduling and static furniture positions. Current saves use schema 3 and protocol 4. [AUDIO.md](AUDIO.md) describes original offline sound. Earlier implementation details below remain historical where they conflict.

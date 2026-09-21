@@ -39,3 +39,7 @@ The current correction milestone brings a room/landing connection and basic time
 ## 0.1.3 additions
 
 Verify music starts only after a gesture and resumes after phone suspension without duplicate layers. Listen to music, wood/paper sounds, footsteps and hearth crackles; check both saved audio switches offline. Check letter/candle targeting, hearth off/on, bottom sheets and completed opening-before-menu order. Enter the lower bed gap, decline, re-enter and confirm; try before dawn and during daytime. Arrange every furnishing with touch, cancel a preview, reconnect after placement, and race the same piece on two phones. Confirm neither player can obstruct a doorway or occupied bed. Review the repaired eye, walnut thresholds and candle occlusion on device.
+
+## Character and bed checks, 0.1.5
+
+Pending on physical iPhones: preview and all creation controls at small landscape sizes; independently customized peers after offline reconnect; crossing an occupied moved bed in both bedrooms; synchronized sleepy reaction without waking; new morning journal on both devices; original sound after silent-mode and foreground changes.

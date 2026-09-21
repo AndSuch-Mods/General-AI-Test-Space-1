@@ -167,7 +167,7 @@ describe('maps, containers and migration', () => {
       return [id, { ...rest, fatigue: oldFatigue }];
     })) };
     const migrated = parseWorld(legacy);
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.worldId).toBe(authority.world.worldId);
     expect(migrated.revision).toBe(authority.world.revision);
     expect(migrated.players[guest].inventory).toEqual({ 'cacao-bean': 9 });
