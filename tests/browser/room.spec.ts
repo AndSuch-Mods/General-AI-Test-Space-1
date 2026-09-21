@@ -32,9 +32,10 @@ test('floating touch controls, compact HUD and movement cancellation', async ({ 
   expect(await position(page)).toEqual(released);
   // A cancelled touch must stop too; no browser default scrolling or stuck stick.
   await page.mouse.move(100, 220);
-  const pointerId = page.evaluate(() => new Promise<number>(resolve => document.querySelector('#touch-surface')!.addEventListener('pointerdown', event => resolve((event as PointerEvent).pointerId), { once: true })));
+  await page.locator('#touch-surface').evaluate(element => element.addEventListener('pointerdown', event => { (element as HTMLElement).dataset.testPointer = String((event as PointerEvent).pointerId); }, { once: true }));
   await page.mouse.down(); await page.mouse.move(55, 220);
-  await page.locator('#touch-surface').dispatchEvent('pointercancel', { pointerId: await pointerId });
+  const pointerId = Number(await page.locator('#touch-surface').getAttribute('data-test-pointer'));
+  await page.locator('#touch-surface').dispatchEvent('pointercancel', { pointerId });
   await page.mouse.up();
   await expect(page.locator('#thumbstick')).toBeHidden();
   await inventory(page, 'missions');
