@@ -10,8 +10,11 @@ async function create(page: Page) {
 async function bed(page: Page) {
   await walkTo(page, 'y', 355);
   await walkTo(page, 'x', 270);
-  await walkTo(page, 'y', 274);
-  await walkTo(page, 'x', 220);
+  await walkTo(page, 'y', 302);
+  await page.keyboard.down('ArrowLeft');
+  try { await expect(page.locator('#confirm-sleep')).toBeVisible(); } finally { await page.keyboard.up('ArrowLeft'); }
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
+  await page.locator('#confirm-sleep').click();
 }
 const minutes = async (page: Page) => {
   const value = (await page.locator('#game-clock').textContent())!.split(':').map(Number);
@@ -24,27 +27,22 @@ test('bed entry advances solo time, windows change, menus pause and the new day 
   await expect.poll(() => minutes(page)).toBeGreaterThanOrEqual(360);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
   await expect(page.locator('#sleep-overlay')).toBeHidden();
-  // A second complete rest during the morning ends in the afternoon.
-  await bed(page);
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'day');
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-daylight', '1');
   await inventory(page);
-  const paused = await minutes(page);
-  await page.waitForTimeout(2200);
+  const paused = await minutes(page); await page.waitForTimeout(2200);
   expect(await minutes(page)).toBe(paused);
   await page.locator('#action-b').click();
+  const beforeSecond = Number(await page.locator('#game-canvas').getAttribute('data-total-minutes'));
   await bed(page);
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'night');
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-daylight', '0');
-  await page.locator('#leave').click();
-  await page.reload(); await page.locator('#solo').click();
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'night');
+  await expect.poll(async () => Number(await page.locator('#game-canvas').getAttribute('data-total-minutes'))).toBeGreaterThan(beforeSecond + 1400);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
+  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
 });
 
 test('exit door reaches a saved landing and returns through its own door', async ({ page }) => {
   await create(page);
-  await walkTo(page, 'y', 290); await walkTo(page, 'x', 685);
+  await walkTo(page, 'y', 258); await walkTo(page, 'x', 685);
   await action(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'landing');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-home');
@@ -77,7 +75,7 @@ test('co-op residents separate maps, keep time through private menus and rest in
     const before = await minutes(guest);
     await expect.poll(() => minutes(guest), { timeout: 6000 }).toBeGreaterThan(before);
     await host.locator('#action-b').click();
-    await walkTo(guest, 'y', 290); await walkTo(guest, 'x', 685); await action(guest);
+    await walkTo(guest, 'y', 258); await walkTo(guest, 'x', 685); await action(guest);
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'landing');
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await expect.poll(async () => (await host.locator('#game-canvas').getAttribute('data-visible-players'))?.split(',').length).toBe(1);

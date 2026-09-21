@@ -57,6 +57,20 @@ test('compact resident creation previews clothing changes without tinting the fa
     await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', /^(down|right|up)-(idle|step-left|passing|step-right)$/);
     await page.getByRole('button', { name: 'Close dialog' }).click();
   }
+  await page.getByRole('button', { name: /^Single Player/ }).click();
+  const heads = await page.locator('#resident-preview').evaluate(element => new Promise<string[]>((resolve, reject) => {
+    const canvas = element as HTMLCanvasElement, samples = new Map<string, string>();
+    const capture = () => {
+      const frame = canvas.dataset.frame ?? '';
+      if (!frame.startsWith('down-')) return;
+      samples.set(frame, JSON.stringify(Array.from(canvas.getContext('2d')!.getImageData(0, 0, 64, 40).data)));
+      if (samples.size === 4) { observer.disconnect(); clearTimeout(timer); resolve([...samples.values()]); }
+    };
+    const observer = new MutationObserver(capture);
+    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('Walking preview did not show all four down-facing poses.')); }, 15000);
+    observer.observe(canvas, { attributes: true, attributeFilter: ['data-frame'] }); capture();
+  }));
+  expect(new Set(heads).size).toBe(1); // The face must not blink or change with footfall.
   expect(errors).toEqual([]);
 });
 
@@ -72,22 +86,19 @@ test('dedicated A and B operate menus while a right-side world tap does nothing'
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:true:true');
   await action(page);
-  await expect(page.getByRole('heading', { name: 'The house exhales' })).toBeVisible();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /^true:/);
+  await action(page);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /^false:/);
+  await walkTo(page, 'y', 308); await walkTo(page, 'x', 362);
+  await action(page);
+  await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
+  await expect(page.locator('.dialogue-choices')).toHaveCount(0);
+  const sheet = await page.locator('dialog').boundingBox();
+  expect(sheet!.y).toBeGreaterThan(195);
   await page.locator('#action-a').click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await inventory(page, 'items');
-  await expect(page.locator('#action-a')).toBeDisabled();
-  await page.locator('#action-b').click();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await walkTo(page, 'y', 308); await walkTo(page, 'x', 388);
-  await action(page);
-  await expect(page.locator('.dialogue-choices button')).toHaveCount(3);
-  await expect(page.locator('#action-a')).toBeDisabled();
-  await page.locator('#action-b').click();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await action(page, 'letter');
-  await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
-  await page.locator('#action-b').click();
+  await inventory(page); await page.locator('#action-b').click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 

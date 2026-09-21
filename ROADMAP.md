@@ -2,6 +2,8 @@
 
 Current phase: **Phase 1, implementation in progress**.
 
+The 2026-09-21 household correction adds original offline music and material sounds, direct object actions, compact bottom sheets, confirmed next-morning sleep, and shared saved furniture arrangement. Rendering fixes cover the right eye, candle depth and wall-set walnut doors. See docs/ROOM_LAYOUT.md. This does not advance a content phase.
+
 The complete deliverables and exit criteria are preserved in [PHASES.md](docs/PHASES.md). No phase is complete until its exit criteria have evidence.
 
 | Phase | Work | Status |

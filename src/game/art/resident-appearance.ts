@@ -47,6 +47,19 @@ export function recolorResidentPixels(pixels: Uint8ClampedArray, frameName: stri
 
 const canvases = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>();
 
+/** The native down-facing sample lost the right eye's light pixels in reduction.
+ * Restore its two-by-two eye cluster from the clear opposite eye, beneath the brow. */
+export function correctResidentEyes(pixels: Uint8ClampedArray, frameName: string) {
+  if (!frameName.startsWith('down-')) return;
+  for (let y = 14; y <= 15; y++) for (let x = 0; x < 2; x++) {
+    const source = (y * RESIDENT_NATIVE_WIDTH + 18 + x) * 4;
+    const target = (y * RESIDENT_NATIVE_WIDTH + 13 + x) * 4;
+    pixels.set(pixels.slice(source, source + 4), target);
+  }
+  // Keep a dark iris in each two-pixel eye at the final native resolution.
+  for (const x of [14, 19]) pixels.set([53, 40, 41, 255], (15 * RESIDENT_NATIVE_WIDTH + x) * 4);
+}
+
 /** Shared native artwork for Phaser and character creation. Treat the returned canvas as read-only. */
 export function residentCanvas(image: HTMLImageElement, frameName: string, appearance: ResidentAppearance): HTMLCanvasElement {
   const frame = RESIDENT_FRAMES.find(candidate => candidate.name === frameName);
@@ -62,7 +75,15 @@ export function residentCanvas(image: HTMLImageElement, frameName: string, appea
   if (!context) throw new Error('Could not draw the resident.');
   context.imageSmoothingEnabled = false;
   context.drawImage(image, frame.x, frame.y, frame.width, frame.height, 0, 0, canvas.width, canvas.height);
+  // The source walking frames contain unintended facial changes. Keep one head
+  // per facing while the torso, arms and legs animate beneath it.
+  if (!frameName.endsWith('-idle')) {
+    const idle = residentCanvas(image, `${frameName.split('-')[0]}-idle`, appearance);
+    context.clearRect(0, 0, canvas.width, 20);
+    context.drawImage(idle, 0, 0, canvas.width, 20, 0, 0, canvas.width, 20);
+  }
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  correctResidentEyes(pixels.data, frameName);
   recolorResidentPixels(pixels.data, frameName, appearance);
   context.putImageData(pixels, 0, 0);
   images.set(key, canvas);

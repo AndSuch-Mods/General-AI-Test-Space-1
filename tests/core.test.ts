@@ -43,7 +43,8 @@ describe('world persistence and authority', () => {
     expect(host.world.story.flags.hearth).toBe(true);
     expect(host.world.events[0].actor).toBe(id);
     expect(host.world.players[host.world.hostId].discoveries).toEqual([]);
-    for (let i = 0; i < 16; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: -1, dy: 0 });
+    for (let i = 0; i < 2; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: 0, dy: 1 });
+    for (let i = 0; i < 12; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: -1, dy: 0 });
     await host.dispatch(id, sequence + 1, { kind: 'interact', target: 'letter' });
     expect(host.world.players[id].discoveries).toContain('letter');
     expect(host.world.players[host.world.hostId].discoveries).not.toContain('letter');

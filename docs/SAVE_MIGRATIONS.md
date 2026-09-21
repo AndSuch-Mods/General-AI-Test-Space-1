@@ -1,5 +1,7 @@
 # Save and protocol revisions
 
+Current override: the 2026-09-21 changes in [ROOM_LAYOUT.md](ROOM_LAYOUT.md) replace inspection menus, automatic sleep, old wake scheduling and static furniture positions. Current saves use schema 3 and protocol 4. [AUDIO.md](AUDIO.md) describes original offline sound. Earlier implementation details below remain historical where they conflict.
+
 ## Schema 2, build 0.1.2
 
 Schema 2 adds the `landing` map and these personal fields:

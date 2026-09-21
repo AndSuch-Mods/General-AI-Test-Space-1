@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld } from '../src/game/model';
-import { canStand, canInteract, moveInRoom, objectForAction, roomObjects, safePosition } from '../src/content/room';
+import { canStand, canInteract, moveInRoom, objectForAction, roomObjects, safePosition, FURNITURE_IDS } from '../src/content/room';
 import { arrival } from '../src/content/arrival';
 
 describe('room geometry', () => {
@@ -23,7 +23,7 @@ describe('room geometry', () => {
     }
   });
   it('slides alongside the bed and keeps diagonal speed at the same limit', () => {
-    const besideBed = { x: 262, y: 300 };
+    const besideBed = { x: 262, y: 328 };
     const result = moveInRoom(besideBed, -1, 1);
     expect(result.x).toBeGreaterThanOrEqual(260);
     expect(result.y).toBeGreaterThan(besideBed.y);
@@ -33,7 +33,8 @@ describe('room geometry', () => {
   });
   it('gives every visible prop reachable actions without reaching through the bed', () => {
     for (const object of roomObjects) {
-      expect(object.actions.length).toBeGreaterThan(0);
+      expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number])).toBe(true);
+      if (!object.actions.length) continue;
       for (const action of object.actions) expect(arrival.some(event => event.id === action)).toBe(true);
       let reachable = false;
       for (let y = 218; y <= 476 && !reachable; y += 4) for (let x = 90; x <= 870 && !reachable; x += 4) {
@@ -41,7 +42,7 @@ describe('room geometry', () => {
       }
       expect(reachable, object.id).toBe(true);
     }
-    expect(canInteract({ x: 205, y: 300 }, objectForAction('bed'))).toBe(false);
+    expect(canInteract({ x: 205, y: 328 }, objectForAction('bed'))).toBe(false);
     expect(canInteract({ x: 480, y: 364 }, objectForAction('pantry'))).toBe(false);
   });
 });
@@ -49,7 +50,7 @@ describe('room geometry', () => {
 describe('room persistence and shared interaction', () => {
   it('repairs old positions durably without changing either profile progression', async () => {
     const initial = createWorld(createPlayer('Keeper'));
-    Object.assign(initial.players[initial.hostId], { x: 190, y: 290, inventory: { 'cacao-bean': 3 }, discoveries: ['letter'] });
+    Object.assign(initial.players[initial.hostId], { x: 190, y: 328, inventory: { 'cacao-bean': 3 }, discoveries: ['letter'] });
     const original = structuredClone(initial);
     let saved = initial;
     const authority = new Authority(initial, async state => { saved = state; });
@@ -65,7 +66,7 @@ describe('room persistence and shared interaction', () => {
   });
   it('does not publish a position repair when saving fails, and exit waits for durable state', async () => {
     const initial = createWorld(createPlayer('Keeper'));
-    initial.players[initial.hostId].x = 190; initial.players[initial.hostId].y = 290;
+    initial.players[initial.hostId].x = 190; initial.players[initial.hostId].y = 328;
     const authority = new Authority(initial, async () => { throw Error('Disk full'); });
     await expect(authority.prepareRoom()).rejects.toThrow('Disk full');
     await expect(authority.flush()).rejects.toThrow('Disk full');

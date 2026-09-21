@@ -1,5 +1,7 @@
 # Shared time and personal sleep
 
+Current override: the 2026-09-21 changes in [ROOM_LAYOUT.md](ROOM_LAYOUT.md) replace inspection menus, automatic sleep, old wake scheduling and static furniture positions. Current saves use schema 3 and protocol 4. [AUDIO.md](AUDIO.md) describes original offline sound. Earlier implementation details below remain historical where they conflict.
+
 The user's room review requires working sleep and day/night windows before further expansion. This brings a bounded part of Phase 3 forward without closing that phase.
 
 The host owns one saved clock. `secondsPerGameMinute` defaults to 1.0. A real second advances one game minute, so a complete unpaused day lasts 24 real minutes. The browser submits elapsed monotonic time about once per second. Hidden intervals and long suspension gaps are discarded; there is no offline catch-up. The authority bounds a delayed callback to five real seconds as a second guard. Clock writes use the same durable queue as movement and item transactions. Failed writes never publish new time.

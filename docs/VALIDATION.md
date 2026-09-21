@@ -1,5 +1,14 @@
 # Validation record
 
+## Direct household controls, arrangement and audio, 0.1.3
+
+- Master hash and all 53 sections, lint, TypeScript, 45 unit tests and production build pass locally. New checks cover all ten movable pieces, collisions and reachable paths, concurrent edits, duplicate commands, failed-save rollback, attachment offsets, schema 2 migration, hearth toggling and sleep until the next 06:00.
+- The browser suite contains 18 scenarios per engine. New checks verify saved placement and cancellation, opening completion before the chest sheet, closing after dismissal, and actual nonzero audio output offline with independent persisted music and sound switches. Existing coverage retains cold offline launch, two save slots, backups, integrity repair, update preservation and actual peer reconnect.
+- The initial local Chromium run passed 14 scenarios. Two ambiguous Continue selectors were corrected and their scenarios passed on rerun. Software-renderer latency also delayed test key releases in the two peer scenarios; the test driver now releases fine movement inside the page when the first authoritative step is rendered. CI runs the complete suite in Chromium and macOS WebKit before deployment; consult the exact checkpoint run for final results.
+- The resident now uses one unchanged head per facing through all walking frames. An added browser pixel check compares all four front-facing heads. This removes the source artwork's changing eye shapes rather than letting footfall alter facial expression.
+- Visually reviewed the wooden doorway at the wall threshold, common room pixel scale and resident face at 844 by 390. Candle flames use their supporting object's depth. Reading, sleep confirmation and storage sheets sit above the bottom controls.
+- Original music and effects use the Web Audio engine documented in AUDIO.md and require no downloads beyond the offline package. Automated waveform checks establish output and mute behavior. Physical iPhone listening, audio interruption and two-device acceptance remain open in DEVICE_TESTS.md.
+
 ## Resident, menu and household rework, 0.1.2
 
 - Master hash and all 53 specification sections, lint, TypeScript, 39 unit tests and production build pass locally. New core checks cover appearance masks, configured time scale, sunrise fatigue, independent rest, storage failure rollback, map collision/travel, container presence and two-resident save migration.

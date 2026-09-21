@@ -67,4 +67,29 @@ export function buildRoomTextures(scene: Phaser.Scene) {
   const pixels = doors.context.getImageData(0, 0, 192, 80);
   for (let i = 3; i < pixels.data.length; i += 4) pixels.data[i] = pixels.data[i] < 192 ? 0 : 255;
   doors.context.putImageData(pixels, 0, 0); doors.refresh();
+  // A room-sized walnut frame sits in the wall, with the threshold at the skirting.
+  // This native pixel drawing uses the same wood/brass palette as the furnishings.
+  const wood = scene.textures.createCanvas('wood-door', 86, 68)!;
+  const c = wood.context;
+  const rect = (x: number, y: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
+  for (const [index, name] of ['closed', 'open'].entries()) {
+    const x = index * 43;
+    rect(x, 0, 43, 68, '#241c25'); rect(x + 1, 1, 41, 67, '#694831');
+    rect(x + 3, 3, 37, 64, '#3a292b'); rect(x + 5, 5, 33, 61, '#17151e');
+    rect(x + 1, 1, 41, 2, '#9b724b'); rect(x + 2, 3, 2, 63, '#84603f'); rect(x + 39, 3, 2, 63, '#523b2e');
+    rect(x + 3, 65, 37, 2, '#ad8759');
+    if (name === 'closed') {
+      rect(x + 6, 6, 31, 59, '#68452f');
+      for (let col = 7; col < 36; col += 5) { rect(x + col, 7, 1, 57, '#785337'); rect(x + col + 3, 8, 1, 56, '#4e342a'); }
+      for (const y of [10, 36]) for (const px of [10, 24]) {
+        rect(x + px - 1, y - 1, 10, 23, '#9a6c43'); rect(x + px, y, 10, 23, '#3f2c28'); rect(x + px, y + 1, 8, 20, '#63402e'); rect(x + px + 1, y + 2, 1, 18, '#795035');
+      }
+      rect(x + 32, 32, 2, 5, '#322730'); rect(x + 32, 33, 2, 2, '#c29b58');
+    } else {
+      rect(x + 5, 6, 9, 58, '#69432d'); rect(x + 6, 7, 2, 56, '#8d613c'); rect(x + 12, 7, 2, 57, '#3a2927');
+      rect(x + 10, 31, 2, 3, '#b38b51'); rect(x + 15, 61, 21, 3, '#39303a');
+    }
+    wood.add(name, 0, x, 0, 43, 68);
+  }
+  wood.refresh();
 }

@@ -248,3 +248,28 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 .dialogue-choices kbd { border-radius: 0; border-color: #a58d656e; }
 @media (max-height: 480px) { .panel-dialog h2 { font-size: 22px; } .title-copy h1 { font-size: clamp(28px, 4.4vw, 38px); } }
 @media (orientation: landscape) and (max-width: 740px) { .title-copy h1 { font-size: 28px; } }
+/* Reading and choices sit over the quickbar, leaving the room in view. */
+.in-game-dialog { position: fixed; inset: auto 128px max(5px, env(safe-area-inset-bottom)) 12px; margin: 0 auto; width: min(620px, calc(100vw - 154px)); max-height: 55dvh; padding: 8px 13px 10px; }
+.in-game-dialog::backdrop { background: #11101b26; }
+.in-game-dialog .dialog-head { margin: 0; align-items: center; }
+.in-game-dialog h2 { font-size: 17px; margin: 0; }
+.in-game-dialog h3 { font-size: 14px; margin: 4px 0; }
+.in-game-dialog .story-text { font: 14px/1.4 'Trebuchet MS', sans-serif !important; margin: 2px 0 7px; }
+.in-game-dialog .story-continue { width: auto; min-width: 105px; padding: 4px 10px; min-height: 44px; margin-left: auto; }
+.in-game-dialog .button-row button { font-size: 12px; padding: 6px; }
+.in-game-dialog .muted { margin: 4px 0 7px; font-size: 11px; }
+.in-game-dialog .storage-columns { gap: 10px; }
+.in-game-dialog .storage-columns>div { padding: 5px 8px 8px; }
+.in-game-dialog .storage-columns p { margin: 6px 0; font-size: 12px; }
+.in-game-dialog .inventory-grid { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.in-game-dialog .empty-item, .in-game-dialog .inventory-item { min-height: 44px; }
+.in-game-dialog .inventory-tabs { margin-bottom: 6px; }
+.in-game-dialog .inventory-tabs button { font-size: 11px; padding: 5px; }
+.in-game-dialog .icon-button { font-size: 21px; }
+.furnishing-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.furnishing-list button { font-size: 11px; padding: 5px; }
+.quickbar.arranging { visibility: hidden; }
+#arrange-bar { position: absolute; z-index: 3; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 265px); min-width: 260px; padding: 7px 12px; background: #25232eeb; border: 2px solid #c4ba8b; pointer-events: none; text-align: center; }
+#arrange-bar strong { display: block; font-size: 13px; }
+#arrange-bar small { display: block; margin-top: 3px; font-size: 11px; }
+#arrange-bar.invalid { border-color: #d88872; }

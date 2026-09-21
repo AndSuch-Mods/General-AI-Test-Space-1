@@ -33,3 +33,7 @@ Record the two phone models, iOS versions, network type, build commit, installat
 11. Put one resident to bed while the other moves and uses a menu. Time must continue normally. B wakes only the sleeping resident. Put both to bed and verify the shared wake time and personal energy/fatigue. Save/rejoin during rest, and drop an awake guest while the host sleeps.
 
 The current correction milestone brings a room/landing connection and basic time/rest forward. Phase 2 still adds town/forest and simulation stress; Phase 3 still requires multi-day device runs and broader health/schedule integration. Do not mark those phases complete from this checklist.
+
+## 0.1.3 additions
+
+Verify music starts only after a gesture and resumes after phone suspension without duplicate layers. Listen to music, wood/paper sounds, footsteps and hearth crackles; check both saved audio switches offline. Check letter/candle targeting, hearth off/on, bottom sheets and completed opening-before-menu order. Enter the lower bed gap, decline, re-enter and confirm; try before dawn and during daytime. Arrange every furnishing with touch, cancel a preview, reconnect after placement, and race the same piece on two phones. Confirm neither player can obstruct a doorway or occupied bed. Review the repaired eye, walnut thresholds and candle occlusion on device.

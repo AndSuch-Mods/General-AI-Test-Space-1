@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { action, inventory, position, walk } from './controls';
+import { action, inventory, position, walk, walkTo } from './controls';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?renderer=canvas');
@@ -62,28 +62,28 @@ test('left/right profiles, bed collision and furniture interaction at the closer
   expect(stopped.y).toBeGreaterThanOrEqual(348);
   expect(stopped.y).toBeLessThanOrEqual(352);
   await action(page);
-  await expect(page.getByRole('heading', { name: 'A room kept ready' })).toBeVisible();
-  await page.getByRole('button', { name: 'Carry on' }).click();
+  await expect(page.getByRole('heading', { name: 'Rest until morning?' })).toBeVisible();
+  await page.locator('#cancel-sleep').click();
   await page.locator('#leave').click();
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
   expect(await position(page)).toEqual(stopped);
 });
 
 test('candle choices persist and seven quick slots retain items while migrating older five-slot settings', async ({ page }) => {
-  await walk(page, 'ArrowUp', 4); await walk(page, 'ArrowLeft', 6);
-  await action(page, 'candle-desk');
-  await page.getByRole('button', { name: 'Carry on' }).click();
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:false:true');
-  await action(page, 'letter');
-  await page.getByRole('button', { name: 'Carry on' }).click();
-  await expect(page.locator('#notification-dot')).toBeVisible();
-  await inventory(page, 'missions');
-  await expect(page.locator('#notification-dot')).toBeHidden();
+  await walkTo(page, 'y', 308); await walkTo(page, 'x', 416);
+  await action(page);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /:false:/);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await walkTo(page, 'x', 362); await action(page);
+  await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
+  await page.locator('#action-a').click();
+  await inventory(page, 'journal');
+  await expect(page.getByText('A letter that waited', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await walk(page, 'ArrowRight', 28);
+  await walkTo(page, 'y', 294); await walkTo(page, 'x', 790);
   await action(page);
   await expect(page.getByRole('heading', { name: 'A practical welcome' })).toBeVisible();
-  await page.getByRole('button', { name: 'Carry on' }).click();
+  await page.locator('#finish-story').click();
   await inventory(page);
   await page.getByRole('button', { name: 'Cacao bean, 3' }).click();
   await expect(page.locator('.assign-slots button')).toHaveCount(7);

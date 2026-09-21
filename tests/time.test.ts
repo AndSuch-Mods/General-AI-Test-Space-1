@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld, type World } from '../src/game/model';
 import { advanceWorldClock, daylight, dayPhase, energyCap, nextWakeMinute, startSleep, wakePlayer } from '../src/game/time';
-import { BED_EXIT, BED_REST, canStand, getRoomObjects, inBedEntry, moveInRoom, objectColliders } from '../src/content/room';
+import { BED_EXIT, BED_REST, canStand, getRoomObjects, inBedEntry, moveInRoom, objectColliders, FURNITURE_IDS } from '../src/content/room';
 import { GameDatabase, parseBackup } from '../src/persistence/database';
 
 function household() { return createWorld(createPlayer('Keeper')); }
@@ -56,16 +56,18 @@ describe('shared clock and personal rest', () => {
     expect(companion.fatigue.consecutiveAllNighters).toBe(0);
     expect(companion.fatigue.sleeping).toBe(false);
   });
-  it('starts sleep through the bed slit, keeps the rest solid, and wakes clear of it', async () => {
+  it('asks before sleep through the lower bed slit, keeps the rest solid, and wakes clear of it', async () => {
     const world = household(), player = world.players[world.hostId];
-    Object.assign(player, { x: 242, y: 274 });
+    Object.assign(player, { x: 242, y: 302 });
     player.fatigue.consecutiveAllNighters = 3; player.energy = 20;
     expect(canStand(player)).toBe(true);
     expect(inBedEntry(moveInRoom(player, -1, 0))).toBe(true);
-    expect(canStand({ x: 200, y: 310 })).toBe(false);
+    expect(canStand({ x: 200, y: 328 })).toBe(false);
     expect(canStand({ x: 200, y: 252 })).toBe(false);
     const authority = new Authority(world, async () => {});
     await authority.dispatch(player.id, 1, { kind: 'move', dx: -1, dy: 0 });
+    expect(authority.world.players[player.id].fatigue.sleeping).toBe(false);
+    await authority.dispatch(player.id, 2, { kind: 'sleep' });
     expect(authority.world.players[player.id].fatigue.sleeping).toBe(true);
     expect(authority.world.players[player.id].x).toBe(BED_REST.x);
     await authority.advanceTime(1, { activeIds: [player.id], paused: false });
@@ -79,14 +81,14 @@ describe('shared clock and personal rest', () => {
   it('never skips time for one co-op sleeper, then advances when both choose sleep', async () => {
     const authority = new Authority(household(), async () => {});
     const host = authority.world.hostId, guest = await addGuest(authority);
-    Object.assign(authority.world.players[guest], { x: 242, y: 274 });
-    await authority.dispatch(guest, 1, { kind: 'move', dx: -1, dy: 0 });
+    Object.assign(authority.world.players[guest], { x: 242, y: 302 });
+    await authority.dispatch(guest, 1, { kind: 'sleep' });
     await authority.advanceTime(1, { activeIds: [host, guest], paused: false });
     expect(authority.world.clock.totalMinutes).toBe(1081);
     expect(authority.world.players[guest].fatigue.sleeping).toBe(true);
     expect(authority.world.players[host].fatigue.sleeping).toBe(false);
-    Object.assign(authority.world.players[host], { x: 242, y: 274 });
-    await authority.dispatch(host, 1, { kind: 'move', dx: -1, dy: 0 });
+    Object.assign(authority.world.players[host], { x: 242, y: 302 });
+    await authority.dispatch(host, 1, { kind: 'sleep' });
     await authority.advanceTime(1, { activeIds: [host, guest], paused: false });
     expect(authority.world.clock.totalMinutes).toBe(1800);
     expect(Object.values(authority.world.players).every(player => !player.fatigue.sleeping)).toBe(true);
@@ -100,7 +102,7 @@ describe('shared clock and personal rest', () => {
     startSleep(player, 10 * 60); wakePlayer(player, 18 * 60);
     expect(player.fatigue.consecutiveAllNighters).toBe(0);
     expect(player.energy).toBe(100);
-    expect(nextWakeMinute(25 * 60)).toBe(33 * 60);
+    expect(nextWakeMinute(25 * 60)).toBe(30 * 60);
   });
   it('persists an in-progress sleep and keeps failed clock writes out of live state', async () => {
     const db = new GameDatabase(crypto.randomUUID());
@@ -124,7 +126,7 @@ describe('maps, containers and migration', () => {
   it('travels through the real room door without moving the other resident', async () => {
     const authority = new Authority(household(), async () => {});
     const host = authority.world.hostId, guest = await addGuest(authority);
-    Object.assign(authority.world.players[guest], { x: 685, y: 278 });
+    Object.assign(authority.world.players[guest], { x: 685, y: 258 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'door-out' });
     expect(authority.world.players[guest].map).toBe('landing');
     expect(authority.world.players[host].map).toBe('castle');
@@ -136,7 +138,7 @@ describe('maps, containers and migration', () => {
   it('gives both maps valid solids and reachable furnishing interactions', () => {
     for (const map of ['castle', 'landing'] as const) for (const object of getRoomObjects(map)) {
       for (const rect of objectColliders(object)) expect(canStand({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, map }), object.id).toBe(false);
-      expect(object.actions.length, object.id).toBeGreaterThan(0);
+      expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number]), object.id).toBe(true);
     }
   });
   it('persists opening intent and clears it on explicit close or guest departure', async () => {
@@ -157,14 +159,15 @@ describe('maps, containers and migration', () => {
     authority.world.players[guest].inventory['cacao-bean'] = 9;
     authority.world.players[guest].discoveries = ['letter'];
     authority.world.story.flags.hearth = true;
-    const legacy = { ...authority.world, schemaVersion: 1, players: Object.fromEntries(Object.entries(authority.world.players).map(([id, player]) => {
+    const { layout: _layout, ...legacyBase } = authority.world; void _layout;
+    const legacy = { ...legacyBase, schemaVersion: 1, players: Object.fromEntries(Object.entries(authority.world.players).map(([id, player]) => {
       const { interaction: _interaction, fatigue, ...rest } = player;
       const { sleepStartedAt: _start, wakeAt: _end, ...oldFatigue } = fatigue;
       void _interaction; void _start; void _end;
       return [id, { ...rest, fatigue: oldFatigue }];
     })) };
     const migrated = parseWorld(legacy);
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.worldId).toBe(authority.world.worldId);
     expect(migrated.revision).toBe(authority.world.revision);
     expect(migrated.players[guest].inventory).toEqual({ 'cacao-bean': 9 });

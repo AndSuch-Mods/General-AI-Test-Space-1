@@ -33,3 +33,7 @@ Phase 1 review: the room has three purposeful interactions and separate ownershi
 Room rework review: furnishings have physical presence, authored interactions and opening motion. Candles, storage and bed rest are working household functions. Time and window skies provide a daily rhythm, but there is still no town, cooking, gathering or exploration loop to fill that day. The landing offers a real exit/return and one repair clue; its closed stair is an open content gap. These are not counted as completed content phases or inflated quest counts.
 
 Before closing any major content phase, record dead zones, weeks without authored events, NPC arcs that end early, exhausted systems, redundant rewards, repeated quest patterns, missing setup/payoff, and late rewards with no remaining use. Fill those holes before raising raw counts.
+
+## 2026-09-21 household correction
+
+Added one original eight-bar musical composition with alternate ending, room/night treatment and eleven material/action sound cues. All audio is local synthesis, with no third-party samples. Added code-drawn walnut doors and a shared native eye correction. The existing room now supports meaningful direct use and persistent furniture arrangement. No NPCs, locations, recipes or story chapters were added or counted. This is interaction work, not a content-density milestone. The prior emptiness audit remains open for the later game loop.

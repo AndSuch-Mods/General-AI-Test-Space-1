@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { placeFurniture } from '../content/furnishing';
 import { arrival } from '../content/arrival';
 import { createPlayer, parseWorld, type Player, type World } from './model';
-import { canInteract, canStand, inBedEntry, moveInRoom, objectForAction, safePosition } from '../content/room';
+import { canInteract, canStand, inBedEntry, moveInRoom, objectForAction, safePosition, FURNITURE_IDS } from '../content/room';
 import { advanceWorldClock, gameMinutes, startSleep, wakePlayer } from './time';
 
 export const IntentSchema = z.discriminatedUnion('kind', [
@@ -9,6 +10,8 @@ export const IntentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('interact'), target: z.enum(arrival.map(event => event.id)) }).strict(),
   z.object({ kind: z.literal('transfer'), direction: z.enum(['deposit', 'withdraw']), item: z.literal('cacao-bean'), count: z.number().int().positive().max(999) }).strict(),
   z.object({ kind: z.literal('wake') }).strict(),
+  z.object({ kind: z.literal('sleep') }).strict(),
+  z.object({ kind: z.literal('place'), target: z.enum(FURNITURE_IDS), x: z.number().int().min(-800).max(800), y: z.number().int().min(-400).max(400), expected: z.object({ x: z.number().int(), y: z.number().int() }).strict() }).strict(),
   z.object({ kind: z.literal('close-interaction') }).strict(),
 ]);
 export type Intent = z.infer<typeof IntentSchema>;
@@ -57,16 +60,16 @@ export class Authority {
         : gameMinutes(Math.min(realSeconds, 5), world.clock.secondsPerGameMinute);
       advanceWorldClock(world, minutes, this.activeIds);
       // A returning sleeper may have finished resting while their device was absent.
-      for (const player of residents) if (player.fatigue.sleeping && player.fatigue.wakeAt! <= world.clock.totalMinutes) wakePlayer(player, player.fatigue.wakeAt!);
+      for (const player of residents) if (player.fatigue.sleeping && player.fatigue.wakeAt! <= world.clock.totalMinutes) wakePlayer(player, player.fatigue.wakeAt!, world.layout);
       return true;
     });
   }
   async prepareRoom() {
-    if (Object.values(this.world.players).every(player => !player.interaction && (player.fatigue.sleeping || canStand(player)))) return;
+    if (Object.values(this.world.players).every(player => !player.interaction && (player.fatigue.sleeping || canStand(player, player.map, this.world.layout)))) return;
     await this.transaction(world => {
       for (const player of Object.values(world.players)) {
         player.interaction = null;
-        if (!player.fatigue.sleeping) Object.assign(player, safePosition(player));
+        if (!player.fatigue.sleeping) Object.assign(player, safePosition(player, player.map, world.layout));
       }
     });
   }
@@ -96,19 +99,24 @@ export class Authority {
       if (!player) throw Error('Unknown resident');
       if (sequence <= (world.lastSequence[actor] ?? 0)) return false;
       if (intent.kind === 'wake') {
-        wakePlayer(player, world.clock.totalMinutes);
+        wakePlayer(player, world.clock.totalMinutes, world.layout);
       } else if (intent.kind === 'close-interaction') {
         player.interaction = null;
       } else if (player.fatigue.sleeping) {
         // Held movement cannot wake a resident or retrigger bed entry after a jump.
+      } else if (intent.kind === 'sleep') {
+        const bed = objectForAction('bed', player.map, world.layout);
+        if (!bed || !(inBedEntry(player, world.layout) || canInteract(player, bed, world.layout))) throw Error('Move closer to the bed.');
+        startSleep(player, world.clock.totalMinutes, world.layout);
+      } else if (intent.kind === 'place') {
+        placeFurniture(world, actor, intent.target, { x: intent.x, y: intent.y }, intent.expected);
       } else if (intent.kind === 'move') {
         // One bounded step per request; the session rate-limits remote movement to 10 Hz.
-        Object.assign(player, moveInRoom(player, intent.dx, intent.dy));
+        Object.assign(player, moveInRoom(player, intent.dx, intent.dy, 14, player.map, world.layout));
         player.interaction = null;
-        if (inBedEntry(player)) startSleep(player, world.clock.totalMinutes);
       } else if (intent.kind === 'transfer') {
-        const chest = objectForAction('chest', player.map);
-        if (!chest || !canInteract(player, chest)) throw Error('Move closer to the household chest.');
+        const chest = objectForAction('chest', player.map, world.layout);
+        if (!chest || !canInteract(player, chest, world.layout)) throw Error('Move closer to the household chest.');
         const from = intent.direction === 'deposit' ? player.inventory : world.chest;
         const to = intent.direction === 'deposit' ? world.chest : player.inventory;
         if ((from[intent.item] ?? 0) < intent.count) throw Error('That stack has changed. Choose an available amount.');
@@ -117,12 +125,18 @@ export class Authority {
         to[intent.item] = (to[intent.item] ?? 0) + intent.count;
       } else {
         const event = arrival.find(entry => entry.id === intent.target)!;
-        const object = objectForAction(event.id, player.map);
-        if (!object || !canInteract(player, object)) throw Error('Move closer to interact.');
-        if (event.id === 'door-out') Object.assign(player, { map: 'landing', x: 480, y: 300, interaction: null });
-        else if (event.id === 'door-home') Object.assign(player, { map: 'castle', x: 685, y: 278, interaction: null });
+        const object = objectForAction(event.id, player.map, world.layout);
+        if (!object || !canInteract(player, object, world.layout)) throw Error('Move closer to interact.');
+        if (event.id === 'door-out') Object.assign(player, { map: 'landing', x: 480, y: 258, interaction: null });
+        else if (event.id === 'door-home') Object.assign(player, { map: 'castle', x: 685, y: 258, interaction: null });
         else if (event.id === 'candle-desk' || event.id === 'candle-table') {
           world.story.flags[event.id] = !(world.story.flags[event.id] ?? true);
+        } else if (event.id === 'hearth') {
+          world.story.flags.hearth = !world.story.flags.hearth;
+          if (world.story.flags.hearth && world.quests['a-light-for-the-house'] !== 'complete') {
+            world.events.push({ id: crypto.randomUUID(), kind: 'hearth', actor, minute: world.clock.totalMinutes });
+            world.quests['a-light-for-the-house'] = 'complete';
+          }
         } else if (event.scope === 'personal' && !player.discoveries.includes(event.id)) {
           player.discoveries.push(event.id);
           if (event.id === 'letter' || event.id === 'pantry') player.quests['a-household-begins'] = player.discoveries.includes('letter') && player.discoveries.includes('pantry') ? 'complete' : 'started';

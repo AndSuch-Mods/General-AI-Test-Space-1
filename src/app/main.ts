@@ -2,7 +2,7 @@ import './style.css';
 import { BUILD_VERSION, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
 import { Authority, type Intent } from '../game/authority';
 import { arrival, validateContent, type ArrivalId } from '../content/arrival';
-import { nearestInteractable } from '../content/room';
+import { FURNITURE_IDS, getRoomObjects, objectOffset, inBedEntry, type FurnitureId, nearestInteractable } from '../content/room';
 import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
@@ -13,7 +13,18 @@ import { mountTouchControls, type TouchControls } from '../ui/touch-controls';
 import { ROOM_MATERIAL_IMAGE } from '../game/art/room-atlas';
 import { clockLabel, dayPhase, fatigueMessage, SLEEP_RULES } from '../game/time';
 
+import { placementError } from '../content/furnishing';
+import { RoomPresentation } from '../game/presentation';
+import { HouseholdAudio } from '../audio/household-audio';
+
 validateContent();
+const roomPresentation = new RoomPresentation();
+const sound = new HouseholdAudio();
+let arranging: { id: FurnitureId; x: number; y: number; expected: { x: number; y: number }; error: string | null } | undefined;
+let bedEntryLatched = false;
+let lastFootstep = 0;
+document.addEventListener('pointerdown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
+document.addEventListener('keydown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
 const app = document.querySelector<HTMLElement>('#app')!;
 const toastElement = document.querySelector<HTMLElement>('#toast')!;
 let slot: Slot = 1;
@@ -63,13 +74,18 @@ async function closeModal(reason: 'back' | 'authored-exit' = 'back') {
   if (modalKind === 'conversation' && reason !== 'authored-exit') return;
   if (world?.players[localId]?.interaction) {
     interacting = true; refreshActionButtons();
-    try { await dispatch({ kind: 'close-interaction' }); disposeModal(); }
+    try {
+      const target = world!.players[localId].interaction!;
+      disposeModal();
+      await dispatch({ kind: 'close-interaction' });
+      if (!Object.values(world!.players).some(p => p.interaction === target)) await roomPresentation.wait(target, false);
+    }
     finally { interacting = false; refreshActionButtons(); }
   } else disposeModal();
 }
 function dialog(title: string, body: string, kind: DialogKind = 'menu') {
   disposeModal(); modalKind = kind;
-  modal = document.createElement('dialog'); modal.className = 'panel-dialog';
+  modal = document.createElement('dialog'); modal.className = `panel-dialog${world ? ' in-game-dialog' : ''}`;
   modal.dataset.dialogKind = kind;
   modal.innerHTML = `<div class="dialog-head"><h2>${title}</h2>${kind === 'conversation' ? '' : '<button id="close-dialog" class="icon-button" aria-label="Close dialog">×</button>'}</div>${body}`;
   app.append(modal); modal.showModal(); on('close-dialog', closeModal);
@@ -85,7 +101,7 @@ function refreshOffline() {
   const update = document.getElementById('apply-update'); if (update) update.hidden = !offline.updateReady;
 }
 async function title() {
-  playGeneration += 1;
+  playGeneration += 1; arranging = undefined; bedEntryLatched = false; sound.suspend();
   clearInterval(clockTimer); clockTimer = undefined; clockLastTime = performance.now();
   touchControls?.destroy(); touchControls = undefined;
   disposeModal();
@@ -170,7 +186,21 @@ async function enterHost(saved: World) {
 }
 function sharedPresentation(previous: World | undefined, next: World) {
   if (previous && !previous.story.flags.hearth && next.story.flags.hearth) {
-    toast('The house exhales. A warm hearth now waits for everyone who calls this place home.');
+    sound.cue('ignite');
+  }
+  if (previous?.story.flags.hearth && !next.story.flags.hearth) sound.cue('extinguish');
+  const oldPlayer = previous?.players[localId], currentPlayer = next.players[localId];
+  if (oldPlayer && currentPlayer) {
+    if (oldPlayer.map !== currentPlayer.map) sound.cue('door');
+    else if (Math.hypot(oldPlayer.x - currentPlayer.x, oldPlayer.y - currentPlayer.y) > 1 && !currentPlayer.fatigue.sleeping && performance.now() - lastFootstep > 250) { sound.cue('step'); lastFootstep = performance.now(); }
+    if (oldPlayer.fatigue.sleeping !== currentPlayer.fatigue.sleeping) sound.cue(currentPlayer.fatigue.sleeping ? 'sleep' : 'wake');
+    for (const id of ['candle-desk', 'candle-table']) if ((previous!.story.flags[id] ?? true) !== (next.story.flags[id] ?? true)) sound.cue(next.story.flags[id] ? 'ignite' : 'extinguish');
+    const activeIds = [next.hostId, ...(guestSession || hostSession?.guestId ? [next.guestId!] : [])];
+    for (const target of ['chest', 'pantry', 'desk']) {
+      const was = activeIds.some(id => previous?.players[id]?.interaction === target);
+      const is = activeIds.some(id => next.players[id]?.interaction === target);
+      if (was !== is && currentPlayer.map === 'castle') sound.cue(is ? 'open' : 'close');
+    }
   }
   const before = previous?.players[localId]?.fatigue, player = next.players[localId];
   if (before && player) {
@@ -187,35 +217,72 @@ async function dispatch(intent: Intent) {
 }
 function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
-  moving = true; void dispatch({ kind: 'move', dx, dy }).catch(fail).finally(() => { moving = false; });
+  if (arranging) {
+    arranging.x += Math.sign(dx) * 8; arranging.y += Math.sign(dy) * 8;
+    arranging.error = placementError(world!, arranging.id, arranging); refreshArrangement(); return;
+  }
+  moving = true; void dispatch({ kind: 'move', dx, dy }).then(() => {
+    const entered = inBedEntry(world!.players[localId], world!.layout);
+    if (entered && !bedEntryLatched) { bedEntryLatched = true; sleepPrompt(); }
+    if (!entered) bedEntryLatched = false;
+  }).catch(fail).finally(() => { moving = false; });
 }
 function controlsBlocked() { return !!modal || interacting || exiting || document.hidden || !!world?.players[localId]?.fatigue.sleeping; }
 async function interact() {
   if (!world || controlsBlocked()) return;
   touchControls?.stop();
-  const nearest = nearestInteractable(world.players[localId]);
-  if (!nearest) { toast('Move closer to something you want to examine.'); return; }
-  if (nearest.actions.length === 1) { await performInteraction(nearest.actions[0]); return; }
-  const choices = nearest.actions.map(id => arrival.find(entry => entry.id === id)!);
-  const panel = dialog(nearest.label, `<div class="dialogue-choices">${choices.map((entry, index) => `<button data-action="${entry.id}" data-choice-number="${index + 1}"><kbd>${index + 1}</kbd><span>${escape(entry.label)}</span></button>`).join('')}</div>`, 'object');
-  panel.classList.add('story-dialog');
-  for (const choice of panel.querySelectorAll<HTMLButtonElement>('[data-action]')) choice.addEventListener('click', () => { void performInteraction(choice.dataset.action as ArrivalId).catch(fail); });
+  const nearest = nearestInteractable(world.players[localId], world.layout);
+  if (nearest) await performInteraction(nearest.actions[0]);
+}
+function sleepPrompt() {
+  const panel = dialog('Rest until morning?', '<div class="button-row"><button id="confirm-sleep" data-primary="true">A · Sleep until 06:00</button><button id="cancel-sleep">B · Stay awake</button></div>', 'object');
+  panel.classList.add('story-dialog', 'sleep-prompt');
+  on('cancel-sleep', closeModal);
+  on('confirm-sleep', async () => { interacting = true; refreshActionButtons(); try { await dispatch({ kind: 'sleep' }); disposeModal(); } finally { interacting = false; refreshActionButtons(); } });
 }
 async function performInteraction(target: ArrivalId) {
   if (interacting || exiting) return;
-  interacting = true; touchControls?.stop();
+  if (target === 'bed') { sleepPrompt(); return; }
+  interacting = true; touchControls?.stop(); refreshActionButtons();
   try {
     await dispatch({ kind: 'interact', target });
-    if (target === 'door-out' || target === 'door-home') { disposeModal(); return; }
+    if (target === 'door-out' || target === 'door-home' || target === 'hearth' || target.startsWith('candle-')) return;
+    if (target === 'chest' || target === 'pantry' || target === 'desk') await roomPresentation.wait(target, true);
     if (target === 'chest') { chestDialog(); return; }
+    if (target === 'letter' || target === 'bookshelf') sound.cue('paper');
     const entry = arrival.find(event => event.id === target)!;
-    const panel = dialog(entry.title, `<p class="story-text">${escape(entry.text)}</p><button id="finish-story" class="story-continue" data-primary="true"><kbd>A</kbd>Carry on<span>→</span></button>`, 'object');
+    const panel = dialog(entry.title, '<p class="story-text">' + escape(entry.text) + '</p><button id="finish-story" class="story-continue" data-primary="true"><kbd>A</kbd>Continue</button>', 'object');
     panel.classList.add('story-dialog'); on('finish-story', closeModal);
   } finally { interacting = false; refreshActionButtons(); }
 }
+function refreshArrangement() {
+  const bar = document.getElementById('arrange-bar');
+  if (!bar || !arranging) return;
+  const label = getRoomObjects('castle').find(o => o.id === arranging!.id)!.label;
+  bar.querySelector('strong')!.textContent = label;
+  bar.querySelector('small')!.textContent = arranging.error ?? 'Move with the stick · A place · B cancel';
+  bar.classList.toggle('invalid', !!arranging.error);
+}
+function endArrangement() {
+  arranging = undefined; touchControls?.stop(); document.getElementById('arrange-bar')?.remove();
+  document.querySelector('.quickbar')?.classList.remove('arranging');
+}
+function arrangeRoom() {
+  if (world!.players[localId].map !== 'castle') return;
+  const panel = dialog('Arrange room', '<p class="muted">Choose a piece. Move it with the stick, A places it, B cancels.</p><div class="furnishing-list">' + FURNITURE_IDS.map(id => '<button data-furnishing="' + id + '">' + getRoomObjects('castle').find(o => o.id === id)!.label + '</button>').join('') + '</div>');
+  panel.classList.add('arrange-picker');
+  for (const button of panel.querySelectorAll<HTMLButtonElement>('[data-furnishing]')) button.addEventListener('click', () => {
+    const id = button.dataset.furnishing as FurnitureId, offset = objectOffset(id, world!.layout);
+    arranging = { id, x: offset.x, y: offset.y, expected: { x: offset.x, y: offset.y }, error: null };
+    disposeModal();
+    document.querySelector('.quickbar')?.classList.add('arranging');
+    const bar = document.createElement('div'); bar.id = 'arrange-bar'; bar.innerHTML = '<strong></strong><small></small>';
+    document.querySelector('.play-screen')!.append(bar); refreshArrangement();
+  });
+}
 async function leaveGame() {
   if (exiting) return;
-  exiting = true; touchControls?.stop();
+  exiting = true; endArrangement(); touchControls?.stop();
   const leave = document.getElementById('leave') as HTMLButtonElement | null;
   if (leave) { leave.disabled = true; leave.setAttribute('aria-label', 'Finishing save'); }
   try {
@@ -258,7 +325,7 @@ async function play() {
   if (generation !== playGeneration) return;
   destroyScene?.();
   destroyScene = await mountArrival(document.getElementById('game-canvas')!, () => ({ world: world!, localId,
-    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])] }), move, () => { void interact().catch(fail); }, controlsBlocked);
+    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])], arranging }), move, () => { void primaryAction().catch(fail); }, controlsBlocked, roomPresentation);
   updateHud();
   startClock();
 }
@@ -285,6 +352,13 @@ function startClock() {
 }
 async function primaryAction() {
   if (interacting || exiting || world?.players[localId]?.fatigue.sleeping) return;
+  if (arranging) {
+    if (arranging.error) return;
+    interacting = true; touchControls?.stop();
+    try { await dispatch({ kind: 'place', target: arranging.id, x: arranging.x, y: arranging.y, expected: arranging.expected }); sound.cue('place'); endArrangement(); }
+    finally { interacting = false; refreshActionButtons(); }
+    return;
+  }
   if (modal) {
     const choices = modal.querySelectorAll<HTMLButtonElement>('[data-primary="true"]');
     if (choices.length === 1) choices[0].click();
@@ -292,6 +366,7 @@ async function primaryAction() {
 }
 async function backAction() {
   if (interacting || exiting) return;
+  if (arranging) { endArrangement(); return; }
   if (world?.players[localId]?.fatigue.sleeping) {
     interacting = true; refreshActionButtons();
     try { await dispatch({ kind: 'wake' }); }
@@ -320,6 +395,7 @@ function updateHud() {
   const badge = document.getElementById('notification-dot');
   if (badge) badge.hidden = quickSettings.seen === notificationState();
   document.getElementById('inventory-toggle')?.setAttribute('aria-label', `Inventory and missions${badge && !badge.hidden ? ', new updates' : ''}`);
+  sound.setScene({ map: world.players[localId].map, night: phase === 'night' || phase === 'late-night', hearth: !!world.story.flags.hearth });
   const player = world.players[localId], sleepOverlay = document.getElementById('sleep-overlay');
   if (sleepOverlay) {
     sleepOverlay.hidden = !player.fatigue.sleeping;
@@ -361,6 +437,7 @@ function selectQuickSlot(index: number) {
 }
 function inventory(tab: InventoryTab = 'items') {
   if (!world || exiting || world.players[localId].fatigue.sleeping) return;
+  endArrangement();
   if (tab === 'missions' || tab === 'journal') { quickSettings.seen = notificationState(); saveQuickSettings(); }
   const tabs = [['items', 'Satchel'], ['missions', 'Missions'], ['journal', 'Journal'], ['household', 'Household'], ['session', 'Co-op']] as const;
   const panel = dialog('Your satchel', `<nav class="inventory-tabs" aria-label="Satchel sections">${tabs.map(([key, label]) => `<button id="tab-${key}" aria-pressed="${tab === key}">${label}</button>`).join('')}</nav><div id="inventory-content"></div>`);
@@ -371,7 +448,7 @@ function inventory(tab: InventoryTab = 'items') {
     if (!world || modal !== panel) return;
     const player = world.players[localId], contents = panel.querySelector<HTMLElement>('#inventory-content')!;
     const nextContents = JSON.stringify(tab === 'items' ? player.inventory : tab === 'missions' ? [player.discoveries, world.story.flags] :
-      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
+      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, world.story.flags.hearth, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
     if (nextContents === previousContents) return;
     previousContents = nextContents;
     if (tab === 'items') {
@@ -380,7 +457,7 @@ function inventory(tab: InventoryTab = 'items') {
       for (const button of contents.querySelectorAll<HTMLButtonElement>('[data-item]')) button.addEventListener('click', () => itemDetails(button.dataset.item!));
     } else if (tab === 'missions') {
       const steps = [{ done: player.discoveries.includes('letter'), title: 'Read the sealed letter', note: 'Personal · On the writing desk.' },
-        { done: !!world.story.flags.hearth, title: 'Light the household hearth', note: 'Shared · Either resident can bring the fire back.' },
+        { done: world.quests['a-light-for-the-house'] === 'complete', title: 'Light the household hearth', note: 'Shared · Either resident can bring the fire back.' },
         { done: player.discoveries.includes('pantry'), title: 'Open your welcome parcel', note: 'Personal · A parcel waits by the pantry.' }];
       contents.innerHTML = `<h3>A household begins</h3><div class="mission-list">${steps.map(step => `<div class="mission-row ${step.done ? 'complete' : ''}"><span aria-label="${step.done ? 'Complete' : 'Open'}">${step.done ? '✓' : '○'}</span><div><strong>${step.title}</strong><p class="muted">${step.note}</p></div></div>`).join('')}</div>`;
     } else if (tab === 'journal') {
@@ -389,7 +466,8 @@ function inventory(tab: InventoryTab = 'items') {
         return `<details><summary>${escape(entry?.title ?? id)}</summary><p>${escape(entry?.text ?? '')}</p></details>`;
       }).join('') : '<p>The first page is waiting.</p>'}</div>`;
     } else if (tab === 'household') {
-      contents.innerHTML = `<h3>The castle household</h3><p>${world.story.flags.hearth ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+      contents.innerHTML = `<button id="arrange-room" ${player.map === 'castle' ? '' : 'disabled'}>Arrange room</button><h3>The castle household</h3><p>${world.story.flags.hearth ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+      on('arrange-room', arrangeRoom);
     } else {
       contents.innerHTML = `<h3>${guestSession ? guestSession.connected ? 'Together in the castle' : 'Connection closed' : hostSession?.guestId ? 'The household is together' : 'Invite someone home'}</h3><p>${guestSession ? 'You are the second resident. Your belongings and discoveries are saved with this household, with a recovery copy on this device.' : 'A second resident can join this world over the same reachable Wi-Fi. You can continue alone after they leave.'}</p>${guestSession ? '<p class="muted">Use ESC to save and return to the title. Join Co-op there to reconnect.</p>' : '<button id="session" class="primary">Co-op session<span>→</span></button>'}<h3>Controls</h3><p class="muted">Drag on the left side to walk. A interacts or continues; B goes back. Choose dialogue responses directly. Keyboard: WASD or arrows, E to interact, B to go back, I for this satchel, ESC to save and leave.</p>`;
       on('session', hostDialog);
@@ -410,6 +488,7 @@ function itemDetails(id: string) {
 }
 function chestDialog() {
   const panel = dialog('Household chest', '<p class="muted">Shared storage. Both residents use the same chest.</p><div id="chest-content"></div>', 'object');
+  panel.classList.add('chest-dialog');
   let busy = false;
   let previousContents = '';
   const refresh = () => {
@@ -522,7 +601,10 @@ async function backupDialog() {
 }
 async function settingsDialog() {
   const value = (await db.settings.get('reducedMotion'))?.value === true;
-  dialog('Settings & help', `<label class="check-label"><input id="reduced-motion" type="checkbox" ${value ? 'checked' : ''} /> Reduce decorative motion</label><h3>Offline installation</h3><p id="offline-details">${escape(offline.label)}</p><button id="offline-settings-install">Check or repair offline package</button><h3>On your iPhone</h3><p>In Safari, open Share and choose Add to Home Screen. Check the offline status here before leaving the network. Turn your phone sideways to play.</p><h3>Sharing the castle</h3><p>Use the same Wi-Fi network on both phones. Networks that isolate devices can prevent local pairing. Keep the host app open. If either app is suspended, reconnect through Co-op.</p><p class="muted">Haunted Chocolatier: Twilight · ${BUILD_VERSION}</p>`);
+  const audioOff = (await db.settings.get('audioOff'))?.value === true, musicOff = (await db.settings.get('musicOff'))?.value === true;
+  dialog('Settings & help', `<label class="check-label"><input id="audio-enabled" type="checkbox" ${audioOff ? '' : 'checked'} /> Sound effects and ambience</label><label class="check-label"><input id="music-enabled" type="checkbox" ${musicOff ? '' : 'checked'} /> Music</label><label class="check-label"><input id="reduced-motion" type="checkbox" ${value ? 'checked' : ''} /> Reduce decorative motion</label><h3>Offline installation</h3><p id="offline-details">${escape(offline.label)}</p><button id="offline-settings-install">Check or repair offline package</button><h3>On your iPhone</h3><p>In Safari, open Share and choose Add to Home Screen. Check the offline status here before leaving the network. Turn your phone sideways to play.</p><h3>Sharing the castle</h3><p>Use the same Wi-Fi network on both phones. Networks that isolate devices can prevent local pairing. Keep the host app open. If either app is suspended, reconnect through Co-op.</p><p class="muted">Haunted Chocolatier: Twilight · ${BUILD_VERSION}</p>`);
+  document.getElementById('audio-enabled')!.addEventListener('change', event => { const enabled = (event.target as HTMLInputElement).checked; sound.setEnabled(enabled); void db.settings.put({ key: 'audioOff', value: !enabled }).catch(fail); });
+  document.getElementById('music-enabled')!.addEventListener('change', event => { const enabled = (event.target as HTMLInputElement).checked; sound.setMusicEnabled(enabled); void db.settings.put({ key: 'musicOff', value: !enabled }).catch(fail); });
   on('offline-settings-install', () => offline.install());
   document.getElementById('reduced-motion')!.addEventListener('change', event => {
     const checked = (event.target as HTMLInputElement).checked;
@@ -551,6 +633,8 @@ window.addEventListener('blur', () => { clockLastTime = performance.now(); });
 window.addEventListener('pagehide', () => { clockLastTime = performance.now(); touchControls?.stop(); hostSession?.close(); guestSession?.close(); });
 document.addEventListener('visibilitychange', () => { clockLastTime = performance.now(); if (document.hidden) { touchControls?.stop(); hostSession?.close(); guestSession?.close(); } });
 void (async () => {
+  sound.setEnabled((await db.settings.get('audioOff'))?.value !== true);
+  sound.setMusicEnabled((await db.settings.get('musicOff'))?.value !== true);
   document.documentElement.classList.toggle('reduced-motion', (await db.settings.get('reducedMotion'))?.value === true);
   await title(); await offline.start();
 })().catch(error => { app.textContent = 'The castle could not open its local saves. Please enable browser storage and reload. Existing saves have not been deleted.'; fail(error); });

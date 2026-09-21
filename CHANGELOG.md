@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3, sound and household actions
+
+- Added original composed music, material sound effects, hearth ambience and saved sound/music switches. Audio runs locally offline and suspends when hidden.
+- A now acts directly on the letter, candles, hearth and containers. Hearth toggling preserves completed story progress. Compact bottom sheets replace room inspection menus.
+- Container sheets wait for the opening pose; closing animation begins after the sheet closes. Other connected users keep shared containers open.
+- Added shared room arrangement for all requested furniture, carpet, candles and plants, using the existing stick/A/B controls. Placement validates collisions, access, occupancy and concurrent edits, and saves atomically.
+- Added schema 3 layout migration and protocol 4. Replaced stone-framed doors with correctly seated walnut door drawings. Fixed candle flame depth and the resident's native right eye.
+- Lowered and widened bed entry. Entry now asks before sleep; accepted rest ends at the next 06:00 at every bedtime.
+
 ## 0.1.2, resident scale and household interaction
 
 - Added live previews beside compact name/coat fields. Shared garment palettes keep face, hair, hands and boots unchanged. Doubled resident display size relative to furniture and made room pixels coarser.

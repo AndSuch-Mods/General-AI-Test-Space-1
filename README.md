@@ -33,3 +33,11 @@ The full game loop remains in development. Physical iPhone acceptance results ar
 ## Originality
 
 This is an independent personal project, not an official ConcernedApe game. The requested project title is retained. No official art, code, dialogue, maps, music, logos or UI is copied. References are recorded in [the research notes](docs/RESEARCH_NOTES.md); all game assets need provenance in [the content ledger](docs/CONTENT_LEDGER.md).
+
+## Household controls, 0.1.3
+
+A reads the nearest letter, switches a candle or hearth, opens a container, or offers bed sleep. Reading appears along the bottom. Containers finish their opening animation before showing their contents. B closes ordinary sheets. Sleep always ends at the next 06:00.
+
+Use I > Household > Arrange room to choose furniture. Move its outlined preview with the left stick or arrow keys; A places, B cancels. Layouts save with the household and sync to the other resident. Doors, windows and fireplace stay structural.
+
+Original music and sound start after a tap or keypress and work offline. Sound and music switches are in Settings & help.

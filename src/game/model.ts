@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { FURNITURE_IDS, getRoomObjects, objectColliders } from '../content/room';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.2';
-export const PROTOCOL_VERSION = 3;
+export const BUILD_VERSION = '0.1.3';
+export const PROTOCOL_VERSION = 4;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -24,7 +25,8 @@ export const PlayerSchema = z.object({
 }).strict();
 export type Player = z.infer<typeof PlayerSchema>;
 const WorldBase = z.object({
-  schemaVersion: z.literal(2), game: z.literal(GAME_TITLE), worldId: id, epoch: id,
+  schemaVersion: z.literal(3), game: z.literal(GAME_TITLE), worldId: id, epoch: id,
+  layout: z.partialRecord(z.enum(FURNITURE_IDS), z.object({ x: z.number().int().min(-800).max(800), y: z.number().int().min(-400).max(400) }).strict()),
   revision: counter, seed: counter, rng: counter, createdAt: z.string().datetime(),
   hostId: id, guestId: id.nullable(), guestKey: id.nullable(),
   clock: z.object({ totalMinutes: z.number().nonnegative(), secondsPerGameMinute: z.number().min(0.1).max(10) }).strict(),
@@ -37,6 +39,16 @@ const WorldBase = z.object({
   lastSequence: z.record(z.string().uuid(), counter),
 }).strict();
 export const WorldSchema = WorldBase.superRefine((world, ctx) => {
+  if (Object.keys(world.layout).length) {
+    const objects = getRoomObjects('castle', world.layout);
+    for (const object of objects.filter(o => o.id in world.layout)) {
+      const b = object.bounds;
+      if (b.x < 80 || b.x + b.width > 880 || b.y < 74 || b.y + b.height > 476) ctx.addIssue({ code: 'custom', message: 'Furniture is outside the room' });
+      for (const r of objectColliders(object)) for (const other of objects.filter(o => o.id !== object.id)) {
+        if (objectColliders(other).some(q => r.x < q.x + q.width && r.x + r.width > q.x && r.y < q.y + q.height && r.y + r.height > q.y)) ctx.addIssue({ code: 'custom', message: 'Furniture overlaps another solid' });
+      }
+    }
+  }
   const ids = Object.keys(world.players);
   if (ids.length < 1 || ids.length > 2 || !world.players[world.hostId] ||
       ids.some(key => world.players[key].id !== key) ||
@@ -60,20 +72,25 @@ export function createPlayer(name: string, appearance: Player['appearance'] = 'a
     romance: {}, dialogueHistory: [], giftHistory: [], quests: {}, settings: { controlSize: 1, reducedMotion: false } });
 }
 export function createWorld(player: Player): World {
-  return WorldSchema.parse({ schemaVersion: 2, game: GAME_TITLE, worldId: crypto.randomUUID(), epoch: crypto.randomUUID(),
+  return WorldSchema.parse({ schemaVersion: 3, layout: {}, game: GAME_TITLE, worldId: crypto.randomUUID(), epoch: crypto.randomUUID(),
     revision: 0, seed: crypto.getRandomValues(new Uint32Array(1))[0], rng: 1, createdAt: new Date().toISOString(),
     hostId: player.id, guestId: null, guestKey: null, clock: { totalMinutes: 18 * 60, secondsPerGameMinute: 1 },
     weather: 'clear', story: { chapter: 1, flags: {} }, quests: {}, townChanges: {}, upgrades: {}, unlocks: [], bosses: {},
     chest: {}, economy: {}, events: [], players: { [player.id]: player }, lastSequence: {} });
 }
-const LegacyWorldSchema = WorldBase.extend({ schemaVersion: z.literal(1), players: z.record(z.string().uuid(), PlayerSchema.omit({ interaction: true }).extend({
+const LegacyWorldSchema = WorldBase.omit({ layout: true }).extend({ schemaVersion: z.literal(1), players: z.record(z.string().uuid(), PlayerSchema.omit({ interaction: true }).extend({
   map: z.literal('castle'), fatigue: z.object({ consecutiveAllNighters: counter, terminalMinutes: z.number().nonnegative(), sleeping: z.boolean() }).strict(),
 })) });
 function migrateWorld(raw: unknown): unknown {
-  if (!raw || typeof raw !== 'object' || !('schemaVersion' in raw) || raw.schemaVersion !== 1) return raw;
+  if (!raw || typeof raw !== 'object' || !('schemaVersion' in raw)) return raw;
+  if (raw.schemaVersion === 2) {
+    const old = WorldBase.omit({ layout: true }).extend({ schemaVersion: z.literal(2) }).parse(raw);
+    return { ...old, schemaVersion: 3, layout: {} };
+  }
+  if (raw.schemaVersion !== 1) return raw;
   const old = LegacyWorldSchema.parse(raw);
   // Schema 1 reserved a sleep flag but had no runnable sleep system or timer.
-  return { ...old, schemaVersion: 2, players: Object.fromEntries(Object.entries(old.players).map(([key, player]) => [key, {
+  return { ...old, schemaVersion: 3, layout: {}, players: Object.fromEntries(Object.entries(old.players).map(([key, player]) => [key, {
     ...player, interaction: null, fatigue: { ...player.fatigue, sleeping: false, sleepStartedAt: null, wakeAt: null },
   }])) };
 }
