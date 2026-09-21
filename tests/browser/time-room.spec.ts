@@ -92,9 +92,10 @@ test('co-op residents separate maps, keep time through private menus and rest in
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await bed(guest); await expect(guest.locator('#sleep-overlay')).toBeVisible();
     await bed(host);
-    const hx = Number(await host.locator('#game-canvas').getAttribute('data-player-x'));
-    const gx = Number(await guest.locator('#game-canvas').getAttribute('data-player-x'));
-    expect(Math.abs(hx - gx)).toBe(54);
+    await expect.poll(async () => {
+      const [hx, gx] = await Promise.all([host.locator('#game-canvas').getAttribute('data-player-x'), guest.locator('#game-canvas').getAttribute('data-player-x')]);
+      return Math.abs(Number(hx) - Number(gx));
+    }, { intervals: [30] }).toBe(54);
     await expect(host.locator('#night-transition')).toBeVisible();
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');

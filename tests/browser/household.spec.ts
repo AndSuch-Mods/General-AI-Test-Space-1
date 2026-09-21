@@ -11,6 +11,7 @@ test('arrangement previews, cancels and saves; containers finish opening before 
   finally { await page.keyboard.up('ArrowRight'); }
   await page.locator('#action-a').click();
   await expect(page.locator('#arrange-bar')).toHaveCount(0);
+  await expect.poll(async () => JSON.parse((await page.locator('#game-canvas').getAttribute('data-layout'))!).carpet?.x ?? 0).toBeGreaterThan(0);
   const saved = await page.locator('#game-canvas').getAttribute('data-layout');
   expect(JSON.parse(saved!).carpet.x).toBeGreaterThan(0);
   await inventory(page, 'household'); await page.locator('#arrange-room').click();

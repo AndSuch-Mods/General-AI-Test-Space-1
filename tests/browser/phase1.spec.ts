@@ -96,6 +96,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   finally { await host.keyboard.up('ArrowRight'); }
   await host.locator('#action-a').click();
   await expect(host.locator('#arrange-bar')).toHaveCount(0);
+  await expect.poll(async () => JSON.parse((await host.locator('#game-canvas').getAttribute('data-layout'))!).carpet?.x ?? 0).toBeGreaterThan(0);
   const layout = await host.locator('#game-canvas').getAttribute('data-layout');
   await expect(guest.locator('#game-canvas')).toHaveAttribute('data-layout', layout!);
   // Remove the real HTTP origin while preserving the local network used by RTC.
