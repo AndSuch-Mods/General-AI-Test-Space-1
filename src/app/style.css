@@ -260,32 +260,34 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 .dialogue-choices kbd { border-radius: 0; border-color: #a58d656e; }
 @media (max-height: 480px) { .panel-dialog h2 { font-size: 22px; } .title-copy h1 { font-size: clamp(28px, 4.4vw, 38px); } }
 @media (orientation: landscape) and (max-width: 740px) { .title-copy h1 { font-size: 28px; } }
-/* Reading and choices sit over the quickbar, leaving the room in view. */
-.in-game-dialog { position: fixed; inset: auto 128px max(5px, env(safe-area-inset-bottom)) 12px; margin: 0 auto; width: min(620px, calc(100vw - 154px)); max-height: 55dvh; padding: 8px 13px 10px; }
-.in-game-dialog::backdrop { background: #11101b26; }
-.in-game-dialog .dialog-head { margin: 0; align-items: center; }
-.in-game-dialog h2 { font-size: 17px; margin: 0; }
-.in-game-dialog h3 { font-size: 14px; margin: 4px 0; }
-.in-game-dialog .story-text { font: 14px/1.4 'Trebuchet MS', sans-serif !important; margin: 2px 0 7px; }
-.in-game-dialog .story-continue { width: auto; min-width: 105px; padding: 4px 10px; min-height: 44px; margin-left: auto; }
-.in-game-dialog .button-row button { font-size: 12px; padding: 6px; }
-.in-game-dialog .muted { margin: 4px 0 7px; font-size: 11px; }
-.in-game-dialog .storage-columns { gap: 10px; }
-.in-game-dialog .storage-columns>div { padding: 5px 8px 8px; }
-.in-game-dialog .storage-columns p { margin: 6px 0; font-size: 12px; }
-.in-game-dialog .inventory-grid { grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.in-game-dialog .empty-item, .in-game-dialog .inventory-item { min-height: 44px; }
-.in-game-dialog .inventory-tabs { margin-bottom: 6px; }
-.in-game-dialog .inventory-tabs button { font-size: 11px; padding: 5px; }
-.in-game-dialog .icon-button { font-size: 21px; }
-.furnishing-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-.furnishing-list button { font-size: 11px; padding: 5px; }
-.quickbar.arranging { visibility: hidden; }
-#arrange-bar { position: absolute; z-index: 3; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: calc(100vw - 265px); min-width: 260px; padding: 7px 12px; background: #25232eeb; border: 2px solid #c4ba8b; pointer-events: none; text-align: center; }
+/* Functional menus use the screen; the room itself is the layout editor. */
+.panel-dialog, .panel-dialog:has(.game-actions) { position: fixed; inset: 0; margin: auto; width: min(1040px, calc(100vw - max(36px, env(safe-area-inset-left) + env(safe-area-inset-right) + 24px))); max-width: none; min-height: 80dvh; max-height: calc(100dvh - max(28px, env(safe-area-inset-top) + env(safe-area-inset-bottom) + 20px)); padding: 16px 24px 22px; }
+.in-game-dialog { padding-bottom: 80px; }
+.in-game-dialog::backdrop { background: #11101b9e; }
+.in-game-dialog .dialog-head { margin-bottom: 10px; align-items: center; }
+.in-game-dialog h2 { font-size: 24px; margin: 0; }
+.in-game-dialog h3 { font-size: 17px; margin: 14px 0 8px; }
+.in-game-dialog .story-text { font: 16px/1.6 'Trebuchet MS', sans-serif !important; max-width: 780px; margin: 10px 0 18px; }
+.in-game-dialog .story-continue { width: auto; min-width: 140px; min-height: 44px; }
+.in-game-dialog .storage-columns { gap: 20px; }
+.in-game-dialog .storage-columns>div { padding: 14px 18px 18px; }
+.in-game-dialog .inventory-grid { grid-template-columns: repeat(7, 1fr); gap: 7px; }
+.in-game-dialog .empty-item, .in-game-dialog .inventory-item { min-height: 62px; }
+.in-game-dialog .inventory-tabs { margin-bottom: 14px; }
+.in-game-dialog .inventory-tabs button { font-size: 13px; padding: 8px 12px; }
+.in-game-dialog .game-actions { right: max(30px, calc(env(safe-area-inset-right) + 20px)); bottom: max(26px, calc(env(safe-area-inset-bottom) + 18px)); }
+.play-screen.designing #touch-surface, .play-screen.designing .quickbar, .play-screen.designing .game-hud, .play-screen.designing .game-actions { display: none; }
+#arrange-bar { position: absolute; z-index: 3; bottom: max(8px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: space-between; gap: 14px; pointer-events: none; }
+#arrange-bar>div { background: #25232ee8; border: 2px solid #a68a62; padding: 6px 18px; text-align: center; }
+#arrange-bar button { pointer-events: auto; border-radius: 0; min-width: 96px; }
 #arrange-bar strong { display: block; font-size: 13px; }
 #arrange-bar small { display: block; margin-top: 3px; font-size: 11px; }
-#arrange-bar.invalid { border-color: #d88872; }
-.character-dialog, .guest-dialog { width: min(620px, 92vw); }
+#save-layout { min-width: 128px; }
+#rotate { display: none; position: fixed; inset: 0; margin: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; border: 0; border-radius: 0; color: #e8dcc5; background: #211e2b; padding: max(30px, env(safe-area-inset-top)) 30px max(30px, env(safe-area-inset-bottom)); }
+#rotate[open] { display: flex; }
+#rotate::backdrop { background: #211e2b; }
+#rotate h2 { font: bold 24px 'Courier New', monospace; color: #ecd4a1; }
+.character-dialog, .guest-dialog { width: min(1040px, 94vw); }
 .character-layout, .guest-dialog .character-layout { grid-template-columns: 104px minmax(0, 1fr); gap: 16px; }
 .character-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px 10px; }
 .character-fields label, .guest-dialog .character-fields label { margin: 0; font-size: 11px; }

@@ -59,7 +59,7 @@ export class HostSession {
     this.lastJournalDay = world.dayReports.at(-1)?.day;
     if (positionsOnly) this.transport.send({ kind: 'positions', worldId: world.worldId, epoch: world.epoch, revision: world.revision,
       clock: world.clock, weather: world.weather,
-      players: Object.values(world.players).map(p => ({ id: p.id, map: p.map, x: p.x, y: p.y, fatigue: p.fatigue, energy: p.energy, interaction: p.interaction, bedDisturbances: p.bedDisturbances, bedDisturbedAt: p.bedDisturbedAt })), lastSequence: world.lastSequence });
+      players: Object.values(world.players).map(p => ({ id: p.id, map: p.map, x: p.x, y: p.y, facing: p.facing, seated: p.seated, fatigue: p.fatigue, energy: p.energy, interaction: p.interaction, bedDisturbances: p.bedDisturbances, bedDisturbedAt: p.bedDisturbedAt })), lastSequence: world.lastSequence });
     else this.transport.send({ kind: 'snapshot', world });
   }
   private releaseGuest() {
@@ -72,7 +72,7 @@ export class HostSession {
 
 const Positions = z.object({ kind: z.literal('positions'), worldId: z.string().uuid(), epoch: z.string().uuid(), revision: z.number().int().nonnegative(),
   clock: WorldSchema.shape.clock, weather: WorldSchema.shape.weather,
-  players: z.array(PlayerSchema.pick({ id: true, map: true, x: true, y: true, fatigue: true, energy: true, interaction: true, bedDisturbances: true, bedDisturbedAt: true })).max(2),
+  players: z.array(PlayerSchema.pick({ id: true, map: true, x: true, y: true, facing: true, seated: true, fatigue: true, energy: true, interaction: true, bedDisturbances: true, bedDisturbedAt: true })).max(2),
   lastSequence: z.record(z.string().uuid(), z.number().int().nonnegative()) });
 export class GuestSession {
   world?: World;

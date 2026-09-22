@@ -1,13 +1,13 @@
 import type Phaser from 'phaser';
 import { getRoomObjects } from '../../content/room';
 import { ROOM_TEXTURE, ROOM_FRAMES, ROOM_EXTRA_FRAMES, ROOM_FLAME_FRAMES, ROOM_FIRE_SIZE } from './room-atlas';
+import { drawWindowFrame } from './room-window-art';
+import { buildFurnitureTextures } from './room-furniture';
+import { buildDoorTextures, drawRoomFinish } from './room-architecture';
+export { inWindowPane } from './room-window-art';
 
 /** All environment art resolves to one native pixel per two world units. */
 export const ENV_PIXEL = 2;
-export function inWindowPane(x: number, y: number) {
-  if (y < 8 || y > 34 || x < 9 || x > 18 || x === 13) return false;
-  return y >= 14 || Math.abs(x - 13.5) <= y - 7;
-}
 export function buildRoomTextures(scene: Phaser.Scene) {
   // Eighty-pixel cells fit the wider two-resident bed without overlapping the desk.
   const props = scene.textures.createCanvas('props-native', 320, 320)!;
@@ -18,10 +18,8 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     const size = object?.bounds ?? ({ candle: { width: 10, height: 24 }, letter: { width: 22, height: 16 }, parcel: { width: 22, height: 26 } }[frame.name as 'candle' | 'letter' | 'parcel']);
     const width = Math.ceil(size.width / ENV_PIXEL), height = Math.ceil(size.height / ENV_PIXEL);
     const x = index % 4 * 80, y = Math.floor(index / 4) * 80;
-    props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
-    if (frame.name === 'window') for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
-      if (inWindowPane(Math.floor(px / 2), Math.floor(py / 2))) props.context.clearRect(x + px, y + py, 1, 1);
-    }
+    if (frame.name === 'window') drawWindowFrame(props.context, x, y);
+    else props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
     props.add(frame.name, 0, x, y, width, height);
     if (frame.name === 'bed') {
       props.add('bed-back', 0, x, y, width, 27);
@@ -79,12 +77,18 @@ export function buildRoomTextures(scene: Phaser.Scene) {
   notebook.fillStyle = '#bf9a58'; notebook.fillRect(167, 242, 2, 1); notebook.fillRect(161, 241, 1, 3);
   props.add('journal', 0, 160, 240, 9, 7);
   props.refresh();
-  const materials = scene.textures.createCanvas('materials-native', 128, 68)!;
+  const materials = scene.textures.createCanvas('materials-native', 384, 90)!;
   materials.context.imageSmoothingEnabled = false;
   const materialSource = scene.textures.get('room-materials').getSourceImage() as HTMLImageElement;
   materials.context.drawImage(materialSource, 0, 0, 887, 887, 0, 0, 64, 64);
-  materials.context.drawImage(materialSource, 887, 0, 887, 812, 64, 0, 64, 68);
-  materials.add('floor', 0, 0, 0, 64, 64); materials.add('wall', 0, 64, 0, 64, 68); materials.refresh();
+  materials.context.drawImage(materialSource, 887, 0, 887, 812, 64, 0, 64, 90);
+  materials.add('floor', 0, 0, 0, 64, 64); materials.add('wall', 0, 64, 0, 64, 90);
+  for (const [index, name] of (['hall-floor', 'hall-wall', 'kitchen-floor', 'kitchen-wall'] as const).entries()) {
+    const x = 128 + index * 64;
+    materials.context.save(); materials.context.beginPath(); materials.context.rect(x, 0, 64, 90); materials.context.clip(); drawRoomFinish(materials.context, name, x); materials.context.restore();
+    materials.add(name, 0, x, 0, 64, name.endsWith('floor') ? 64 : 90);
+  }
+  materials.refresh();
   const width = ROOM_FIRE_SIZE.width / ENV_PIXEL, height = ROOM_FIRE_SIZE.height / ENV_PIXEL;
   const flames = scene.textures.createCanvas('flames-native', width * 6, height)!;
   flames.context.imageSmoothingEnabled = false;
@@ -188,4 +192,6 @@ export function buildRoomTextures(scene: Phaser.Scene) {
   h.fillStyle = '#9d7052'; h.fillRect(4, 3, 1, 2); h.fillRect(5, 4, 3, 1); h.fillRect(8, 3, 1, 2);
   h.fillStyle = '#d5c6a8'; h.fillRect(10, 8, 2, 2); h.fillRect(12, 11, 1, 1);
   huff.refresh();
+  buildFurnitureTextures(scene);
+  buildDoorTextures(scene);
 }

@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import type { Player, World } from '../model';
-import { ROOM_SIZE, getRoomObjects, objectColliders, canInteract, nearestInteractable, moveInRoom, objectOffset, roomLayout, roomFlag, type RoomLayout, type FurnitureId, type RoomMap, type RoomObject } from '../../content/room';
-import { RESIDENT_FRAMES, RESIDENT_IMAGE, RESIDENT_ORIGIN, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT, type ResidentFacing } from '../art/resident-atlas';
+import { ROOM_SIZE, getRoomObjects, objectColliders, canInteract, nearestInteractable, moveInRoom, FURNITURE_IDS, roomLayout, roomFlag, type RoomLayout, type FurnitureId, type RoomMap, type RoomObject } from '../../content/room';
+import { RESIDENT_FRAMES, RESIDENT_ORIGIN, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT, type ResidentFacing } from '../art/resident-atlas';
 import { residentFrame } from '../art/resident-animation';
-import { residentCanvas, residentSkinColor, residentTextureKey } from '../art/resident-appearance';
+import { residentCanvas, residentTextureKey } from '../art/resident-appearance';
 import { ROOM_DOOR_IMAGE, ROOM_FLAME_IMAGE, ROOM_IMAGE, ROOM_MATERIAL_IMAGE, ROOM_TEXTURE } from '../art/room-atlas';
+import { furnitureArt } from '../art/room-furniture';
+import { doorArt } from '../art/room-architecture';
 import { buildRoomTextures } from '../art/room-textures';
 import { RoomWindowSky } from '../art/room-windows';
 import { daylight, dayPhase, nightVariant } from '../time';
@@ -13,13 +15,15 @@ import type { RoomPresentation } from '../presentation';
 
 type Resident = {
   container: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image;
-  facing: ResidentFacing; distance: number; lastTravel: number; map: RoomMap; sleeping: boolean;
+  facing: ResidentFacing; distance: number; lastTravel: number; map: RoomMap; sleeping: boolean; seated: boolean;
   settlingAt: number; settleFrom: { x: number; y: number };
   bedDisturbances: number; reactionAt: number; reaction: Phaser.GameObjects.Image;
 };
-type Furnishing = { object: RoomObject; amount: number; base?: Phaser.GameObjects.Image; parts: Phaser.GameObjects.Image[]; shade: Phaser.GameObjects.Graphics };
+type Furnishing = { object: RoomObject; amount: number; image: Phaser.GameObjects.Image; frames: string[] };
+export type RoomDesignView = { layout: RoomLayout; selected?: FurnitureId; invalid: boolean };
+export type RoomDesignControls = { select: (id: FurnitureId) => void; drag: (id: FurnitureId, dx: number, dy: number) => void; drop: (id: FurnitureId) => void; rotate: (id: FurnitureId) => void; cancelDrag?: () => void };
 
-export async function mountArrival(parent: HTMLElement, state: () => { world: World; localId: string; activeIds: string[]; arranging?: { id: FurnitureId; x: number; y: number; error: string | null } }, direction: (dx: number, dy: number) => void, interact: () => void, paused: () => boolean, presentation: RoomPresentation) {
+export async function mountArrival(parent: HTMLElement, state: () => { world: World; localId: string; activeIds: string[]; design?: RoomDesignView }, direction: (dx: number, dy: number) => void, interact: () => void, paused: () => boolean, presentation: RoomPresentation, designControls?: RoomDesignControls) {
   const reducedMotion = document.documentElement.classList.contains('reduced-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
   const logicalSize = () => ({ width: 640, height: Math.max(280, Math.min(480, Math.round(640 * parent.clientHeight / Math.max(1, parent.clientWidth)))) });
   const telemetry = (key: string, value: string | number) => {
@@ -46,12 +50,13 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     private ambience!: Phaser.GameObjects.Rectangle;
     private blockedKeys = new Set<string>();
     private outdoorLight = -1;
+    private drag?: { id: FurnitureId; x: number; y: number; moved: boolean; pointer: number };
+    private kitchenEffects!: Phaser.GameObjects.Graphics;
     preload() {
       this.load.image(ROOM_TEXTURE, ROOM_IMAGE);
       this.load.image('room-materials', ROOM_MATERIAL_IMAGE);
       this.load.image('room-flames', ROOM_FLAME_IMAGE);
       this.load.image('room-doors', ROOM_DOOR_IMAGE);
-      this.load.image('resident-source', `./${RESIDENT_IMAGE}`);
     }
     create() {
       buildRoomTextures(this);
@@ -64,8 +69,29 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       this.illumination = this.add.graphics().setDepth(800);
       this.fire = this.add.image(556, 232, 'flames-native', 'fire-0').setOrigin(.5, 1).setScale(2).setTint(0xe9cfad).setDepth(243);
       this.motes = this.add.graphics().setDepth(900);
+      this.kitchenEffects = this.add.graphics();
       this.ambience = this.add.rectangle(0, 0, ROOM_SIZE.width, ROOM_SIZE.height, 0x14152b, .1).setOrigin(0).setDepth(700);
       this.cameras.main.setBounds(0, 38, ROOM_SIZE.width, 464).setRoundPixels(true);
+      this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (!state().design || !designControls) return;
+        const p = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const object = [...getRoomObjects(this.roomMap, this.layout)].filter(o => FURNITURE_IDS.includes(o.id as FurnitureId) && p.x >= o.bounds.x && p.x <= o.bounds.x + o.bounds.width && p.y >= o.bounds.y && p.y <= o.bounds.y + o.bounds.height).sort((a, b) => b.depth - a.depth)[0];
+        if (!object) return;
+        this.drag = { id: object.id as FurnitureId, x: p.x, y: p.y, moved: false, pointer: pointer.id }; designControls.select(this.drag.id);
+      });
+      this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+        if (!this.drag || pointer.id !== this.drag.pointer || !state().design) return;
+        const p = this.cameras.main.getWorldPoint(pointer.x, pointer.y), dx = p.x - this.drag.x, dy = p.y - this.drag.y;
+        if (Math.hypot(dx, dy) > 3) this.drag.moved = true;
+        if (this.drag.moved) designControls?.drag(this.drag.id, dx, dy);
+      });
+      const finish = (pointer: Phaser.Input.Pointer) => {
+        if (!this.drag || pointer.id !== this.drag.pointer) return;
+        if (this.drag.moved) designControls?.drop(this.drag.id); else designControls?.rotate(this.drag.id);
+        this.drag = undefined;
+      };
+      this.input.on('pointerup', finish); this.input.on('pointerupoutside', finish);
+      this.game.canvas.addEventListener('pointercancel', () => { if (this.drag) { designControls?.cancelDrag?.(); this.drag = undefined; } });
       this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
       this.input.keyboard!.on('keyup', (event: KeyboardEvent) => {
         for (const [name, key] of Object.entries(this.keys)) if (key.keyCode === event.keyCode) this.blockedKeys.delete(name);
@@ -78,27 +104,12 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const key = residentTextureKey(player.appearance, player.look);
       if (this.textures.exists(key)) return key;
       // Cache the complete look, so residents sharing a coat color keep their own face and hair.
-      const source = this.textures.get('resident-source').getSourceImage() as HTMLImageElement;
-      const texture = this.textures.createCanvas(key, RESIDENT_NATIVE_WIDTH * (RESIDENT_FRAMES.length + 2), RESIDENT_NATIVE_HEIGHT)!;
+      const texture = this.textures.createCanvas(key, RESIDENT_NATIVE_WIDTH * RESIDENT_FRAMES.length, RESIDENT_NATIVE_HEIGHT)!;
       texture.context.imageSmoothingEnabled = false;
       RESIDENT_FRAMES.forEach((frame, index) => {
-        texture.context.drawImage(residentCanvas(source, frame.name, player.appearance, player.look), index * RESIDENT_NATIVE_WIDTH, 0);
+        texture.context.drawImage(residentCanvas(null, frame.name, player.appearance, player.look), index * RESIDENT_NATIVE_WIDTH, 0);
         texture.add(frame.name, 0, index * RESIDENT_NATIVE_WIDTH, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
       });
-      for (const [index, name] of ['down-rest', 'down-grumpy'].entries()) {
-        const x = (RESIDENT_FRAMES.length + index) * RESIDENT_NATIVE_WIDTH;
-        texture.context.drawImage(residentCanvas(source, 'down-idle', player.appearance, player.look), x, 0);
-        for (const eye of [13, 18]) {
-          texture.context.fillStyle = residentSkinColor(player.look); texture.context.fillRect(x + eye, 14, 2, 2);
-          texture.context.fillStyle = '#392b31'; texture.context.fillRect(x + eye, 15, 2, 1);
-        }
-        if (name === 'down-grumpy') {
-          texture.context.fillStyle = '#392b31';
-          texture.context.fillRect(x + 12, 12, 2, 1); texture.context.fillRect(x + 14, 13, 1, 1);
-          texture.context.fillRect(x + 19, 12, 2, 1); texture.context.fillRect(x + 18, 13, 1, 1);
-        }
-        texture.add(name, 0, x, 0, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIVE_HEIGHT);
-      }
       texture.refresh();
       return key;
     }
@@ -107,85 +118,41 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const previous = new Set(this.children.list);
       this.furnishings = []; this.candleFlames.clear(); presentation.clear();
       this.add.rectangle(64, 22, 832, 480, 0x17151f).setOrigin(0).setDepth(-100);
-      this.add.tileSprite(80, 210, 800, 266, 'materials-native', 'floor').setOrigin(0).setTileScale(2).setDepth(-99);
-      this.add.tileSprite(80, 30, 800, 180, 'materials-native', 'wall').setOrigin(0).setTileScale(2).setDepth(-98);
+      this.add.tileSprite(80, 210, 800, 266, 'materials-native', this.roomMap === 'landing' ? 'hall-floor' : this.roomMap === 'kitchen' ? 'kitchen-floor' : 'floor').setOrigin(0).setTileScale(2).setDepth(-99);
+      this.add.tileSprite(80, 30, 800, 180, 'materials-native', this.roomMap === 'landing' ? 'hall-wall' : this.roomMap === 'kitchen' ? 'kitchen-wall' : 'wall').setOrigin(0).setTileScale(2).setDepth(-98);
       const trim = this.add.graphics().setDepth(-97);
       trim.fillStyle(0x1e1924); trim.fillRect(76, 24, 808, 8); trim.fillRect(76, 204, 808, 8);
       trim.fillStyle(0x67483c); trim.fillRect(80, 31, 800, 3); trim.fillRect(80, 203, 800, 2);
       trim.fillStyle(0x37262b); trim.fillRect(64, 26, 16, 462); trim.fillRect(880, 26, 16, 462); trim.fillRect(64, 476, 832, 14);
       trim.fillStyle(0x87624b); trim.fillRect(78, 32, 2, 445); trim.fillRect(880, 32, 2, 445); trim.fillRect(80, 476, 800, 2);
-      // A woven floor layer remains walkable, distinct from the furniture above it.
-      if (getRoomObjects(this.roomMap, this.layout).some(object => object.id === 'carpet')) {
-      const rugOffset = objectOffset('carpet', this.layout);
-      const rug = this.add.graphics().setDepth(-90).setPosition(rugOffset.x, rugOffset.y);
-      rug.fillStyle(0x342435); rug.fillRect(338, 316, 318, 132);
-      rug.fillStyle(0x77434b); rug.fillRect(342, 320, 310, 124);
-      rug.fillStyle(0xb18b67); rug.fillRect(347, 325, 300, 2); rug.fillRect(347, 437, 300, 2); rug.fillRect(347, 325, 2, 114); rug.fillRect(645, 325, 2, 114);
-      rug.fillStyle(0x57303e); rug.fillRect(354, 332, 286, 100);
-      for (let x = 365; x < 635; x += 18) {
-        rug.fillStyle(0x87545c); rug.fillRect(x, 335, 4, 4); rug.fillRect(x, 425, 4, 4);
-        rug.fillStyle(0x9e7b5b); rug.fillRect(x, 313, 1, 3); rug.fillRect(x, 448, 1, 3);
-      }
-      for (const center of [418, 497, 576]) {
-        for (let y = -28; y <= 28; y += 2) {
-          const edge = Math.floor((28 - Math.abs(y)) * 1.1 / 2) * 2;
-          rug.fillStyle(0x8d5961); rug.fillRect(center - edge, 382 + y, 2, 2); rug.fillRect(center + edge - 2, 382 + y, 2, 2);
-          if (Math.abs(y) < 20) {
-            const inner = 20 - Math.abs(y);
-            rug.fillStyle(0xa47e62); rug.fillRect(center - inner, 382 + y, 2, 2); rug.fillRect(center + inner, 382 + y, 2, 2);
-          }
-        }
-        rug.fillStyle(0x8d5961); rug.fillRect(center - 5, 381, 11, 3); rug.fillRect(center - 1, 377, 3, 11);
-      }
-      } else {
-        this.add.rectangle(444, 262, 72, 208, 0x543746).setOrigin(0).setDepth(-90);
-        this.add.rectangle(448, 262, 2, 208, 0x9b7658).setOrigin(0).setDepth(-89);
-        this.add.rectangle(510, 262, 2, 208, 0x9b7658).setOrigin(0).setDepth(-89);
-      }
       for (const object of getRoomObjects(this.roomMap, this.layout)) {
         const { x, y, width, height } = object.bounds;
-        const colliders = objectColliders(object);
-        if (colliders.length) this.add.ellipse(x + width / 2, object.depth - 1, width * .9, 10, 0x120f1d, .25).setDepth(-80);
+        if (objectColliders(object).length) this.add.ellipse(x + width / 2, object.depth - 1, width * .9, 10, 0x120f1d, .25).setDepth(-80);
         const image = (frame: string, texture = 'props-native') => this.add.image(x, y, texture, frame).setOrigin(0).setDisplaySize(width, height).setDepth(object.depth);
-        if (object.id === 'carpet') continue;
+        const art = furnitureArt(object.id, object.rotation);
         if (object.id.startsWith('candle-')) {
           image('candle'); this.candleFlames.set(object.id, this.add.graphics().setDepth(object.depth + .1));
-        } else if (object.id === 'bed') {
-          image('bed-back').setDisplaySize(width, 54).setDepth(y + 34);
-          image('bed-front').setPosition(x, y + 54).setDisplaySize(width, height - 54).setDepth(y + height);
         } else if (object.id.startsWith('window')) {
           image('__BASE', 'window-sky-native'); image('window').setDepth(object.depth + .1);
-        } else if (object.id.startsWith('door')) {
-          const wall = object.door?.wall ?? 'north';
-          const texture = wall === 'south' ? 'wood-door-south' : wall === 'west' || wall === 'east' ? 'wood-door-side' : 'wood-door';
-          const base = image('closed', texture).setFlipX(wall === 'east');
-          const open = image('open', texture).setFlipX(wall === 'east').setAlpha(0).setDepth(object.depth + .1);
-          this.furnishings.push({ object, base, parts: [open], amount: 0, shade: this.add.graphics().setDepth(object.depth + .05) });
-        } else if (object.id === 'landing-stairs') image('stairs', 'doors-native');
-        else if (object.id === 'chest') {
-          image('chest-base').setPosition(x, y + 24).setDisplaySize(width, height - 24);
-          const lid = image('chest-lid').setDisplaySize(width, 24).setDepth(object.depth + .1);
-          this.furnishings.push({ object, parts: [lid], amount: 0, shade: this.add.graphics().setDepth(object.depth - .1) });
-        } else {
-          image(object.id);
-          if (object.id === 'pantry' || object.id === 'desk') {
-            const parts = ['left', 'right'].map(side => this.add.image(x, y, 'props-native', `${object.id}-${side}`).setOrigin(0).setScale(2).setDepth(object.depth + .2).setVisible(false));
-            this.furnishings.push({ object, parts, amount: 0, shade: this.add.graphics().setDepth(object.depth + .1) });
+        } else if (object.door) {
+          const art = doorArt(object.door.wall);
+          this.furnishings.push({ object, image: image(art.openFrames[0], art.texture), frames: art.openFrames, amount: 0 });
+        } else if (art) {
+          if (['bed', 'sofa', 'armchair'].includes(object.id)) {
+            image(art.base, art.texture).setDepth(object.id === 'bed' ? object.floor!.y : object.depth); image(art.foreground, art.texture).setDepth(object.depth + .4);
+          } else {
+            const base = image(art.full, art.texture);
+            if (['chest', 'pantry', 'desk'].includes(object.id)) this.furnishings.push({ object, image: base, frames: art.openFrames, amount: 0 });
           }
-        }
+        } else image(object.id);
       }
-      const pantry = getRoomObjects(this.roomMap, this.layout).find(o => o.id === 'pantry');
-      if (pantry) {
-        this.add.image(pantry.bounds.x + 49, pantry.bounds.y + 85, 'props-native', 'parcel').setScale(2).setDepth(pantry.depth + 1);
-      }
-      const arrangement = state().arranging;
-      const arrangedObject = arrangement && getRoomObjects(this.roomMap, this.layout).find(o => o.id === arrangement.id);
-      if (arrangement && arrangedObject) {
-        const object = arrangedObject;
+      const design = state().design, selected = design && getRoomObjects(this.roomMap, this.layout).find(o => o.id === design.selected);
+      if (design && selected) {
         const outline = this.add.graphics().setDepth(1000);
-        outline.lineStyle(2, arrangement.error ? 0xd88872 : 0xc9cc91, 1);
-        outline.strokeRect(object.bounds.x - 2, object.bounds.y - 2, object.bounds.width + 4, object.bounds.height + 4);
+        outline.lineStyle(3, design.invalid ? 0xef6b68 : 0x6ade85, 1);
+        outline.strokeRect(selected.bounds.x - 2, selected.bounds.y - 2, selected.bounds.width + 4, selected.bounds.height + 4);
       }
+      telemetry('roomObjects', JSON.stringify(getRoomObjects(this.roomMap, this.layout).map(o => ({ id: o.id, bounds: o.bounds, rotation: o.rotation ?? 0, depth: o.depth }))));
       this.roomDisplay = this.children.list.filter(item => !previous.has(item));
       telemetry('doorways', JSON.stringify(getRoomObjects(this.roomMap, this.layout).filter(object => object.door).map(object => ({ id: object.id, wall: object.door!.wall, to: object.door!.to, bounds: object.bounds }))));
       this.effectFrame = -1;
@@ -193,32 +160,12 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     private animateFurnishings(current: ReturnType<typeof state>, delta: number) {
       const residents = current.activeIds.map(id => current.world.players[id]).filter(player => player?.map === this.roomMap);
       for (const furnishing of this.furnishings) {
-        const { object, parts, shade } = furnishing;
-        const target = residents.some(player => object.id.startsWith('door') ? canInteract(player, object, this.layout) : player.interaction === object.id) ? 1 : 0;
+        const { object } = furnishing;
+        const target = residents.some(player => object.door ? canInteract(player, object, this.layout) : player.interaction === object.id) ? 1 : 0;
         furnishing.amount += Math.sign(target - furnishing.amount) * Math.min(Math.abs(target - furnishing.amount), delta / 240);
         const amount = reducedMotion ? target : furnishing.amount;
         presentation.update(object.id, amount);
-        const { x, y, width } = object.bounds;
-        shade.clear();
-        if (object.id.startsWith('door')) {
-          furnishing.base!.setAlpha(1 - amount); parts[0].setAlpha(amount);
-
-        }
-        else if (object.id === 'chest') {
-          shade.fillStyle(0x19171f, amount); shade.fillRect(x + 6, y + 14, width - 12, 18);
-          parts[0].setY(y - Math.round(amount * 7) * 2).setDisplaySize(width, 24 + Math.round(amount * 3) * 2);
-        } else if (object.id === 'pantry') {
-          shade.fillStyle(0x211b24, amount); shade.fillRect(x + 8, y + 78, 78, 50);
-          const doorWidth = 36 - Math.round(amount * 12) * 2;
-          parts[0].setVisible(amount > 0).setPosition(x + 8 - Math.round(amount * 6) * 2, y + 78).setDisplaySize(doorWidth, 50);
-          parts[1].setVisible(amount > 0).setPosition(x + 50 + Math.round(amount * 18) * 2, y + 78).setDisplaySize(doorWidth, 50);
-        } else if (object.id === 'desk') {
-          for (const [index, part] of parts.entries()) {
-            const offset = index ? 78 : 10;
-            shade.fillStyle(0x211b24, amount); shade.fillRect(x + offset, y + 34, 22, 16);
-            part.setVisible(amount > 0).setPosition(x + offset, y + 34 + Math.round(amount * 5) * 2);
-          }
-        }
+        furnishing.image.setFrame(furnishing.frames[Math.min(3, Math.floor(amount * 3.99))]);
       }
       telemetry('containerPoses', JSON.stringify(Object.fromEntries(this.furnishings.map(item => [item.object.id, item.amount]))));
       telemetry('openObjects', this.furnishings.filter(item => item.amount > .5).map(item => item.object.id).join(','));
@@ -258,6 +205,16 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         flames.fillStyle(0xffedb0); flames.fillRect(x, y - 4, 2, 2);
         pool(x, y + 32, 108, 0xffbf6c, .019);
       }
+      this.kitchenEffects.clear();
+      for (const item of getRoomObjects(this.roomMap, this.layout).filter(o => ['stove', 'sink'].includes(o.id))) {
+        if (!roomFlag(world, this.roomMap, item.id)) continue;
+        this.kitchenEffects.setDepth(item.depth + .1);
+        const x = item.bounds.x + item.bounds.width / 2, y = item.bounds.y + item.bounds.height * .38;
+        if (item.id === 'stove') {
+          this.kitchenEffects.fillStyle(0xe59a4d, .85); this.kitchenEffects.fillRect(x - 12, y, 8, 2); this.kitchenEffects.fillRect(x + 6, y, 8, 2);
+          pool(x, y + 30, 110, 0xf1a147, .019);
+        } else { this.kitchenEffects.fillStyle(0xafdbdf, .8); this.kitchenEffects.fillRect(x + 6, y - 6, 2, 10); this.kitchenEffects.fillRect(x + (frame % 3) * 2, y + 6, 2, 2); }
+      }
       this.motes.clear();
       if (!reducedMotion) for (let i = 0; i < 10; i++) {
         const x = 225 + (i * 73) % 520 + Math.sin(clock / 3500 + i) * 6;
@@ -271,10 +228,10 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const current = state();
       const local = current.world.players[current.localId];
       const savedLayout = roomLayout(current.world, local.map);
-      const previewLayout = current.arranging ? { ...savedLayout, [current.arranging.id]: { x: current.arranging.x, y: current.arranging.y } } : savedLayout;
-      const layoutKey = JSON.stringify(previewLayout) + (current.arranging?.error ?? '');
-      if (local.map !== this.roomMap || layoutKey !== this.layoutKey || !!current.arranging !== this.wasArranging) {
-        this.roomMap = local.map; this.layout = previewLayout; this.layoutKey = layoutKey; this.wasArranging = !!current.arranging;
+      const previewLayout = current.design?.layout ?? savedLayout;
+      const layoutKey = JSON.stringify(previewLayout) + (current.design?.selected ?? '') + !!current.design?.invalid;
+      if (local.map !== this.roomMap || layoutKey !== this.layoutKey || !!current.design !== this.wasArranging) {
+        this.roomMap = local.map; this.layout = previewLayout; this.layoutKey = layoutKey; this.wasArranging = !!current.design;
         this.buildRoom(); this.followed = '';
       }
       this.windowSky.update(current.world, reducedMotion);
@@ -283,7 +240,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       this.ambience.setAlpha(.14 - outdoorLight / 20 * .12);
       this.animateFurnishings(current, delta);
       // Always respond to shared switches even if animation is reduced or the room is paused.
-      const lightState = `${roomFlag(current.world, this.roomMap, 'hearth')}:${roomFlag(current.world, this.roomMap, 'candle-desk', true)}:${roomFlag(current.world, this.roomMap, 'candle-table', true)}`;
+      const lightState = `${roomFlag(current.world, this.roomMap, 'hearth')}:${roomFlag(current.world, this.roomMap, 'candle-desk', true)}:${roomFlag(current.world, this.roomMap, 'candle-table', true)}:${roomFlag(current.world, this.roomMap, 'stove')}:${roomFlag(current.world, this.roomMap, 'sink')}`;
       if (parent.dataset.lightState !== lightState) { parent.dataset.lightState = lightState; this.effectFrame = -1; }
       this.effects(time, current.world);
       for (const [id, actor] of this.actors) {
@@ -294,83 +251,75 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         actor.container.setVisible(visible);
       }
       for (const id of current.activeIds) {
-        const p = current.world.players[id]; if (!p) continue;
-        if (p.map !== this.roomMap) continue;
-        const texture = this.residentTexture(p);
+        const p = current.world.players[id]; if (!p || p.map !== this.roomMap) continue;
+        const texture = this.residentTexture(p), objects = getRoomObjects(p.map, savedLayout);
+        const bed = objects.find(o => o.id === 'bed'), bedArt = bed && furnitureArt('bed', bed.rotation)!;
+        const pillow = bedArt?.pillows[id === current.world.hostId ? 0 : 1];
+        const target = p.fatigue.sleeping && bed && pillow ? { x: bed.bounds.x + pillow.x, y: bed.bounds.y + pillow.y } : { x: p.x, y: p.y - (p.seated ? 24 : 0) };
         let actor = this.actors.get(id);
         if (!actor) {
           const shadow = this.add.ellipse(0, -1, 38, 10, 0x100e1b, .38);
-          const initial = residentFrame('down', 0, false);
-          const sprite = this.add.image(0, 0, texture, initial.frame).setOrigin(RESIDENT_ORIGIN.x, RESIDENT_ORIGIN.y).setDisplaySize(RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT);
+          const sprite = this.add.image(0, 0, texture, 'down-idle').setOrigin(RESIDENT_ORIGIN.x, RESIDENT_ORIGIN.y).setDisplaySize(RESIDENT_DISPLAY_WIDTH, RESIDENT_DISPLAY_HEIGHT);
           const reaction = this.add.image(24, -108, 'resident-reaction').setScale(2).setVisible(false);
           const parts: Phaser.GameObjects.GameObject[] = [shadow, sprite, reaction];
           if (id !== current.localId) parts.push(this.add.text(0, -102, p.name, { fontSize: '9px', fontFamily: 'sans-serif', color: '#d7e5d7', stroke: '#211b24', strokeThickness: 3 }).setOrigin(.5));
-          const container = this.add.container(p.x, p.y, parts);
-          actor = { container, sprite, reaction, facing: 'down', distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, settlingAt: -Infinity, settleFrom: { x: p.x, y: p.y }, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
+          const container = this.add.container(target.x, target.y, parts);
+          actor = { container, sprite, reaction, facing: p.facing, distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, seated: !!p.seated, settlingAt: -Infinity, settleFrom: target, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
         }
-        if (actor.sprite.texture.key !== texture) actor.sprite.setTexture(texture);
+        actor.sprite.setTexture(texture); actor.facing = p.facing;
         if (p.bedDisturbances > actor.bedDisturbances && p.fatigue.sleeping && actor.sleeping && actor.map === p.map) actor.reactionAt = time;
         actor.bedDisturbances = p.bedDisturbances;
         if (!p.fatigue.sleeping || actor.map !== p.map) actor.reactionAt = -Infinity;
-        if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping) {
+        if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping || actor.seated !== !!p.seated) {
           if (id === current.localId && p.fatigue.sleeping && !actor.sleeping) {
             for (const [name, key] of Object.entries(this.keys)) if (key.isDown) this.blockedKeys.add(name);
             this.input.keyboard!.resetKeys();
           }
           if (p.fatigue.sleeping && !actor.sleeping && actor.map === p.map && !reducedMotion) {
             actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
-          } else {
-            actor.container.setPosition(p.x, p.y); actor.settlingAt = -Infinity;
-          }
-          actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.lastTravel = -Infinity;
+          } else { actor.container.setPosition(target.x, target.y); actor.settlingAt = -Infinity; }
+          actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.seated = !!p.seated; actor.lastTravel = -Infinity;
         }
-        const dx = p.x - actor.container.x, dy = p.y - actor.container.y;
-        const remaining = Math.hypot(dx, dy);
-        const moving = remaining > .35 && !p.fatigue.sleeping;
-        if (moving) {
-          actor.facing = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up';
+        const dx = target.x - actor.container.x, dy = target.y - actor.container.y, remaining = Math.hypot(dx, dy);
+        if (!p.fatigue.sleeping && !p.seated && remaining > .35) {
           const amount = Math.min(remaining, Math.max(0, delta) * .14);
-          const next = moveInRoom(actor.container, dx / remaining, dy / remaining, amount, p.map, roomLayout(current.world, p.map));
+          const next = moveInRoom(actor.container, dx / remaining, dy / remaining, amount, p.map, savedLayout);
           const travelled = Math.hypot(next.x - actor.container.x, next.y - actor.container.y);
-          actor.distance += travelled;
-          if (travelled > .01) actor.lastTravel = time;
+          actor.distance += travelled; if (travelled > .01) actor.lastTravel = time;
           actor.container.setPosition(next.x, next.y);
-        } else if (remaining <= .35) actor.container.setPosition(p.x, p.y);
+        } else if (!p.fatigue.sleeping) actor.container.setPosition(target.x, target.y);
         const sleepProgress = p.fatigue.sleeping ? Math.min(1, Math.max(0, (time - actor.settlingAt) / 420)) : 0;
         const settled = sleepProgress * sleepProgress * (3 - 2 * sleepProgress);
-        if (p.fatigue.sleeping) {
-          actor.facing = 'down';
-          // Each resident settles into the personal side saved by the host, under the quilt.
-          actor.container.setPosition(actor.settleFrom.x + (p.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (p.y - actor.settleFrom.y) * settled);
-        }
-        const pose = residentFrame(actor.facing, actor.distance, !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
+        if (p.fatigue.sleeping) actor.container.setPosition(actor.settleFrom.x + (target.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (target.y - actor.settleFrom.y) * settled);
+        const pose = residentFrame(actor.facing, actor.distance, !p.seated && !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
         const reactionElapsed = time - actor.reactionAt, reacting = p.fatigue.sleeping && reactionElapsed < 900;
         const toss = reacting && !reducedMotion ? [0, -2, -4, -2, 0, 2, 4, 2, 0, 0][Math.floor(reactionElapsed / 90)] : 0;
-        actor.sprite.setFrame(reacting ? 'down-grumpy' : sleepProgress > .45 ? 'down-rest' : pose.frame).setFlipX(pose.flipX)
-          .setPosition(toss, -Math.round(8 * settled) * 2 - (toss ? 2 : 0));
-        actor.reaction.setVisible(reacting).setY(-108 - (reacting && !reducedMotion ? Math.floor(reactionElapsed / 300) * 2 : 0))
+        actor.sprite.setFrame(reacting ? 'down-grumpy' : p.fatigue.sleeping ? 'down-rest' : p.seated ? p.facing + '-sit' : pose.frame)
+          .setFlipX(!p.fatigue.sleeping && !p.seated && pose.flipX).setPosition(toss, 0)
+          .setOrigin(.5, p.fatigue.sleeping ? 14 / 48 : p.seated ? 32 / 48 : RESIDENT_ORIGIN.y).setAngle(p.fatigue.sleeping ? (bed?.rotation ?? 0) * 90 : 0);
+        actor.reaction.setVisible(reacting).setPosition(24, p.fatigue.sleeping ? -42 : -108)
           .setAlpha(reacting ? Math.min(1, (900 - reactionElapsed) / 250) : 0);
-        actor.container.setDepth(p.fatigue.sleeping ? 300 + objectOffset('bed', roomLayout(current.world, p.map)).y : actor.container.y);
+        const seat = p.seated && objects.find(o => o.id === p.seated!.id);
+        actor.container.setDepth(p.fatigue.sleeping ? (bed?.depth ?? p.y) + .2 : seat ? seat.depth + .2 : actor.container.y);
         if (id === current.localId) {
-          const arrangedObject = current.arranging && getRoomObjects(this.roomMap, this.layout).find(o => o.id === current.arranging!.id);
-          if (arrangedObject) {
-            const object = arrangedObject;
-            this.cameras.main.stopFollow(); this.cameras.main.centerOn(object.bounds.x + object.bounds.width / 2, object.bounds.y + object.bounds.height / 2 + 60); this.followed = '';
-          } else if (this.followed !== id) { this.cameras.main.startFollow(actor.container, true, .15, .15, 0, 90); this.followed = id; }
+          const camera = this.cameras.main;
+          if (current.design) {
+            camera.stopFollow(); camera.removeBounds(); camera.setZoom(Math.min((this.scale.width - 16) / 960, (this.scale.height - 48) / 500)); camera.centerOn(480, 268); this.followed = '';
+          } else if (this.followed !== id) { camera.setZoom(1).setBounds(0, 38, ROOM_SIZE.width, 464); camera.startFollow(actor.container, true, .15, .15, 0, 90); this.followed = id; }
           telemetry('playerX', Number(p.x.toFixed(2))); telemetry('playerY', Number(p.y.toFixed(2)));
-          telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(pose.flipX));
+          telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(actor.sprite.flipX));
           telemetry('nearestObject', nearestInteractable(p, savedLayout)?.id ?? '');
           telemetry('residentWidth', actor.sprite.displayWidth); telemetry('residentHeight', actor.sprite.displayHeight);
           telemetry('playerMap', p.map); telemetry('renderedMap', this.roomMap); telemetry('playerSleeping', String(p.fatigue.sleeping));
-          telemetry('playerHeight', actor.sprite.displayHeight); telemetry('sleeping', String(p.fatigue.sleeping));
+          telemetry('playerHeight', actor.sprite.displayHeight); telemetry('sleeping', String(p.fatigue.sleeping)); telemetry('playerSeated', p.seated?.id ?? '');
           telemetry('sleepPoseProgress', Number(sleepProgress.toFixed(2)));
-          telemetry('bedReactionCount', p.bedDisturbances); telemetry('bedReactionActive', String(reacting));
-          telemetry('residentTexture', texture);
+          telemetry('bedReactionCount', p.bedDisturbances); telemetry('bedReactionActive', String(reacting)); telemetry('residentTexture', texture);
         }
       }
-      telemetry('layout', JSON.stringify(savedLayout));
-      telemetry('arranging', current.arranging?.id ?? '');
-      telemetry('placementX', current.arranging?.x ?? 0);
+      telemetry('layout', JSON.stringify(savedLayout)); telemetry('previewLayout', JSON.stringify(this.layout));
+      telemetry('arranging', current.design ? current.design.selected ?? 'room' : ''); telemetry('placementInvalid', String(current.design?.invalid ?? false));
+      telemetry('placementX', current.design?.selected ? this.layout[current.design.selected]?.x ?? 0 : 0);
+      telemetry('cameraZoom', this.cameras.main.zoom); telemetry('logicalWidth', this.scale.width); telemetry('logicalHeight', this.scale.height);
       const deskCandle = getRoomObjects(this.roomMap, this.layout).find(o => o.id === 'candle-desk');
       telemetry('candleDeskDepth', deskCandle ? deskCandle.depth + .1 : 0);
       telemetry('cameraX', Math.round(this.cameras.main.scrollX)); telemetry('cameraY', Math.round(this.cameras.main.scrollY));
@@ -381,7 +330,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       telemetry('visiblePlayers', [...this.actors].filter(([, actor]) => actor.container.visible).map(([id]) => id).sort().join(','));
       telemetry('bedReactions', JSON.stringify(Object.fromEntries([...this.actors].filter(([, actor]) => actor.container.visible).map(([id, actor]) => [id, { count: actor.bedDisturbances, active: actor.reaction.visible }]))));
       this.cooldown -= delta;
-      if (!paused() && !local.fatigue.sleeping && this.cooldown <= 0) {
+      if (!paused() && !current.design && !local.fatigue.sleeping && this.cooldown <= 0) {
         const down = (name: string) => this.keys[name].isDown && !this.blockedKeys.has(name);
         const dx = Number(down('D') || down('RIGHT')) - Number(down('A') || down('LEFT'));
         const dy = Number(down('S') || down('DOWN')) - Number(down('W') || down('UP'));

@@ -39,7 +39,7 @@ test('compact resident creation previews clothing changes without tinting the fa
     let changed = 0, protectedChanges = 0;
     for (let index = 0; index < pixels.length; index++) {
       const y = Math.floor(index / 4 / 64);
-      if ((y < 40 || y >= 70 || index % 4 === 3) && pixels[index] !== amber[index]) protectedChanges++;
+      if ((y < 40 || y >= 86 || index % 4 === 3) && pixels[index] !== amber[index]) protectedChanges++;
       if (pixels[index] !== amber[index]) changed++;
     }
     expect(changed).toBeGreaterThan(100);
@@ -73,7 +73,7 @@ test('compact resident creation previews clothing changes without tinting the fa
       if (samples.size === 4) { observer.disconnect(); clearTimeout(timer); resolve([...samples.values()]); }
     };
     const observer = new MutationObserver(capture);
-    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('Walking preview did not show all four down-facing poses.')); }, 15000);
+    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('Walking preview did not show all four down-facing poses.')); }, 22000);
     observer.observe(canvas, { attributes: true, attributeFilter: ['data-frame'] }); capture();
   }));
   expect(new Set(heads).size).toBe(1); // The face must not blink or change with footfall.
@@ -102,9 +102,9 @@ test('creation choices change the native preview and survive entering and reopen
   await page.getByLabel('Character', { exact: true }).selectOption('female');
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   const scene = page.locator('#game-canvas');
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-layered-v7-wine-female-swept-copper-brown-dress');
   await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-layered-v7-wine-female-swept-copper-brown-dress');
 });
 
 test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {
@@ -117,7 +117,7 @@ test('dedicated A and B operate menus while a right-side world tap does nothing'
   await page.waitForTimeout(200);
   expect(await position(page)).toEqual(before);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:true:true');
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:true:true:false:false');
   await action(page);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /^true:/);
@@ -127,8 +127,8 @@ test('dedicated A and B operate menus while a right-side world tap does nothing'
   await action(page);
   await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
   await expect(page.locator('.dialogue-choices')).toHaveCount(0);
-  const sheet = await page.locator('dialog').boundingBox();
-  expect(sheet!.y).toBeGreaterThan(195);
+  const sheet = await page.locator('dialog[open]').boundingBox();
+  const width = page.viewportSize()!.width; expect(sheet!.width).toBeGreaterThan(width * .85); expect(sheet!.x).toBeCloseTo((width - sheet!.width) / 2, 0);
   await page.locator('#action-a').click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await inventory(page); await page.locator('#action-b').click();

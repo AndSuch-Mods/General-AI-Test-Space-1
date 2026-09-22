@@ -1,5 +1,15 @@
 # Validation
 
+## 0.1.7, layered residents and touch household design
+
+- Full local specification, lint, types, 88 unit tests and production build pass. The unchanged master hash and all 53 sections remain verified. Local offline package: a76228fff1f92521, 21 files, 14,851,324 bytes.
+- Unit coverage includes all eight automatic reciprocal doorway routes, blocked-input facing, seating occupancy/dropout, rotated bed rest, atomic layout commit/rollback/stale drafts, bedroom ownership and old-save absolute furniture positions. Appearance tests cover 1,440 connected body/style/outfit/direction/pose combinations; palette isolation and walking heads are also checked. A window test covers sky/frame alpha separation through daytime and all night variants.
+- Visual review inspected actual creation screens at phone widths, the whole-room touch editor, invalid red placements, the entry hall/kitchen and directional furniture with seated residents and both sleepers. Source contracts and provenance are in ART_RESIDENT_V7.md and ART_ROOM_V7.md.
+- Chromium's broad run passed 22 of 23 browser cases, including actual DataChannel reconnect, separate maps, shared rest and origin-stopped offline play. The remaining case exposed the candle selecting its parent desk; its approach anchor and regression assertion are corrected. The corrected room suite then passed all three cases, including candle targeting and seven-slot save migration. Remote checkpoint outcomes are recorded below when available.
+- Focused creation/portrait, layout and storage-animation UI cases passed on both local engines. Chromium's offline audio signal/mute test passed. This Windows WebKit build exposes no AudioContext (standard or prefixed), so that one capability test explicitly skips locally; macOS WebKit CI and physical iPhone audio remain separate evidence.
+- The fire mix was rendered offline and checked for clipping, DC drift and loop discontinuity. No human listening or iPhone-speaker quality result is claimed. Physical two-iPhone acceptance remains open.
+
+
 ## 0.1.6, September 22 room and resident corrections
 
 - Previous icon commit `2d6174d` did not deploy: Chromium initial pairing timed out in run `35650751360`; macOS WebKit passed. The live site was still `7e01239`. This was a blocked deployment, not evidence of an iOS icon-cache defect.

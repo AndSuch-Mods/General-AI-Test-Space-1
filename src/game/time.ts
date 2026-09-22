@@ -1,5 +1,5 @@
 import { DEFAULT_TIME, type Player, type World } from './model';
-import { BED_EXIT, BED_REST, isBedroom, objectOffset, roomLayout, safePosition, type RoomLayout } from '../content/room';
+import { BED_EXIT, BED_REST, isBedroom, bedPoint, roomLayout, safePosition, type RoomLayout } from '../content/room';
 export const SLEEP_RULES = { minimumMinutes: 8 * 60, morningMinute: 6 * 60, eveningMinute: 18 * 60, terminalMinutes: 12 * 60 };
 export type DayPhase = 'dawn' | 'day' | 'dusk' | 'night' | 'late-night';
 export function gameMinutes(realSeconds: number, secondsPerGameMinute = DEFAULT_TIME.secondsPerGameMinute) {
@@ -32,8 +32,8 @@ export function nextWakeMinute(now: number) {
   return morning;
 }
 export function startSleep(player: Player, minute: number, layout: RoomLayout = {}, side: 'left' | 'right' = 'left') {
-  const offset = objectOffset('bed', layout);
-  Object.assign(player, { map: isBedroom(player.map) ? player.map : 'castle', x: BED_REST.x + offset.x + (side === 'left' ? -27 : 27), y: BED_REST.y + offset.y, interaction: null });
+  const map = isBedroom(player.map) ? player.map : 'castle';
+  Object.assign(player, bedPoint({ x: BED_REST.x + (side === 'left' ? -27 : 27), y: BED_REST.y }, map, layout), { map, interaction: null, seated: null });
   Object.assign(player.fatigue, { sleeping: true, sleepStartedAt: minute, wakeAt: nextWakeMinute(minute) });
 }
 export function energyCap(player: Player) {
@@ -47,8 +47,7 @@ export function wakePlayer(player: Player, minute: number, layout: RoomLayout = 
     player.fatigue.consecutiveAllNighters = 0; player.fatigue.terminalMinutes = 0; player.energy = 100;
   } else player.energy = Math.min(energyCap(player), player.energy + slept / 8);
   Object.assign(player.fatigue, { sleeping: false, sleepStartedAt: null, wakeAt: null });
-  const offset = objectOffset('bed', layout);
-  Object.assign(player, safePosition({ x: BED_EXIT.x + offset.x + (player.x > BED_REST.x + offset.x ? 28 : 0), y: BED_EXIT.y + offset.y }, player.map, layout));
+  Object.assign(player, safePosition(bedPoint(BED_EXIT, player.map, layout), player.map, layout));
 }
 /** Advances only present residents. Absent profiles accrue no new fatigue. */
 export function advanceWorldClock(world: World, minutes: number, activeIds: readonly string[]) {

@@ -1,5 +1,8 @@
 # Roadmap
 
+Latest revision: **0.1.7 household acceptance rework**. Clean character layers, exact window masking, automatic wall-centered doors, touch layout drafts and upright rotation, seating, centered menus, portrait protection, improved fire ambience, and distinct hall/kitchen spaces are implemented. This fulfills the latest household revision without advancing or declaring a content phase complete. See [ROOM_REWORK_V7.md](docs/ROOM_REWORK_V7.md).
+
+
 Current household revision: shared living room, owned bedrooms, two-person beds, dawn journals, personal character creation and synchronized sleepy reactions. Device acceptance remains open before expanding content. This does not complete later town or story phases.
 
 September 22 review: corrected directional room connections, doubled windows, refined feminine/masculine creation and retained the supplied icon for deployment. This remains household acceptance work, not a content-phase advance.

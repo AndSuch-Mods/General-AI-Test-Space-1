@@ -27,8 +27,8 @@ describe('persistent resident choices and occupied beds', () => {
     const raw = JSON.parse(JSON.stringify(old)); raw.schemaVersion = 4;
     for (const p of Object.values(raw.players) as Record<string, unknown>[]) { delete p.look; delete p.bedDisturbances; delete p.bedDisturbedAt; }
     const upgraded = parseWorld(raw);
-    expect(upgraded.schemaVersion).toBe(5); expect(upgraded.players[old.hostId].look).toEqual(DEFAULT_LOOK);
-    expect(upgraded).toEqual(old);
+    expect(upgraded.schemaVersion).toBe(6); expect(upgraded.players[old.hostId].look).toEqual(DEFAULT_LOOK);
+    expect(upgraded.players).toEqual(old.players); expect(upgraded.layout).toEqual(old.layout); expect(upgraded.chest).toEqual(old.chest);
   });
   it.each(['castle', 'bedroom-2'] as const)('reacts to crossing a moved bed in %s once without waking, and rolls back failed saves', async map => {
     let fail = false;
@@ -37,8 +37,9 @@ describe('persistent resident choices and occupied beds', () => {
     await a.join({ id: guest, key: crypto.randomUUID(), name: 'Companion', appearance: 'moss', worldId: a.world.worldId, epoch: a.world.epoch, revision: 0 });
     a.setActivePlayers([host, guest]);
     const layout = map === 'castle' ? a.world.layout : a.world.roomLayouts[map]; layout.bed = { x: 16, y: 16 };
-    Object.assign(a.world.players[host], { map, x: 258, y: 318 }); await a.dispatch(host, 1, { kind: 'sleep' });
-    Object.assign(a.world.players[guest], { map, x: 176, y: 318 });
+    const shift = map === 'bedroom-2' ? 152 : 0;
+    Object.assign(a.world.players[host], { map, x: 258 + shift, y: 318 }); await a.dispatch(host, 1, { kind: 'sleep' });
+    Object.assign(a.world.players[guest], { map, x: 176 + shift, y: 318 });
     const resting = structuredClone(a.world.players[host].fatigue);
     fail = true; await expect(a.dispatch(guest, 1, { kind: 'move', dx: -1, dy: 0 })).rejects.toThrow('Disk full');
     expect(a.world.players[host].bedDisturbances).toBe(0);
@@ -50,7 +51,7 @@ describe('persistent resident choices and occupied beds', () => {
     a.world.clock.totalMinutes += 3;
     await a.dispatch(guest, 3, { kind: 'move', dx: -1, dy: 0 });
     expect(a.world.players[host].bedDisturbances).toBe(2);
-    Object.assign(a.world.players[guest], { x: 176, y: 376 });
+    Object.assign(a.world.players[guest], { x: 176 + shift, y: 376 });
     await a.dispatch(guest, 4, { kind: 'move', dx: -1, dy: 0 }); expect(a.world.players[host].bedDisturbances).toBe(2);
     Object.assign(a.world.players[guest], { map: 'living', x: 176, y: 318 });
     await a.dispatch(guest, 5, { kind: 'move', dx: -1, dy: 0 }); expect(a.world.players[host].bedDisturbances).toBe(2);

@@ -94,3 +94,47 @@ export async function action(page: Page, target?: string) {
   await page.locator('#action-a').click();
   if (target) await page.locator(`[data-action="${target}"]`).click();
 }
+
+/** Walk through a centered threshold using ordinary movement only. */
+export async function throughDoor(page: Page, id: string, destination: string) {
+  const scene = page.locator('#game-canvas');
+  const doors = JSON.parse((await scene.getAttribute('data-doorways'))!) as {id:string;wall:string}[];
+  const wall = doors.find(d => d.id === id)!.wall;
+  await walkTo(page, 'y', 378);
+  await walkTo(page, 'x', wall === 'west' ? 200 : wall === 'east' ? 730 : 480);
+  if (wall === 'west' || wall === 'east') await walkTo(page, 'y', 343);
+  const key = {west:'ArrowLeft',east:'ArrowRight',north:'ArrowUp',south:'ArrowDown'}[wall]!;
+  const before = await scene.getAttribute('data-player-map');
+  await page.evaluate(({before,key}) => {
+    const element = document.querySelector('#game-canvas')!;
+    const code = {ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40}[key]!;
+    const observer = new MutationObserver(() => {
+      if (element.getAttribute('data-player-map') === before) return;
+      observer.disconnect(); clearTimeout(timer);
+      window.dispatchEvent(new KeyboardEvent('keyup',{key,code:key,keyCode:code,which:code,bubbles:true}));
+    });
+    const timer = setTimeout(() => observer.disconnect(),20000);
+    observer.observe(element,{attributes:true,attributeFilter:['data-player-map']});
+  },{before,key});
+  await page.keyboard.down(key);
+  try { await expect(scene).toHaveAttribute('data-player-map',destination,{timeout:20000}); }
+  finally { await page.keyboard.up(key); }
+}
+
+export async function roomPoint(page: Page, x: number, y: number) {
+  return page.locator('#game-canvas').evaluate((element,point) => {
+    const d = (element as HTMLElement).dataset, canvas = element.querySelector('canvas')!, r = canvas.getBoundingClientRect();
+    const zoom = Number(d.cameraZoom), w = Number(d.logicalWidth), h = Number(d.logicalHeight);
+    return { x: r.x + ((point.x - Number(d.cameraX) - w/2)*zoom + w/2) * r.width/w,
+      y: r.y + ((point.y - Number(d.cameraY) - h/2)*zoom + h/2) * r.height/h };
+  },{x,y});
+}
+export async function dragFurniture(page: Page, id: string, dx: number, dy: number) {
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-arranging', /.+/);
+  await expect.poll(async () => Number(await page.locator('#game-canvas').getAttribute('data-camera-zoom'))).toBeLessThan(1);
+  const objects = JSON.parse((await page.locator('#game-canvas').getAttribute('data-room-objects'))!) as {id:string;bounds:{x:number;y:number;width:number;height:number}}[];
+  const b = objects.find(o => o.id === id)!.bounds;
+  // Carpet's center is clear in the default bedrooms and living room.
+  const from = await roomPoint(page,b.x+b.width/2,b.y+b.height/2), to = await roomPoint(page,b.x+b.width/2+dx,b.y+b.height/2+dy);
+  await page.mouse.move(from.x,from.y); await page.mouse.down(); await expect(page.locator('#game-canvas')).toHaveAttribute('data-arranging', id); await page.mouse.move(to.x,to.y,{steps:6}); await page.mouse.up();
+}

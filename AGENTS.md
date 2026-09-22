@@ -4,6 +4,8 @@ Build the long-term original iPhone-first, landscape, offline PWA described by t
 
 ## Required reading
 
+Read `docs/ROOM_REWORK_V7.md` first for the latest user overrides, including centered menus, touch layout editing, directional furniture and the layered character rebuild.
+
 Before planning or implementation, read all of:
 
 - `README.md`, `ROADMAP.md`, `CHANGELOG.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/VALIDATION.md`
@@ -32,7 +34,7 @@ The unchanged master is `docs/master/Haunted_Chocolatier_Twilight_AGENTS.md`. `d
 - All final art, writing, maps, code, music and other content must be original or clearly licensed. Public references inform only broad design qualities. Track temporary original assets for replacement.
 - Build rooms from floor/wall layers and individual objects, with one native pixel scale shared by residents, furniture and effects. Solid objects need authoritative collision and reachable interactions. Never use a furnished background painting as a substitute for this. Preserve the compact HUD and floating thumbstick direction in `docs/ROOM_AND_CONTROLS.md`.
 - Keep the resident preview identical to the in-world palette and frame pipeline. Current adult display size is 64 by 96 world pixels from 32 by 48 native art; room art uses two-world-pixel clusters. Preserve seven quick slots, dedicated A/B actions and the left floating stick. B must not silently abandon an NPC conversation; use authored exits.
-- A acts on objects directly. Reading and choices belong in compact bottom sheets. Finish container opening before showing its sheet, and close the sheet before the closing animation. Sleep requires confirmation and ends at the next 06:00. Furniture layout is shared, saved and host validated. Keep original offline music and sound gesture-unlocked with saved mute controls.
+- A acts on objects directly. Functional menus and choices are centered and use most of the screen; follow the latest ROOM_REWORK_V7.md override. Finish container opening before showing its sheet, and close the sheet before the closing animation. Sleep requires confirmation and ends at the next 06:00. Furniture layout is a private touch draft until Save layout commits it atomically through the host. Keep original offline music and sound gesture-unlocked with saved mute controls.
 - Enforce bedroom ownership at the authority, while allowing visitors to use furnishings and beds. Both residents may rearrange the living room. Keep layouts, switches and container animation scoped to the room. Preserve separate sleeping positions and each resident's daily record alongside shared daily milestones.
 - Expand original content autonomously within the bibles and density targets. Do not inflate counts with shallow filler. Preserve castle home, town life, supernatural wilderness, chocolate magic, deliberate shields, interactive cooking, fishing, relationships and the Stillroom Circle/Curator story. The supernatural survives the ending.
 - At each milestone run relevant lint, types, unit and browser tests, persistence and offline checks, and solo/co-op regressions. Fix failures before expanding. Update roadmap, changelog, implementation status and content ledger, then commit a stable checkpoint.

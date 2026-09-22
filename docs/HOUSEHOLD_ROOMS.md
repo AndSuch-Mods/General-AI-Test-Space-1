@@ -1,5 +1,8 @@
 # The household rooms
 
+Latest user-directed override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) supersedes the historical controls, observation dialogs, placement and painted-sprite details below. Current menus are centered; household editing uses direct dragging, valid tap rotations and Save layout. Characters use clean layers described in ART_RESIDENT_V7.md.
+
+
 Current override: [CHARACTER_CREATION.md](CHARACTER_CREATION.md) defines the 0.1.5 personal appearance choices, occupied-bed reaction, save schema 5 and protocol 7. Earlier version descriptions below are historical.
 
 

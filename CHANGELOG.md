@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7
+
+- Rebuilt characters from original body, joint, skin, garment and hair layers with consistent walking faces and directional seated/rest poses.
+- Matched window sky pixels to the frame aperture, spaced windows evenly and centered direction-specific doors. Walking through a doorway now changes rooms; collision no longer prevents turning to face an object.
+- Replaced the furnishing picker with full-room touch editing: drag within room boundaries, green/red placement feedback, tap valid rotations, cancel or save the whole layout. The host enforces ownership, busy furniture, access, conflicts and atomic persistence.
+- Added four upright views for all requested furniture, opening container poses, attached desk items, rotating bed access and two-seat sofa/armchair interaction. A or B stands up; walking also leaves a seat.
+- Centered menus, added portrait protection over character creation and removed generic observation dialogs. Containers open before their menu and close afterward.
+- Reworked hearth audio into continuous stereo fire ambience with softer irregular ember sounds.
+- Replaced the stair landing with a distinct entry hall and an east-connected basic kitchen. Stove, sink and recipe worktop are movable; cooking progression remains future work.
+- Schema 6 adds facing, seating, rotations and shared hall/kitchen layouts. Older custom furniture positions, both profiles and world progress are preserved. Protocol 8 requires matching game rules on both devices.
+
+
 ## 0.1.6
 
 - Put the living-room bedroom doors in the left and right walls, and its landing exit in the bottom wall. Every connected room now returns through the opposite wall, with matching walnut doorway art and protected approaches.

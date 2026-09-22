@@ -2,13 +2,12 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld } from '../src/game/model';
-import { canStand, canInteract, moveInRoom, objectForAction, roomObjects, safePosition, FURNITURE_IDS } from '../src/content/room';
+import { canStand, canInteract, moveInRoom, objectForAction, objectColliders, roomObjects, safePosition, FURNITURE_IDS, nearestInteractable } from '../src/content/room';
 import { arrival } from '../src/content/arrival';
 
 describe('room geometry', () => {
   it('blocks furniture from every direction, including a fast swept move', () => {
-    for (const object of roomObjects.filter(object => object.collision)) {
-      const r = object.collision!;
+    for (const object of roomObjects) for (const r of objectColliders(object)) {
       const approaches = [
         { x: r.x - 12, y: r.y + r.height / 2, dx: 1, dy: 0 },
         { x: r.x + r.width + 12, y: r.y + r.height / 2, dx: -1, dy: 0 },
@@ -31,9 +30,12 @@ describe('room geometry', () => {
     const diagonal = moveInRoom({ x: 480, y: 364 }, 1, 1);
     expect(Math.hypot(diagonal.x - 480, diagonal.y - 364)).toBeCloseTo(14);
   });
-  it('gives every visible prop reachable actions without reaching through the bed', () => {
+  it('gives interactive props reachable actions while windows remain scenery', () => {
     for (const object of roomObjects) {
-      expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number])).toBe(true);
+      if (object.id.startsWith('window')) {
+        expect(object.actions).toEqual([]); expect(objectColliders(object)).toEqual([]); continue;
+      }
+      expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number]), object.id).toBe(true);
       if (!object.actions.length) continue;
       for (const action of object.actions) expect(arrival.some(event => event.id === action)).toBe(true);
       let reachable = false;
@@ -48,6 +50,11 @@ describe('room geometry', () => {
 });
 
 describe('room persistence and shared interaction', () => {
+  it('selects the desk candle itself rather than opening its parent desk', () => {
+    expect(nearestInteractable({ x: 410, y: 308, map: 'castle' })?.id).toBe('candle-desk');
+    expect(nearestInteractable({ x: 362, y: 308, map: 'castle' })?.id).toBe('letter');
+    expect(nearestInteractable({ x: 386, y: 302, map: 'castle' })?.id).toBe('journal');
+  });
   it('repairs old positions durably without changing either profile progression', async () => {
     const initial = createWorld(createPlayer('Keeper'));
     Object.assign(initial.players[initial.hostId], { x: 190, y: 328, inventory: { 'cacao-bean': 3 }, discoveries: ['letter'] });

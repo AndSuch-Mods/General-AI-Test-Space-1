@@ -73,7 +73,7 @@ test('left/right profiles, bed collision and furniture interaction at the closer
 test('candle choices persist and seven quick slots retain items while migrating older five-slot settings', async ({ page }) => {
   await walkTo(page, 'y', 308); await walkTo(page, 'x', 416);
   await action(page);
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /:false:/);
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', /^false:false:true:/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await walkTo(page, 'x', 362); await action(page);
   await expect(page.getByRole('heading', { name: 'A letter that waited' })).toBeVisible();
@@ -83,8 +83,8 @@ test('candle choices persist and seven quick slots retain items while migrating 
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await walkTo(page, 'y', 294); await walkTo(page, 'x', 790);
   await action(page);
-  await expect(page.getByRole('heading', { name: 'A practical welcome' })).toBeVisible();
-  await page.locator('#finish-story').click();
+  await expect(page.getByRole('heading', { name: 'Household pantry', exact: true, level: 2 })).toBeVisible();
+  await page.locator('#close-dialog').click();
   await inventory(page);
   await page.getByRole('button', { name: 'Cacao bean, 3' }).click();
   await expect(page.locator('.assign-slots button')).toHaveCount(7);
@@ -95,7 +95,7 @@ test('candle choices persist and seven quick slots retain items while migrating 
   await page.reload();
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
   await expect(page.locator('#quick-slot-7')).toHaveAttribute('aria-label', 'Quick slot 7: Cacao bean, 3');
-  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:false:true');
+  await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:false:true:false:false');
   await page.locator('#leave').click();
   await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
   // The previous released UI stored five slots. Keep those references and append two empty slots.
