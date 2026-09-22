@@ -90,7 +90,7 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
     await action(guest); // Return through the living room's left door.
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
-    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-v4-amber-female-braid-chestnut-warm-skirt');
+    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-v4-eyes2-amber-female-braid-chestnut-warm-skirt');
     await walkTo(guest, 'x', 700); await walkTo(guest, 'y', 355); await walkTo(guest, 'x', 270); await walkTo(guest, 'y', 302);
     await guest.keyboard.down('ArrowLeft');
     try { await expect(guest.locator('#confirm-sleep')).toBeVisible(); } finally { await guest.keyboard.up('ArrowLeft'); }

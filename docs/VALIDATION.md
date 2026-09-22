@@ -2,6 +2,8 @@
 
 ## Focused original-resident eye correction, September 22
 
+The first full CI run (`35798929191`) passed 20 of 21 browser cases on both Chromium and macOS WebKit. Its sole failure was the co-op appearance assertion retaining the previous texture key; the actual guest had the new corrected-eye texture and the expected saved customization. Updated that exact assertion to the new versioned key, without weakening the appearance or co-op checks. The corrected commit must pass the complete matrix before publication.
+
 The previous correction copied only part of the original open eye and then darkened its lower light pixel. Cropped and swept hair also overwrote the brow. This correction restores the complete measured two-by-three eye cluster to both positions after customization. It preserves the original raster, facial proportions, palettes and fixed walking head.
 
 Specification coverage, lint, types, all 63 unit tests and production build pass locally. The five Chromium presentation cases pass, including actual preview pixels across both bodies and every hairstyle, retained walking faces, saved appearance after reload, adult scale and controls. Source-backed tests cover all skin and hair palettes, idempotence and unchanged pixels outside the two eye areas. Visual review inspected the original and corrected game-scale face, creation preview and the actual idle resident in the room. A direct canvas check covered 300 appearances and 900 walking heads.
