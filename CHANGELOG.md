@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 eye correction
+
+- Restore matching open eye clusters and brows in the original resident sprite, including customization and walking frames.
+- Keep this correction on the existing published artwork while the separate household artwork rework remains under review.
+
 ## 0.1.6
 
 - Put the living-room bedroom doors in the left and right walls, and its landing exit in the bottom wall. Every connected room now returns through the opposite wall, with matching walnut doorway art and protected approaches.

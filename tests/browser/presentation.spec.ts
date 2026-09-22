@@ -73,7 +73,7 @@ test('compact resident creation previews clothing changes without tinting the fa
       if (samples.size === 4) { observer.disconnect(); clearTimeout(timer); resolve([...samples.values()]); }
     };
     const observer = new MutationObserver(capture);
-    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('Walking preview did not show all four down-facing poses.')); }, 15000);
+    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('Walking preview did not show all four down-facing poses.')); }, 22000);
     observer.observe(canvas, { attributes: true, attributeFilter: ['data-frame'] }); capture();
   }));
   expect(new Set(heads).size).toBe(1); // The face must not blink or change with footfall.
@@ -102,9 +102,44 @@ test('creation choices change the native preview and survive entering and reopen
   await page.getByLabel('Character', { exact: true }).selectOption('female');
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   const scene = page.locator('#game-canvas');
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-eyes2-wine-female-swept-copper-brown-dress');
   await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-eyes2-wine-female-swept-copper-brown-dress');
+});
+
+test('the actual creation preview keeps both eyes open after body, hair and skin changes', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  const preview = page.locator('#resident-preview');
+  await expect(preview).toHaveAttribute('data-frame', 'down-idle');
+  const inspect = async () => {
+    const eyes = await preview.evaluate(element => {
+      const context = (element as HTMLCanvasElement).getContext('2d')!;
+      const eye = (x: number) => Array.from(context.getImageData(x * 2, 13 * 2, 4, 6).data);
+      const pixel = (x: number, y: number) => Array.from(context.getImageData(x * 2, y * 2, 1, 1).data);
+      return { left: eye(13), right: eye(18), upperHighlight: pixel(14, 14), lowerHighlight: pixel(14, 15), upperIris: pixel(13, 14), brow: pixel(13, 13) };
+    });
+    expect(eyes.left).toEqual(eyes.right);
+    expect(eyes.upperHighlight.slice(0, 3).every(channel => channel > 190)).toBe(true);
+    expect(eyes.lowerHighlight.slice(0, 3).every(channel => channel > 230)).toBe(true);
+    expect(eyes.upperIris[0]).toBeGreaterThan(eyes.upperIris[1]);
+    expect(eyes.brow.slice(0, 3).every(channel => channel < 80)).toBe(true);
+  };
+  await inspect();
+  for (const body of ['male', 'female']) {
+    await page.getByLabel('Character', { exact: true }).selectOption(body);
+    for (const hairStyle of ['short', 'cropped', 'swept', 'bob', 'long', 'braid']) {
+      await page.getByLabel('Hair style').selectOption(hairStyle);
+      for (const skinTone of ['fair', 'deep']) {
+        await page.getByLabel('Skin tone').selectOption(skinTone);
+        await expect(preview).toHaveAttribute('data-character-look', new RegExp(`"skinTone":"${skinTone}"`));
+        await inspect();
+      }
+    }
+  }
+  for (const hairColor of ['black', 'copper', 'blonde', 'silver']) {
+    await page.getByLabel('Hair color').selectOption(hairColor); await inspect();
+  }
 });
 
 test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {

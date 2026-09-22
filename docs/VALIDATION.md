@@ -1,5 +1,13 @@
 # Validation
 
+## Focused original-resident eye correction, September 22
+
+The previous correction copied only part of the original open eye and then darkened its lower light pixel. Cropped and swept hair also overwrote the brow. This correction restores the complete measured two-by-three eye cluster to both positions after customization. It preserves the original raster, facial proportions, palettes and fixed walking head.
+
+Specification coverage, lint, types, all 63 unit tests and production build pass locally. The five Chromium presentation cases pass, including actual preview pixels across both bodies and every hairstyle, retained walking faces, saved appearance after reload, adult scale and controls. Source-backed tests cover all skin and hair palettes, idempotence and unchanged pixels outside the two eye areas. Visual review inspected the original and corrected game-scale face, creation preview and the actual idle resident in the room. A direct canvas check covered 300 appearances and 900 walking heads.
+
+The first local browser invocation connected to an older development preview on the shared port and failed on its different artwork and HUD. That server was stopped; the isolated eye-correction build passed all five cases. Those initial results do not count as acceptance. The release uses the existing 0.1.6 art and gameplay; the larger household rework remains separate. Full Chromium and macOS WebKit regression, persistence, offline and actual DataChannel results are recorded by this commit's Actions workflow before Pages publication. Physical iPhone review remains open.
+
 ## 0.1.6, September 22 room and resident corrections
 
 - Previous icon commit `2d6174d` did not deploy: Chromium initial pairing timed out in run `35650751360`; macOS WebKit passed. The live site was still `7e01239`. This was a blocked deployment, not evidence of an iOS icon-cache defect.

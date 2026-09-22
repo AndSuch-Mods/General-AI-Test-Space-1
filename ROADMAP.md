@@ -1,5 +1,7 @@
 # Roadmap
 
+Current priority is a focused eye correction on the published 0.1.6 artwork. Both front-facing eyes must remain equally open at the actual native resolution, after every customization choice and throughout walking. The larger household rework is held on the development branch following the user's art review. Preserve the original furnishing designs and character identity while extending their states.
+
 Current household revision: shared living room, owned bedrooms, two-person beds, dawn journals, personal character creation and synchronized sleepy reactions. Device acceptance remains open before expanding content. This does not complete later town or story phases.
 
 September 22 review: corrected directional room connections, doubled windows, refined feminine/masculine creation and retained the supplied icon for deployment. This remains household acceptance work, not a content-phase advance.

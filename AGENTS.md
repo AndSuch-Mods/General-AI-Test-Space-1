@@ -1,5 +1,7 @@
 # Haunted Chocolatier: Twilight
 
+Latest art review: preserve the approved original bed, desk and other furnishing designs and their detail. Add states/directions; only the couch, armchair and doors may receive new designs. Character bases and interchangeable layers must retain the original resident's appearance and shading quality. Fix matched, open idle eyes and keep the face consistent through walking before continuing broader artwork work.
+
 Build the long-term original iPhone-first, landscape, offline PWA described by this project's master specification. Single-player and two-player same-room co-op share one architecture. Do not call a shell, prototype, or collection of placeholders the finished game.
 
 ## Required reading

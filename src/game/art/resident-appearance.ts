@@ -49,7 +49,7 @@ const hairPalettes = {
 } as const;
 
 export function residentTextureKey(appearance: ResidentAppearance, look: CharacterLook = DEFAULT_LOOK): string {
-  return `resident-v4-${appearance}-${look.body}-${look.hairStyle}-${look.hairColor}-${look.skinTone}-${look.outfit}`;
+  return `resident-v4-eyes2-${appearance}-${look.body}-${look.hairStyle}-${look.hairColor}-${look.skinTone}-${look.outfit}`;
 }
 export function residentSkinColor(look: CharacterLook = DEFAULT_LOOK): string {
   return `rgb(${skinPalettes[look.skinTone][2].join(',')})`;
@@ -230,17 +230,19 @@ export function recolorResidentPixels(pixels: Uint8ClampedArray, frameName: stri
 const canvases = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>();
 const baseCanvases = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>();
 
-/** The native down-facing sample lost the right eye's light pixels in reduction.
- * Restore its two-by-two eye cluster from the clear opposite eye, beneath the brow. */
+/** The original down-idle source's clear eye, including its brow and two light
+ * pixels. Keep the full cluster: painting an iris over its lower highlight made
+ * the reduced eye look closed. Apply after hair/skin changes as well, since the
+ * cropped/swept forehead layers previously erased the brow. */
 export function correctResidentEyes(pixels: Uint8ClampedArray, frameName: string) {
   if (!frameName.startsWith('down-')) return;
-  for (let y = 14; y <= 15; y++) for (let x = 0; x < 2; x++) {
-    const source = (y * RESIDENT_NATIVE_WIDTH + 18 + x) * 4;
-    const target = (y * RESIDENT_NATIVE_WIDTH + 13 + x) * 4;
-    pixels.set(pixels.slice(source, source + 4), target);
+  if (pixels.length !== RESIDENT_NATIVE_WIDTH * RESIDENT_NATIVE_HEIGHT * 4) throw new Error('Resident pixels must use the native 32 by 48 grid.');
+  // Measured from residents-v2.png at native x18–19, y13–15. These are source
+  // colors, not a new face palette; the warm iris and ivory sclera stay intact.
+  const eye: readonly Color[] = [[49, 35, 32], [52, 35, 29], [117, 60, 24], [206, 203, 201], [194, 115, 38], [248, 241, 232]];
+  for (const left of [13, 18]) for (let row = 0; row < 3; row++) for (let column = 0; column < 2; column++) {
+    paint(pixels, left + column, 13 + row, eye[row * 2 + column]);
   }
-  // Keep a dark iris in each two-pixel eye at the final native resolution.
-  for (const x of [14, 19]) pixels.set([53, 40, 41, 255], (15 * RESIDENT_NATIVE_WIDTH + x) * 4);
 }
 
 function baseResidentCanvas(image: HTMLImageElement, frameName: string): HTMLCanvasElement {
@@ -284,6 +286,7 @@ export function residentCanvas(image: HTMLImageElement, frameName: string, appea
   context.drawImage(base, 0, 0);
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   applyResidentLook(pixels.data, frameName, appearance, look);
+  correctResidentEyes(pixels.data, frameName);
   context.putImageData(pixels, 0, 0); images.set(key, canvas);
   return canvas;
 }
