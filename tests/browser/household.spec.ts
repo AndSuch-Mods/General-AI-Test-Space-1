@@ -56,7 +56,9 @@ test('original audio produces a signal offline and obeys persisted sound/music s
   await context.setOffline(true); await page.locator('#settings').click();
   const signal = () => page.evaluate(() => {
     const probe = (window as Window & { audioProbe?: AnalyserNode }).audioProbe;
-    if (!probe) return 0;
+    // Suspended contexts retain the analyser's last buffer; it is not live output.
+    // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend
+    if (!probe || probe.context.state !== 'running') return 0;
     const samples = new Float32Array(probe.fftSize); probe.getFloatTimeDomainData(samples);
     return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
   });
@@ -65,6 +67,8 @@ test('original audio produces a signal offline and obeys persisted sound/music s
   await page.locator('#music-enabled').uncheck();
   await expect.poll(signal, { timeout: 5000 }).toBeLessThan(.000005);
   await page.locator('#music-enabled').check(); await expect.poll(signal).toBeGreaterThan(.00001);
+  await page.locator('#audio-enabled').uncheck(); await expect.poll(signal).toBeLessThan(.000005);
+  await page.locator('#audio-enabled').check(); await expect.poll(signal).toBeGreaterThan(.00001);
   await page.locator('#audio-enabled').uncheck(); await expect.poll(signal).toBeLessThan(.000005);
   await page.locator('#close-dialog').click();
   // Audio above is verified offline; persistence below is independent of WebKit's

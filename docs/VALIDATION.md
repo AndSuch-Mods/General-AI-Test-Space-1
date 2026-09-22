@@ -9,6 +9,8 @@
 - Focused creation/portrait, layout and storage-animation UI cases passed on both local engines. Chromium's offline audio signal/mute test passed. This Windows WebKit build exposes no AudioContext (standard or prefixed), so that one capability test explicitly skips locally; macOS WebKit CI and physical iPhone audio remain separate evidence.
 - The fire mix was rendered offline and checked for clipping, DC drift and loop discontinuity. No human listening or iPhone-speaker quality result is claimed. Physical two-iPhone acceptance remains open.
 
+Development run [35795587594](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions/runs/35795587594) passed all 23 Chromium cases and 22/23 macOS WebKit cases. The remaining audio assertion sampled a retained waveform after muting. The probe now checks context state before treating analyser data as live output, and verifies a second full mute/unmute cycle. Suspended analysers retain their last data by the [Web Audio specification](https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend). This correction retains every sound, mute, restart and persistence assertion.
+
 
 ## 0.1.6, September 22 room and resident corrections
 
