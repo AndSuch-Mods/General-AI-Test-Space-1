@@ -49,7 +49,7 @@ const hairPalettes = {
 } as const;
 
 export function residentTextureKey(appearance: ResidentAppearance, look: CharacterLook = DEFAULT_LOOK): string {
-  return `resident-v3-${appearance}-${look.body}-${look.hairStyle}-${look.hairColor}-${look.skinTone}-${look.outfit}`;
+  return `resident-v4-${appearance}-${look.body}-${look.hairStyle}-${look.hairColor}-${look.skinTone}-${look.outfit}`;
 }
 export function residentSkinColor(look: CharacterLook = DEFAULT_LOOK): string {
   return `rgb(${skinPalettes[look.skinTone][2].join(',')})`;
@@ -83,11 +83,11 @@ export function applyResidentLook(pixels: Uint8ClampedArray, frameName: string, 
   }
   recolorResidentPixels(pixels, frameName, appearance);
   const cloth = palettes[appearance];
-  if (look.outfit === 'vest') {
+  if (look.outfit === 'vest' || look.outfit === 'skirt') {
     // The original moving arms remain, now in cream shirt sleeves beneath a vest.
     for (let y = 23; y < 31; y++) for (let x = 6; x < 27; x++) {
       const i = offset(x, y), r = original[i], g = original[i + 1];
-      if ((x < 12 || x > 21) && !inArea(protectedPixels[frameName], x, y) && original[i + 3] > 128 && r > g * 1.12 && r > 42 && r < 140) {
+      if ((look.outfit === 'skirt' || x < 12 || x > 21) && !inArea(protectedPixels[frameName], x, y) && original[i + 3] > 128 && r > g * 1.12 && r > 42 && r < 140) {
         paint(pixels, x, y, palettes.cream[r < 65 ? 1 : r < 95 ? 2 : 3]);
       }
     }
@@ -98,30 +98,82 @@ export function applyResidentLook(pixels: Uint8ClampedArray, frameName: string, 
       paint(pixels, x, y, cloth[y === 31 ? 0 : x === 12 || x === 21 || y === 37 ? 1 : x < 16 ? 3 : 2]);
     }
   }
-  if (look.outfit === 'dress') {
-    const saved = pixels.slice();
-    for (let y = 30; y <= 41; y++) {
-      const spread = Math.floor((y - 30) / 4), left = (facing === 'right' ? 12 : 11) - spread, right = 21 + spread;
-      for (let x = left; x <= right; x++) {
-        if (inArea(protectedPixels[frameName], x, y) && saved[offset(x, y) + 3]) continue;
-        paint(pixels, x, y, cloth[y === 30 || y === 41 || x === left || x === right ? 0 : (x - left) % 4 === 1 ? 3 : 2]);
+  if (look.body === 'female') {
+    // Shape the clothed torso rather than compressing the arms, legs and walking stride.
+    // The chest is covered by the high neckline; its contour is a broad fabric fold.
+    const prior = pixels.slice(), topCloth = look.outfit === 'skirt' ? palettes.cream : cloth;
+    for (let y = 17; y <= 18; y++) {
+      for (let x = 12; x <= 22; x++) pixels.fill(0, offset(x, y), offset(x, y) + 4);
+      for (let x = 12; x <= 22; x++) if (prior[offset(x, y) + 3]) {
+        const narrowed = Math.round(17 + (x - 17) * .8);
+        pixels.set(prior.subarray(offset(x, y), offset(x, y) + 4), offset(narrowed, y));
       }
     }
-  }
-  if (look.body === 'female') {
-    // A narrower jaw and shoulders keep the same adult height, eyes and boots.
-    const wider = pixels.slice();
-    for (let y = 17; y <= 41; y++) {
-      if (y >= 20 || y < 19) {
-        pixels.fill(0, offset(0, y), offset(0, y + 1));
-        for (let x = 0; x < 32; x++) if (wider[offset(x, y) + 3]) {
-          const narrowed = Math.round(16 + (x - 16) * (y < 20 ? .86 : .87));
-          pixels.set(wider.subarray(offset(x, y), offset(x, y) + 4), offset(narrowed, y));
+    for (let y = 23; y <= 35; y++) {
+      const waist = y >= 28 && y <= 31, hips = y >= 32;
+      const left = facing === 'right' ? hips ? 12 : 13 : waist ? 13 : 11;
+      const right = facing === 'right' ? waist ? 20 : hips ? 22 : y === 24 || y === 25 ? 23 : y === 27 ? 21 : 22 : waist ? 21 : 23;
+      for (let x = 11; x <= 24; x++) {
+        if (inArea(protectedPixels[frameName], x, y)) continue;
+        const i = offset(x, y), r = original[i], g = original[i + 1], b = original[i + 2];
+        const originalCloth = original[i + 3] > 128 && r < 145 && r > g * 1.1 && g >= b;
+        if (x < left || x > right) {
+          if (waist && originalCloth) pixels.fill(0, i, i + 4);
+          continue;
+        }
+        // Retain moving forearms, satchel straps, scarf and the coat's shirt opening.
+        if (prior[i + 3] && !originalCloth && look.outfit !== 'tunic' && look.outfit !== 'dress') continue;
+        if (x === left || x === right || y === 35) paint(pixels, x, y, topCloth[0]);
+        else {
+          const chestFold = facing !== 'up' && y >= 24 && y <= 25;
+          paint(pixels, x, y, topCloth[waist ? 1 : chestFold && x < right - 2 ? 3 : x < left + 3 ? 3 : 2]);
         }
       }
     }
   }
-  if (look.hairStyle !== 'short') {
+  if (look.outfit === 'dress' || look.outfit === 'skirt') {
+    const saved = pixels.slice(), top = look.outfit === 'skirt' ? 31 : 30, hem = look.outfit === 'skirt' ? 40 : 42;
+    const sway = frameName.endsWith('step-left') ? -1 : frameName.endsWith('step-right') ? 1 : 0;
+    for (let y = top; y <= hem; y++) {
+      const spread = Math.floor((y - top) / 4), shift = y >= 36 ? sway : 0;
+      const left = (facing === 'right' ? 12 : 11) - spread + shift, right = 22 + spread + shift;
+      for (let x = left; x <= right; x++) {
+        if (inArea(protectedPixels[frameName], x, y) && saved[offset(x, y) + 3]) continue;
+        paint(pixels, x, y, cloth[y === top || y === hem || x === left || x === right ? 0 : (x - left) % 4 === 1 ? 3 : 2]);
+      }
+    }
+  }
+  if (look.hairStyle === 'cropped' || look.hairStyle === 'swept') {
+    const cropped = look.hairStyle === 'cropped';
+    // Replace the tall original cap with an authored close crop or side-swept crown.
+    // Eye rows remain untouched. All directions use their canonical idle head.
+    for (let y = 0; y < 17; y++) for (let x = 6; x < 28; x++) {
+      const clear = y < 11 || facing === 'up' || facing === 'right' && x < 18 && y < 15;
+      if (clear) pixels.fill(0, offset(x, y), offset(x, y) + 4);
+    }
+    const rows: readonly (readonly [number, number])[] = cropped
+      ? [[13, 20], [11, 22], [10, 23], [10, 23], [10, 23]]
+      : [[18, 20], [14, 22], [11, 23], [10, 24], [10, 24], [10, 23], [10, 23]];
+    const hairRow = (y: number, left: number, right: number) => {
+      for (let x = left; x <= right; x++) paint(pixels, x, y, hair[x === left || x === right ? 0 : x < left + 3 ? 3 : x > right - 3 ? 1 : 2]);
+    };
+    rows.forEach(([left, right], row) => hairRow(row + (cropped ? 6 : 4), left, right));
+    if (facing === 'up') {
+      [[10, 23], [10, 23], [11, 22], [12, 21], [14, 19]].forEach(([left, right], row) => hairRow(row + 11, left, right));
+      for (let x = 15; x <= 18; x++) paint(pixels, x, 16, skin[1]);
+    } else if (facing === 'right') {
+      for (let y = 11; y <= 14; y++) hairRow(y, 10 + (y === 14 ? 1 : 0), 17);
+      if (!cropped) { paint(pixels, 20, 11, hair[2]); paint(pixels, 21, 11, hair[0]); }
+    } else {
+      for (let y = 11; y <= 13; y++) {
+        for (let x = 12; x <= 22; x++) paint(pixels, x, y, skin[x === 12 || x === 22 ? 1 : 2]);
+        paint(pixels, 11, y, hair[0]); paint(pixels, 23, y, hair[0]);
+      }
+      if (!cropped) for (let y = 10; y <= 13; y++) hairRow(y, 11, 21 - (y - 10) * 3);
+    }
+    if (!cropped) for (let y = 6; y <= 9; y++) for (let x = 12 + (9 - y); x <= 20; x++) paint(pixels, x, y, hair[3]);
+  }
+  if (look.hairStyle === 'bob' || look.hairStyle === 'long' || look.hairStyle === 'braid') {
     const strand = (left: number, right: number, top: number, bottom: number) => {
       for (let y = top; y <= bottom; y++) {
         const wide = right - left > 6;

@@ -126,7 +126,7 @@ describe('maps, containers and migration', () => {
   it('travels through the real room door without moving the other resident', async () => {
     const authority = new Authority(household(), async () => {});
     const host = authority.world.hostId, guest = await addGuest(authority);
-    Object.assign(authority.world.players[guest], { x: 685, y: 258 });
+    Object.assign(authority.world.players[guest], { x: 852, y: 440 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'door-out' });
     expect(authority.world.players[guest].map).toBe('living');
     expect(authority.world.players[host].map).toBe('castle');

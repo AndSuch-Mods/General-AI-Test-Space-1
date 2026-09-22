@@ -1,6 +1,6 @@
 # Implementation status
 
-Current local build: 0.1.5. Shared rooms, owned bedrooms, two-person rest, daily journals, original offline audio, personal character choices and synchronized sleepy reactions are implemented. Specification coverage, lint, types, 53 unit tests and the build pass. Browser and deployment evidence is recorded in VALIDATION.md. Physical-device acceptance remains pending. This is still an early playable household slice.
+Current local build: 0.1.6. Directional wall doors, doubled windows, refined silhouettes, skirt/blouse and cropped/swept hair are included. Shared rooms, owned bedrooms, two-person rest, daily journals, original offline audio, personal character choices and synchronized sleepy reactions are implemented. Specification coverage, lint, types, 60 unit tests and the build pass. Browser and deployment evidence is recorded in VALIDATION.md. Physical-device acceptance remains pending. This is still an early playable household slice.
 
 The 0.1.3 correction adds direct A actions, compact bottom sheets, original Web Audio music/SFX, next-06:00 confirmed sleep and host-validated shared furnishing layouts. Forty-five unit tests pass; current browser and deployment outcomes are recorded in VALIDATION.md and Actions.
 

@@ -85,16 +85,26 @@ test('creation choices change the native preview and survive entering and reopen
   await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
   const canvas = page.locator('#resident-preview'); await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
   const pixels = () => canvas.evaluate(el => (el as HTMLCanvasElement).toDataURL());
-  const choices = [['Character', 'female'], ['Hair style', 'long'], ['Hair color', 'copper'], ['Skin tone', 'brown'], ['Outfit', 'dress'], ['Clothing color', 'wine']];
+  await page.getByLabel('Character', { exact: true }).selectOption('female');
+  await expect(page.getByLabel('Hair style')).toHaveValue('long');
+  await expect(page.getByLabel('Outfit', { exact: true })).toHaveValue('skirt');
+  await page.getByLabel('Character', { exact: true }).selectOption('male');
+  await expect(page.getByLabel('Hair style')).toHaveValue('short');
+  await expect(page.getByLabel('Outfit', { exact: true })).toHaveValue('coat');
+  const choices = [['Character', 'female'], ['Hair style', 'swept'], ['Hair color', 'copper'], ['Skin tone', 'brown'], ['Outfit', 'dress'], ['Clothing color', 'wine']];
   for (const [label, value] of choices) {
     const before = await pixels(); await page.getByRole('combobox', { name: label, exact: true }).selectOption(value);
     await expect.poll(pixels).not.toBe(before);
   }
+  await page.getByLabel('Character', { exact: true }).selectOption('male');
+  await expect(page.getByLabel('Hair style')).toHaveValue('swept');
+  await expect(page.getByLabel('Outfit', { exact: true })).toHaveValue('dress');
+  await page.getByLabel('Character', { exact: true }).selectOption('female');
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   const scene = page.locator('#game-canvas');
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v3-wine-female-long-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
   await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
-  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v3-wine-female-long-copper-brown-dress');
+  await expect(scene).toHaveAttribute('data-resident-texture', 'resident-v4-wine-female-swept-copper-brown-dress');
 });
 
 test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {

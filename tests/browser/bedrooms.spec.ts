@@ -5,12 +5,12 @@ test('living room connects private bedrooms; visitors can sleep and read a saved
   test.setTimeout(150000);
   await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
-  await walkTo(page, 'y', 258); await walkTo(page, 'x', 685); await action(page);
+  await walkTo(page, 'y', 454); await walkTo(page, 'x', 852); await action(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
   await inventory(page, 'household'); await expect(page.locator('#arrange-room')).toBeEnabled();
   await page.locator('#arrange-room').click(); await expect(page.locator('[data-furnishing="sofa"]')).toBeVisible();
   await page.locator('#action-b').click();
-  await walkTo(page, 'y', 462); await walkTo(page, 'x', 683); await walkTo(page, 'y', 258); await action(page);
+  await walkTo(page, 'y', 462); await walkTo(page, 'x', 852); await walkTo(page, 'y', 454); await action(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'bedroom-2');
   await inventory(page, 'household'); await expect(page.locator('#arrange-room')).toBeDisabled();
   await page.locator('#action-b').click();

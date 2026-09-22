@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { placeFurniture } from '../content/furnishing';
 import { arrival } from '../content/arrival';
 import { createPlayer, parseWorld, type Player, type World } from './model';
-import { canInteract, canStand, inBedEntry, moveInRoom, objectForAction, roomFlag, roomFlagKey, roomLayout, safePosition, FURNITURE_IDS } from '../content/room';
+import { canInteract, canStand, doorEntry, inBedEntry, moveInRoom, objectForAction, roomFlag, roomFlagKey, roomLayout, safePosition, FURNITURE_IDS } from '../content/room';
 import { advanceWorldClock, gameMinutes, startSleep, wakePlayer } from './time';
 
 export const IntentSchema = z.discriminatedUnion('kind', [
@@ -147,9 +147,11 @@ export class Authority {
         const event = arrival.find(entry => entry.id === intent.target)!;
         const object = objectForAction(event.id, player.map, layout);
         if (!object || !canInteract(player, object, layout)) throw Error('Move closer to interact.');
-        if (event.id === 'door-out') Object.assign(player, player.map === 'living' ? { map: 'landing', x: 480, y: 258, interaction: null } : { map: 'living', x: player.map === 'castle' ? 223 : 683, y: 258, interaction: null });
-        else if (event.id === 'door-home') Object.assign(player, { map: 'living', x: 428, y: 258, interaction: null });
-        else if (event.id === 'door-left' || event.id === 'door-right') Object.assign(player, { map: event.id === 'door-left' ? 'castle' : 'bedroom-2', x: 685, y: 258, interaction: null });
+        if (object.door) {
+          const destination = object.door.to, nextLayout = roomLayout(world, destination);
+          const counterpart = objectForAction(object.door.counterpart, destination, nextLayout);
+          Object.assign(player, safePosition(doorEntry(counterpart), destination, nextLayout), { map: destination, interaction: null });
+        }
         else if (event.id === 'journal') { /* Reading the saved day report grants no reward. */ }
         else if (event.id === 'candle-desk' || event.id === 'candle-table') {
           world.story.flags[roomFlagKey(player.map, event.id)] = !roomFlag(world, player.map, event.id, true);

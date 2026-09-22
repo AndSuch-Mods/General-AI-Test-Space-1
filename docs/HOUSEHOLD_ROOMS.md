@@ -1,11 +1,11 @@
 # The household rooms
 
-Current override: [CHARACTER_CREATION.md](CHARACTER_CREATION.md) defines the 0.1.5 personal appearance choices, occupied-bed reaction, save schema 5 and protocol 6. Earlier version descriptions below are historical.
+Current override: [CHARACTER_CREATION.md](CHARACTER_CREATION.md) defines the 0.1.5 personal appearance choices, occupied-bed reaction, save schema 5 and protocol 7. Earlier version descriptions below are historical.
 
 
 This records the user's September 21 direction and overrides earlier single-room descriptions.
 
-The living room is shared. Its left door enters Player 1's bedroom; its right door enters Player 2's bedroom. Its middle door reaches the existing landing. Internal map ID `castle` stays Player 1's bedroom so older saved positions and furniture remain usable. The other IDs are `living`, `bedroom-2` and `landing`.
+The living room is shared. Its left door enters Player 1's bedroom; its right door enters Player 2's bedroom. Its south (bottom) wall door reaches the landing through the landing’s north (top) wall door. Player 1’s east wall opens into the living room’s west wall; Player 2’s west wall opens into the living room’s east wall. A transition arrives beside the matching doorway, preserving this geography in both directions. Internal map ID `castle` stays Player 1's bedroom so older saved positions and furniture remain usable. The other IDs are `living`, `bedroom-2` and `landing`.
 
 Only a bedroom's owner can rearrange its furniture. The host checks this for every placement command, including commands received from another device. Both residents can arrange the living room. A visitor can use either bedroom's lights, storage, journal and bed. Shared story progress stays shared across all rooms; personal discoveries and welcome rewards remain personal and cannot be farmed by changing bedrooms.
 
@@ -20,3 +20,5 @@ Each bedroom desk has a green daily journal distinct from the sealed letter. A o
 Save schema 4 adds `roomLayouts` for the living room and second bedroom, plus `dayReports`. The existing `layout` remains the first bedroom. Protocol 5 requires both peers to run the same household update. Schema 1, 2 and 3 imports preserve identities, progression and available layouts; new rooms and reports begin empty. The master specification remains unchanged.
 
 Acceptance must include forbidden visitor placement, allowed visitor use, two sleepers without overlapping heads, solo and paired night transitions, independent room switches, saved layout/report reload, offline reopening and actual two-device play. Desktop emulation does not replace the physical device checks.
+
+The September 22 correction uses explicit wall/destination/counterpart descriptors for rendering, interaction, arrivals and furniture clearance. Existing furniture layouts are retained; if legacy furniture occupies a new arrival, the authority chooses the nearest safe standing position. New placements reserve the directional doorway approaches. Windows are now 104 by 160 world pixels (twice both prior dimensions), with frame and animated sky enlarged together. The north wall extends upward to contain them.

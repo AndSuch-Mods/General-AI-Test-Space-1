@@ -26,7 +26,7 @@ describe('shared room arrangement', () => {
   it('rejects occupied floor, the doorway, out-of-room placements and stale competing moves', async () => {
     const world = createWorld(createPlayer('Keeper')), host = new Authority(world, async () => {});
     expect(placementError(world, 'chest', { x: -324, y: -40 })).toMatch(/residents|way/);
-    expect(placementError(world, 'chest', { x: -100, y: -140 })).toMatch(/doorway|way/);
+    expect(placementError(world, 'chest', { x: 0, y: 40 })).toMatch(/doorway|way/);
     expect(placementError(world, 'bed', { x: -200, y: 0 })).toMatch(/inside/);
     await host.dispatch(world.hostId, 1, { kind: 'place', target: 'carpet', x: 8, y: 0, expected: { x: 0, y: 0 } });
     const once = host.world.layout;

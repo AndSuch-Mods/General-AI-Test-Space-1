@@ -2,6 +2,8 @@
 
 Current household revision: shared living room, owned bedrooms, two-person beds, dawn journals, personal character creation and synchronized sleepy reactions. Device acceptance remains open before expanding content. This does not complete later town or story phases.
 
+September 22 review: corrected directional room connections, doubled windows, refined feminine/masculine creation and retained the supplied icon for deployment. This remains household acceptance work, not a content-phase advance.
+
 Current phase: **Phase 1, implementation in progress**.
 
 The 2026-09-21 household correction adds original offline music and material sounds, direct object actions, compact bottom sheets, confirmed next-morning sleep, and shared saved furniture arrangement. Rendering fixes cover the right eye, candle depth and wall-set walnut doors. See docs/ROOM_LAYOUT.md. This does not advance a content phase.

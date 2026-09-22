@@ -20,7 +20,7 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     const x = index % 4 * 80, y = Math.floor(index / 4) * 80;
     props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
     if (frame.name === 'window') for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
-      if (inWindowPane(px, py)) props.context.clearRect(x + px, y + py, 1, 1);
+      if (inWindowPane(Math.floor(px / 2), Math.floor(py / 2))) props.context.clearRect(x + px, y + py, 1, 1);
     }
     props.add(frame.name, 0, x, y, width, height);
     if (frame.name === 'bed') {
@@ -131,6 +131,55 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     wood.add(name, 0, x, 0, 43, 68);
   }
   wood.refresh();
+  // West wall doors show the narrow, recessed side plane. East uses the same pixels mirrored.
+  const sideDoor = scene.textures.createCanvas('wood-door-side', 32, 60)!;
+  const s = sideDoor.context;
+  for (const [index, name] of ['closed', 'open'].entries()) {
+    const x = index * 16;
+    const rect = (px: number, py: number, w: number, h: number, color: string) => { s.fillStyle = color; s.fillRect(x + px, py, w, h); };
+    rect(0, 0, 8, 60, '#241c25');
+    // The stepped top and sill make the wall thickness readable at the native grid.
+    for (let column = 1; column < 16; column++) {
+      const inset = Math.floor(column / 3);
+      rect(column, inset, 1, 60 - inset * 2, column < 4 ? '#694831' : '#3a292b');
+      rect(column, inset + 1, 1, 2, '#9b724b'); rect(column, 57 - inset, 1, 2, '#ad8759');
+    }
+    rect(4, 7, 9, 46, '#17151e');
+    rect(2, 3, 2, 54, '#84603f'); rect(13, 6, 2, 48, '#523b2e');
+    if (name === 'closed') {
+      rect(5, 8, 7, 44, '#68452f'); rect(6, 9, 1, 42, '#8d613c'); rect(11, 9, 1, 42, '#4e342a');
+      for (const y of [12, 33]) { rect(7, y, 4, 16, '#3f2c28'); rect(7, y + 1, 3, 14, '#795035'); }
+      rect(10, 29, 2, 2, '#c29b58');
+    } else {
+      rect(4, 7, 3, 44, '#69432d'); rect(4, 8, 1, 42, '#9b724b'); rect(6, 28, 1, 2, '#c29b58');
+      rect(7, 49, 6, 3, '#39303a');
+    }
+    sideDoor.add(name, 0, x, 0, 16, 60);
+  }
+  sideDoor.refresh();
+  // The south wall is cut away: short jambs flank a floor threshold, not a front elevation.
+  const southDoor = scene.textures.createCanvas('wood-door-south', 86, 18)!;
+  const b = southDoor.context;
+  for (const [index, name] of ['closed', 'open'].entries()) {
+    const x = index * 43;
+    const rect = (px: number, py: number, w: number, h: number, color: string) => { b.fillStyle = color; b.fillRect(x + px, py, w, h); };
+    rect(0, 11, 43, 7, '#241c25'); rect(5, 4, 33, 8, '#4d3730'); rect(5, 12, 33, 6, '#17151e');
+    rect(5, 7, 33, 1, '#674b39'); rect(5, 11, 33, 2, '#ad8759'); rect(5, 13, 33, 1, '#4a342e');
+    for (const px of [0, 37]) {
+      rect(px, 0, 6, 18, '#30232b'); rect(px + 1, 1, 4, 15, '#694831');
+      rect(px + 1, 1, 4, 2, '#ad8759'); rect(px + 1, 4, 1, 12, '#84603f');
+    }
+    if (name === 'closed') {
+      rect(6, 8, 31, 6, '#4e342a'); rect(6, 8, 31, 2, '#9b724b'); rect(6, 10, 31, 2, '#785337');
+      for (let px = 10; px < 36; px += 6) rect(px, 10, 1, 3, '#3f2c28');
+      rect(32, 9, 2, 2, '#c29b58');
+    } else {
+      rect(5, 3, 5, 10, '#69432d'); rect(5, 3, 2, 10, '#9b724b'); rect(8, 4, 2, 9, '#3a2927');
+      rect(8, 5, 1, 2, '#c29b58');
+    }
+    southDoor.add(name, 0, x, 0, 43, 18);
+  }
+  southDoor.refresh();
   // A tiny sleepy huff: stepped cream cloud, plum outline and a brass annoyance mark.
   const huff = scene.textures.createCanvas('resident-reaction', 14, 12)!;
   const h = huff.context;

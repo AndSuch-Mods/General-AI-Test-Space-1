@@ -67,12 +67,12 @@ describe('a shared home with private bedrooms', () => {
   });
   it('connects both bedrooms through the living room and migrates a schema 3 layout intact', async () => {
     const { authority: a, host } = await household();
-    Object.assign(a.world.players[host], { x: 685, y: 258 });
+    Object.assign(a.world.players[host], { x: 852, y: 440 });
     await a.dispatch(host, 1, { kind: 'interact', target: 'door-out' }); expect(a.world.players[host].map).toBe('living');
-    Object.assign(a.world.players[host], { x: 683, y: 258 });
+    Object.assign(a.world.players[host], { x: 852, y: 440 });
     await a.dispatch(host, 2, { kind: 'interact', target: 'door-right' }); expect(a.world.players[host].map).toBe('bedroom-2');
     await a.dispatch(host, 3, { kind: 'interact', target: 'door-out' }); expect(a.world.players[host].map).toBe('living');
-    Object.assign(a.world.players[host], { x: 428, y: 258 });
+    Object.assign(a.world.players[host], { x: 480, y: 450 });
     await a.dispatch(host, 4, { kind: 'interact', target: 'door-out' }); expect(a.world.players[host].map).toBe('landing');
     await a.dispatch(host, 5, { kind: 'interact', target: 'door-home' }); expect(a.world.players[host].map).toBe('living');
     const old = createWorld(createPlayer('Old save')); old.layout.carpet = { x: 8, y: 16 };

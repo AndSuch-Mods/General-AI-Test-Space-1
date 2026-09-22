@@ -106,14 +106,14 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       for (const item of this.roomDisplay) item.destroy();
       const previous = new Set(this.children.list);
       this.furnishings = []; this.candleFlames.clear(); presentation.clear();
-      this.add.rectangle(64, 58, 832, 444, 0x17151f).setOrigin(0).setDepth(-100);
+      this.add.rectangle(64, 22, 832, 480, 0x17151f).setOrigin(0).setDepth(-100);
       this.add.tileSprite(80, 210, 800, 266, 'materials-native', 'floor').setOrigin(0).setTileScale(2).setDepth(-99);
-      this.add.tileSprite(80, 74, 800, 136, 'materials-native', 'wall').setOrigin(0).setTileScale(2).setDepth(-98);
+      this.add.tileSprite(80, 30, 800, 180, 'materials-native', 'wall').setOrigin(0).setTileScale(2).setDepth(-98);
       const trim = this.add.graphics().setDepth(-97);
-      trim.fillStyle(0x1e1924); trim.fillRect(76, 68, 808, 8); trim.fillRect(76, 204, 808, 8);
-      trim.fillStyle(0x67483c); trim.fillRect(80, 75, 800, 3); trim.fillRect(80, 203, 800, 2);
-      trim.fillStyle(0x37262b); trim.fillRect(64, 70, 16, 418); trim.fillRect(880, 70, 16, 418); trim.fillRect(64, 476, 832, 14);
-      trim.fillStyle(0x87624b); trim.fillRect(78, 76, 2, 401); trim.fillRect(880, 76, 2, 401); trim.fillRect(80, 476, 800, 2);
+      trim.fillStyle(0x1e1924); trim.fillRect(76, 24, 808, 8); trim.fillRect(76, 204, 808, 8);
+      trim.fillStyle(0x67483c); trim.fillRect(80, 31, 800, 3); trim.fillRect(80, 203, 800, 2);
+      trim.fillStyle(0x37262b); trim.fillRect(64, 26, 16, 462); trim.fillRect(880, 26, 16, 462); trim.fillRect(64, 476, 832, 14);
+      trim.fillStyle(0x87624b); trim.fillRect(78, 32, 2, 445); trim.fillRect(880, 32, 2, 445); trim.fillRect(80, 476, 800, 2);
       // A woven floor layer remains walkable, distinct from the furniture above it.
       if (getRoomObjects(this.roomMap, this.layout).some(object => object.id === 'carpet')) {
       const rugOffset = objectOffset('carpet', this.layout);
@@ -156,8 +156,10 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         } else if (object.id.startsWith('window')) {
           image('__BASE', 'window-sky-native'); image('window').setDepth(object.depth + .1);
         } else if (object.id.startsWith('door')) {
-          const base = image('closed', 'wood-door');
-          const open = image('open', 'wood-door').setAlpha(0).setDepth(object.depth + .1);
+          const wall = object.door?.wall ?? 'north';
+          const texture = wall === 'south' ? 'wood-door-south' : wall === 'west' || wall === 'east' ? 'wood-door-side' : 'wood-door';
+          const base = image('closed', texture).setFlipX(wall === 'east');
+          const open = image('open', texture).setFlipX(wall === 'east').setAlpha(0).setDepth(object.depth + .1);
           this.furnishings.push({ object, base, parts: [open], amount: 0, shade: this.add.graphics().setDepth(object.depth + .05) });
         } else if (object.id === 'landing-stairs') image('stairs', 'doors-native');
         else if (object.id === 'chest') {
@@ -185,6 +187,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         outline.strokeRect(object.bounds.x - 2, object.bounds.y - 2, object.bounds.width + 4, object.bounds.height + 4);
       }
       this.roomDisplay = this.children.list.filter(item => !previous.has(item));
+      telemetry('doorways', JSON.stringify(getRoomObjects(this.roomMap, this.layout).filter(object => object.door).map(object => ({ id: object.id, wall: object.door!.wall, to: object.door!.to, bounds: object.bounds }))));
       this.effectFrame = -1;
     }
     private animateFurnishings(current: ReturnType<typeof state>, delta: number) {
@@ -241,7 +244,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           }
         }
       };
-      for (const window of getRoomObjects(this.roomMap, this.layout).filter(object => object.id.startsWith('window'))) pool(window.bounds.x + 26, 243, 145, daylight(world.clock.totalMinutes) > .5 ? 0xb5c4ba : 0x859ccb, .022);
+      for (const window of getRoomObjects(this.roomMap, this.layout).filter(object => object.id.startsWith('window'))) pool(window.bounds.x + window.bounds.width / 2, 243, 145, daylight(world.clock.totalMinutes) > .5 ? 0xb5c4ba : 0x859ccb, .022);
       if (hearth && hearthLit) pool(hearth.bounds.x + 56, hearth.bounds.y + 128, 202, 0xf1a147, .028);
       const candles = getRoomObjects(this.roomMap, this.layout).filter(object => object.id.startsWith('candle-'));
       for (const [index, candle] of candles.entries()) {

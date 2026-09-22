@@ -9,15 +9,15 @@ const rgb = (color: number[]) => `rgb(${color.join(',')})`;
 export class RoomWindowSky {
   private texture: Phaser.Textures.CanvasTexture;
   private key = '';
-  constructor(scene: Phaser.Scene) { this.texture = scene.textures.createCanvas('window-sky-native', 26, 40)!; }
+  constructor(scene: Phaser.Scene) { this.texture = scene.textures.createCanvas('window-sky-native', 52, 80)!; }
   update(world: World, reducedMotion: boolean) {
     const minute = world.clock.totalMinutes, light = daylight(minute), variant = nightVariant(world);
     const phase = reducedMotion ? 0 : Math.floor(minute / 2);
     const key = `${Math.floor(minute)}:${variant}:${world.weather}:${phase}`;
     if (key === this.key) return;
     this.key = key;
-    const context = this.texture.context; context.clearRect(0, 0, 26, 40);
-    const pixel = (x: number, y: number, color: string) => { if (inWindowPane(x, y)) { context.fillStyle = color; context.fillRect(x, y, 1, 1); } };
+    const context = this.texture.context; context.clearRect(0, 0, 52, 80);
+    const pixel = (x: number, y: number, color: string) => { if (inWindowPane(x, y)) { context.fillStyle = color; context.fillRect(x * 2, y * 2, 2, 2); } };
     const skyTop = mix([28, 33, 62], [144, 165, 176], light), skyBottom = mix([53, 54, 78], [171, 182, 179], light);
     for (let y = 8; y < 35; y++) for (let x = 8; x < 20; x++) pixel(x, y, rgb(mix(skyTop, skyBottom, (y - 8) / 27)));
     if (light < .45) {

@@ -41,3 +41,7 @@ Before closing any major content phase, record dead zones, weeks without authore
 ## 2026-09-21 household correction
 
 Added one original eight-bar musical composition with alternate ending, room/night treatment and eleven material/action sound cues. All audio is local synthesis, with no third-party samples. Added code-drawn walnut doors and a shared native eye correction. The existing room now supports meaningful direct use and persistent furniture arrangement. No NPCs, locations, recipes or story chapters were added or counted. This is interaction work, not a content-density milestone. The prior emptiness audit remains open for the later game loop.
+
+## September 22 household corrections
+
+Original code-drawn recessed walnut side doorways and a cutaway south threshold replace incorrectly placed front-facing doors. Existing original window artwork is doubled along with its clock-driven sky; no new borrowed assets. Original resident sprite transformations add a clothed feminine torso, skirt/blouse, cropped and swept hair while retaining consistent walking heads. The user-supplied castle icon remains at docs/art/home-icon-source.png, with sizes/provenance in ART_HOME_ICON.md. These are presentation/access corrections; no new quests or content counts, and no content phase or emptiness-audit gate is claimed complete.

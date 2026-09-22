@@ -1,4 +1,11 @@
-# Validation record
+# Validation
+
+## 0.1.6, September 22 room and resident corrections
+
+- Previous icon commit `2d6174d` did not deploy: Chromium initial pairing timed out in run `35650751360`; macOS WebKit passed. The live site was still `7e01239`. This was a blocked deployment, not evidence of an iOS icon-cache defect.
+- A local Chromium probe confirmed normal candidates use `.local` names and `--disable-features=WebRtcHideLocalIpsWithMdns` switches to numeric host addresses. Linux CI uses that test-only flag, keeping real DataChannels, offline-origin shutdown, reconnect and all assertions. Virtual-runner mDNS is a suspected cause, not a proven diagnosis of every timeout. Production browser behavior and macOS WebKit remain unchanged. Chromium documents the feature in its [local-IP policy](https://chromium.googlesource.com/chromium/src/+/376fc41e87a058f7a7b300b0ec3a4982b4ec0960/components/policy/resources/templates/policy_definitions/Miscellaneous/WebRtcLocalIpsAllowedUrls.yaml).
+- New unit checks cover every doorway round trip, opposite-wall geography, safe arrival with legacy furniture, directional arrangement clearance and doubled window geometry. Browser routes use actual updated doors. Creation checks cover initial presets, preserving manual choices and saved new styles. Physical two-iPhone acceptance remains open.
+ record
 
 ## 0.1.5 character and bed checkpoint
 
@@ -66,3 +73,5 @@ The follow-up at `328232d0c4a1061b4f3be8a35ec99073e1c36b8f` passed all seven Chr
 The peer test now shuts down its actual HTTP server after joining, then exercises personal discoveries, shared changes, dropout and re-pairing. It checks server unavailability with a failed external fetch. This avoids browser offline emulation, which also disrupted fresh Chromium peer connections in a local experiment. The stronger test passed locally in Chromium in 12.2 seconds. Checkpoint `bfb4bb9c758a4efcaa56dbb1db8f26003de68892` passed all 14 browser scenarios and all 15 unit tests in [CI run 35370441518](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions/runs/35370441518), including offline peer reconnect in both engines. It does not emulate two physical phones or prove all routers support local peers.
 
 Physical two-iPhone installation, camera/QR, network reachability, suspension, reconnect and offline local-network tests remain open in DEVICE_TESTS.md. Passing desktop automation does not prove these device gates.
+
+0.1.6 local checkpoint: specification coverage, lint, types, 60 unit tests and production build pass. The offline package contains 21 files (14,823,129 bytes), version b07e49542b019ec6. All three icon PNG dimensions and cache hashes match, and the archived source is byte-identical to the supplied image. Creation presets, persistent revised appearance, compact controls and adult render checks pass in Chromium. Full browser results remain recorded by the commit-specific Actions runs; physical iPhone checks remain pending. Reviewed the enlarged frame/sky and walnut doorway art in local rendered scenes. The initial door traversal check exposed chest selection near a doorway; the corrected jamb collision and arrival offset now pass the bedroom route, and unit tests assert the counterpart door is the nearest action on arrival.

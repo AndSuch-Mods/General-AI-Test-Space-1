@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- Put the living-room bedroom doors in the left and right walls, and its landing exit in the bottom wall. Every connected room now returns through the opposite wall, with matching walnut doorway art and protected approaches.
+- Doubled window width and height, retaining animated mist, daylight and night skies.
+- Refined feminine clothing/body contours, added a skirt/blouse plus cropped and swept hair, and provided initial feminine/masculine choices without overriding manual selections.
+- Retained the supplied castle home-screen icon. Its previous commit did not deploy because the Chromium co-op check failed. This release keeps both deployment test gates.
+- Linux CI Chromium uses numeric local ICE candidates to avoid dependence on virtual-runner mDNS; production pairing and macOS WebKit discovery are unchanged. Protocol 7 prevents mixed room rules between peers; save schema 5 is preserved.
+
 ## 0.1.5
 
 - Replaced the home-screen icon with the user's supplied moonlit castle artwork, including iOS and manifest sizes in the offline package.

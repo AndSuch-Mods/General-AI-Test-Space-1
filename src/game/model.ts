@@ -3,8 +3,8 @@ import { BODY_OPTIONS, DEFAULT_LOOK, HAIR_COLOR_OPTIONS, HAIR_STYLE_OPTIONS, OUT
 import { FURNITURE_IDS, getRoomObjects, isBedroom, objectColliders, type RoomMap } from '../content/room';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.5';
-export const PROTOCOL_VERSION = 6;
+export const BUILD_VERSION = '0.1.6';
+export const PROTOCOL_VERSION = 7;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);

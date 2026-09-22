@@ -9,6 +9,7 @@ export type RoomLayout = Partial<Record<FurnitureId, { x: number; y: number }>>;
 export type RoomObject = {
   id: string; label: string; bounds: Rect; collision?: Rect; collisions?: readonly Rect[]; anchor: Position;
   depth: number; actions: readonly ArrivalId[];
+  door?: { wall: 'north' | 'south' | 'west' | 'east'; to: RoomMap; counterpart: ArrivalId };
 };
 export const ROOM_SIZE = { width: 960, height: 540 };
 export const WALK_AREA: Rect = { x: 80, y: 210, width: 800, height: 266 };
@@ -17,6 +18,26 @@ export const PLAYER_FOOT = { halfWidth: 12, height: 10 };
 export const BED_ENTRY: Rect = { x: 106, y: 288, width: 148, height: 28 };
 export const BED_REST = { x: 180, y: 334 };
 export const BED_EXIT = { x: 270, y: 300 };
+
+function wallDoor(id: ArrivalId, label: string, wall: NonNullable<RoomObject['door']>['wall'], to: RoomMap, counterpart: ArrivalId): RoomObject {
+  const bounds = wall === 'north' ? { x: 437, y: 76, width: 86, height: 136 } : wall === 'south' ? { x: 437, y: 454, width: 86, height: 36 }
+    : { x: wall === 'west' ? 64 : 864, y: 356, width: 32, height: 120 };
+  const anchor = wall === 'north' ? { x: 480, y: 230 } : wall === 'south' ? { x: 480, y: 450 } : { x: wall === 'west' ? 108 : 852, y: 440 };
+  // The threshold is in the boundary wall. Side jambs extend one step into the floor, matching their rendered footprint.
+  const collision = wall === 'north' ? { x: 437, y: 210, width: 86, height: 6 } : wall === 'south' ? { x: 437, y: 476, width: 86, height: 14 }
+    : { x: wall === 'west' ? 64 : 864, y: 398, width: 32, height: 78 };
+  return { id, label, bounds, anchor, collision, depth: wall === 'north' ? 216 : wall === 'south' ? 490 : 476, actions: [id], door: { wall, to, counterpart } };
+}
+export function doorEntry(door: RoomObject): Position {
+  const direction = { north: [0, 28], south: [0, -20], west: [24, 14], east: [-24, 14] }[door.door!.wall];
+  return { x: door.anchor.x + direction[0], y: door.anchor.y + direction[1] };
+}
+export function doorClearance(door: RoomObject): Rect {
+  return door.door?.wall === 'west' ? { x: 80, y: 414, width: 110, height: 62 }
+    : door.door?.wall === 'east' ? { x: 770, y: 414, width: 110, height: 62 }
+    : door.door?.wall === 'south' ? { x: 440, y: 406, width: 80, height: 70 }
+    : { x: door.anchor.x - 28, y: 216, width: 56, height: 84 };
+}
 
 // Rendering, host collision and interaction reach all share these authored objects.
 // The lower footprint is solid; tall backs may correctly occlude a resident behind them.
@@ -34,22 +55,21 @@ export const roomObjects: readonly RoomObject[] = [
   { id: 'bookshelf', label: 'Old bookshelf', bounds: { x: 82, y: 120, width: 100, height: 104 }, collision: { x: 82, y: 202, width: 100, height: 22 }, anchor: { x: 132, y: 232 }, depth: 224, actions: ['bookshelf'] },
   { id: 'plant', label: 'Moonfern', bounds: { x: 836, y: 290, width: 40, height: 62 }, collision: { x: 836, y: 328, width: 40, height: 24 }, anchor: { x: 824, y: 347 }, depth: 352, actions: [] },
   { id: 'side-table', label: 'Bedside table', bounds: { x: 240, y: 390, width: 60, height: 48 }, collision: { x: 240, y: 414, width: 60, height: 24 }, anchor: { x: 272, y: 446 }, depth: 438, actions: [] },
-  { id: 'window-west', label: 'West window', bounds: { x: 244, y: 122, width: 52, height: 80 }, anchor: { x: 270, y: 218 }, depth: 202, actions: ['window-west'] },
-  { id: 'window-east', label: 'East window', bounds: { x: 430, y: 122, width: 52, height: 80 }, anchor: { x: 456, y: 220 }, depth: 202, actions: ['window-east'] },
-  { id: 'door-out', label: 'Living room', bounds: { x: 642, y: 76, width: 86, height: 136 }, collision: { x: 642, y: 210, width: 86, height: 6 }, anchor: { x: 685, y: 230 }, depth: 216, actions: ['door-out'] },
+  { id: 'window-west', label: 'West window', bounds: { x: 218, y: 42, width: 104, height: 160 }, anchor: { x: 270, y: 218 }, depth: 202, actions: ['window-west'] },
+  { id: 'window-east', label: 'East window', bounds: { x: 380, y: 42, width: 104, height: 160 }, anchor: { x: 432, y: 220 }, depth: 202, actions: ['window-east'] },
+  wallDoor('door-out', 'Living room', 'east', 'living', 'door-left'),
 ];
-const wallDoor = (id: 'door-left' | 'door-right' | 'door-out', label: string, x: number): RoomObject => ({ id, label, bounds: { x, y: 76, width: 86, height: 136 }, collision: { x, y: 210, width: 86, height: 6 }, anchor: { x: x + 43, y: 230 }, depth: 216, actions: [id] });
 export const livingObjects: readonly RoomObject[] = [
   ...roomObjects.filter(o => ['bookshelf', 'pantry', 'chest', 'plant', 'side-table', 'candle-table', 'carpet', 'hearth'].includes(o.id)),
-  { id: 'window-west', label: 'Living room window', bounds: { x: 286, y: 122, width: 52, height: 80 }, anchor: { x: 312, y: 220 }, depth: 202, actions: ['window-west'] },
+  { id: 'window-west', label: 'Living room window', bounds: { x: 260, y: 42, width: 104, height: 160 }, anchor: { x: 312, y: 220 }, depth: 202, actions: ['window-west'] },
   { id: 'sofa', label: 'Plum sofa', bounds: { x: 330, y: 270, width: 146, height: 88 }, collision: { x: 330, y: 314, width: 146, height: 44 }, anchor: { x: 403, y: 370 }, depth: 358, actions: [] },
   { id: 'armchair', label: 'Reading chair', bounds: { x: 572, y: 372, width: 66, height: 70 }, collision: { x: 572, y: 408, width: 66, height: 34 }, anchor: { x: 560, y: 444 }, depth: 442, actions: [] },
-  wallDoor('door-left', 'Player 1 bedroom', 180), wallDoor('door-right', 'Player 2 bedroom', 640), wallDoor('door-out', 'Castle landing', 385),
+  wallDoor('door-left', 'Player 1 bedroom', 'west', 'castle', 'door-out'), wallDoor('door-right', 'Player 2 bedroom', 'east', 'bedroom-2', 'door-out'), wallDoor('door-out', 'Castle landing', 'south', 'landing', 'door-home'),
 ];
 export const landingObjects: readonly RoomObject[] = [
-  { id: 'door-home', label: 'Living room', bounds: { x: 437, y: 76, width: 86, height: 136 }, collision: { x: 437, y: 210, width: 86, height: 6 }, anchor: { x: 480, y: 230 }, depth: 216, actions: ['door-home'] },
-  { id: 'window-west', label: 'West window', bounds: { x: 244, y: 122, width: 52, height: 80 }, anchor: { x: 270, y: 220 }, depth: 202, actions: ['window-west'] },
-  { id: 'window-east', label: 'East window', bounds: { x: 654, y: 122, width: 52, height: 80 }, anchor: { x: 680, y: 220 }, depth: 202, actions: ['window-east'] },
+  wallDoor('door-home', 'Living room', 'north', 'living', 'door-out'),
+  { id: 'window-west', label: 'West window', bounds: { x: 218, y: 42, width: 104, height: 160 }, anchor: { x: 270, y: 220 }, depth: 202, actions: ['window-west'] },
+  { id: 'window-east', label: 'East window', bounds: { x: 628, y: 42, width: 104, height: 160 }, anchor: { x: 680, y: 220 }, depth: 202, actions: ['window-east'] },
   { id: 'landing-stairs', label: 'Old west stair', bounds: { x: 740, y: 340, width: 120, height: 108 }, collision: { x: 740, y: 356, width: 120, height: 92 }, anchor: { x: 800, y: 456 }, depth: 448, actions: ['landing-stairs'] },
 ];
 export function objectOffset(id: string, layout: RoomLayout = {}): Position {
@@ -58,7 +78,8 @@ export function objectOffset(id: string, layout: RoomLayout = {}): Position {
 }
 export function getRoomObjects(map: RoomMap = 'castle', layout: RoomLayout = {}): readonly RoomObject[] {
   if (map === 'landing') return landingObjects;
-  const objects = (map === 'living' ? livingObjects : roomObjects).map(object => {
+  const objects = (map === 'living' ? livingObjects : roomObjects).map(original => {
+    const object = map === 'bedroom-2' && original.id === 'door-out' ? wallDoor('door-out', 'Living room', 'west', 'living', 'door-right') : original;
     const delta = objectOffset(object.id, layout);
     if (!delta.x && !delta.y) return object;
     const shifted = <T extends Position>(p: T): T => ({ ...p, x: p.x + delta.x, y: p.y + delta.y });

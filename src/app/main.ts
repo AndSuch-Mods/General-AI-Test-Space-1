@@ -179,7 +179,15 @@ async function prepareResidentPreview(panel: HTMLDialogElement) {
   preview.setAppearance(select.value as Player['appearance']);
   preview.setLook(readCharacterLook(panel));
   select.addEventListener('change', () => preview.setAppearance(select.value as Player['appearance']));
-  panel.querySelectorAll('select[data-look]').forEach(field => field.addEventListener('change', () => preview.setLook(readCharacterLook(panel))));
+  const chosen = new Set<string>();
+  panel.querySelectorAll<HTMLSelectElement>('select[data-look]').forEach(field => field.addEventListener('change', () => {
+    const key = field.dataset.look!;
+    if (key === 'body') {
+      const preset = field.value === 'female' ? { hairStyle: 'long', outfit: 'skirt' } : { hairStyle: 'short', outfit: 'coat' };
+      for (const [name, value] of Object.entries(preset)) if (!chosen.has(name)) panel.querySelector<HTMLSelectElement>(`select[data-look="${name}"]`)!.value = value;
+    } else chosen.add(key);
+    preview.setLook(readCharacterLook(panel));
+  }));
   const previousCleanup = modalCleanup;
   modalCleanup = () => { previousCleanup?.(); preview.destroy(); };
 }

@@ -1,5 +1,5 @@
 import type { World } from '../game/model';
-import { canArrangeRoom, canStand, footBounds, getRoomObjects, objectColliders, objectOffset, roomLayout, WALK_AREA, type FurnitureId, type RoomLayout, type RoomMap, type Position, type Rect } from './room';
+import { canArrangeRoom, canStand, doorClearance, doorEntry, footBounds, getRoomObjects, objectColliders, objectOffset, roomLayout, WALK_AREA, type FurnitureId, type RoomLayout, type RoomMap, type Position, type Rect } from './room';
 
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 export function placementError(world: World, id: FurnitureId, offset: Position, map: RoomMap = 'castle'): string | null {
@@ -19,11 +19,11 @@ export function placementError(world: World, id: FurnitureId, offset: Position, 
   // Reserve a clear threshold, including its approach, rather than allowing furniture
   // to lock either resident outside their saved home.
   const doors = objects.filter(o => o.id.startsWith('door-'));
-  if (solids.some(r => doors.some(door => overlaps(r, { x: door.anchor.x - 28, y: 216, width: 56, height: 84 })))) return 'Keep the doorway clear.';
+  if (solids.some(r => doors.some(door => overlaps(r, doorClearance(door))))) return 'Keep the doorway clear.';
   if (!solids.length) return null;
   // Flood the walkable floor from the doorway. Check residents and each useful object
   // has an approach, so arranging cannot create a sealed-off pocket or inaccessible bed.
-  const seen = new Set<string>(), queue: Position[] = [{ x: doors[0]?.anchor.x ?? 685, y: 258 }];
+  const seen = new Set<string>(), queue: Position[] = [doors[0] ? doorEntry(doors[0]) : { x: 480, y: 364 }];
   for (let i = 0; i < queue.length; i++) {
     const p = queue[i], key = `${p.x},${p.y}`;
     if (seen.has(key) || !canStand(p, map, layout)) continue;
