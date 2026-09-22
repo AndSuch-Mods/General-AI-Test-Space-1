@@ -1,3 +1,4 @@
+import { clampPlacement, ROOM_MAPS, ROTATABLE_FURNITURE } from '../src/content/room';
 import { describe, expect, it, vi } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld, type World } from '../src/game/model';
@@ -236,4 +237,17 @@ describe('schema 5 household migration', () => {
     expect(migrated.worldId).toBe(world.worldId); expect(migrated.guestKey).toBe(world.guestKey);
     expect(parseWorld(JSON.parse(JSON.stringify(migrated)))).toEqual(migrated);
   });
+});
+
+
+it('clamps every rotated furnishing inside the wall even with half-pixel ground bounds', () => {
+  for (const map of ROOM_MAPS) for (const id of ROTATABLE_FURNITURE) {
+    if (!getRoomObjects(map).some(o => o.id === id)) continue;
+    for (const rotation of [0, 1, 2, 3] as const) for (const x of [-900, 900]) for (const y of [-600, 600]) {
+      const placement = clampPlacement(map, id, { x, y, rotation }, {}), object = getRoomObjects(map, { [id]: placement }).find(o => o.id === id)!;
+      expect(Number.isInteger(placement.x) && Number.isInteger(placement.y)).toBe(true);
+      expect(object.bounds.x).toBeGreaterThanOrEqual(80); expect(object.bounds.x + object.bounds.width).toBeLessThanOrEqual(880);
+      expect(object.bounds.y).toBeGreaterThanOrEqual(74); expect(object.bounds.y + object.bounds.height).toBeLessThanOrEqual(476);
+    }
+  }
 });

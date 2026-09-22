@@ -249,5 +249,9 @@ export function seatPosition(object: RoomObject, index = 0): Position {
 export function clampPlacement(map: RoomMap, id: FurnitureId, value: Placement, layout: RoomLayout): Placement {
   const object = getRoomObjects(map, { ...layout, [id]: value }).find(o => o.id === id)!;
   const b = object.bounds, floor = object.floor ?? b, minimumY = id === 'carpet' ? 210 : id.startsWith('candle-') ? 74 : 202;
-  return { ...value, x: Math.round(value.x + Math.max(0, 80 - b.x) - Math.max(0, b.x + b.width - 880)), y: Math.round(value.y + Math.max(0, minimumY - floor.y, 74 - b.y) - Math.max(0, b.y + b.height - 476)) };
+  // Quarter turns can produce half-pixel bounds for odd-width pieces. Clamp the
+  // integer offset inward, so rounding never pushes a preview outside the wall.
+  const minX = Math.ceil(value.x + 80 - b.x), maxX = Math.floor(value.x + 880 - b.x - b.width);
+  const minY = Math.ceil(value.y + Math.max(minimumY - floor.y, 74 - b.y)), maxY = Math.floor(value.y + 476 - b.y - b.height);
+  return { ...value, x: Math.max(minX, Math.min(maxX, Math.round(value.x))), y: Math.max(minY, Math.min(maxY, Math.round(value.y))) };
 }
