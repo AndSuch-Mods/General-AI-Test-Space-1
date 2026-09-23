@@ -1,6 +1,6 @@
 # Roadmap
 
-0.1.9 is a focused main-menu revision using the user-supplied castle/ghost artwork. Complete touch layout, two-slot safety, host/join, settings/backups, update and offline checks before publication. No game-content phase advances. See `docs/MAIN_MENU.md`.
+0.1.9 implements the main menu using the user-supplied castle/ghost artwork. Touch layout, menu navigation, host/join, settings/backups and the existing gameplay/offline suites pass on Chromium and macOS WebKit at `c3c04eb`. During buildout, omit extra save-preservation and migration work as requested by the user. No game-content phase advances. See `docs/MAIN_MENU.md` and `docs/VALIDATION.md`.
 
 Previous milestone: **0.1.8 household polish**. Correct turned proportions, stationary wall-aligned doors, visible pane motion, accurate A targeting, A-only bed prompts, a hotbar with return leeway and quieter fire. Preserve prior saves and run the combined solo/co-op/offline checks. This remains household acceptance; no content phase advances.
 

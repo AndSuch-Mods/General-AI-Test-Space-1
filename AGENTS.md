@@ -1,5 +1,7 @@
 # Haunted Chocolatier: Twilight
 
+During active buildout, prioritize the requested game and UI changes over development-save compatibility. The user accepts save resets and overwrites. Do not add migrations or run extra save-preservation exercises solely to retain development progress. This overrides the older preservation requirements below for buildout; unrelated files and repositories remain outside scope.
+
 Read `docs/MAIN_MENU.md` before title/menu work. The user-supplied castle/ghost image defines the current main menu, with Continue, New Game, Co-Op, Settings and Credits. Preserve the image and use real accessible touch controls; never overwrite a save through New Game.
 
 Build the long-term original iPhone-first, landscape, offline PWA described by this project's master specification. Single-player and two-player same-room co-op share one architecture. Do not call a shell, prototype, or collection of placeholders the finished game.
