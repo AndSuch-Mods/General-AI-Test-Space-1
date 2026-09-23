@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { newWorld } from './navigation';
 import { action, position, throughDoor, walkTo } from './controls';
 
 test('nearby A targeting and hotbar clearance remain accurate through room movement', async ({ page }) => {
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   await walkTo(page, 'y', 350); await walkTo(page, 'x', 280); await walkTo(page, 'y', 220);
   await action(page); await expect(page.locator('dialog[open]')).toHaveCount(0);

@@ -1,5 +1,7 @@
 # Household rework, September 22
 
+Latest title override: `MAIN_MENU.md` defines the user-supplied castle/ghost menu for 0.1.9. It replaces the earlier room-material main menu; all household gameplay and art requirements below still apply.
+
 This user-directed revision overrides earlier room, menu and appearance notes. The master remains intact. Read this document before changing these systems.
 
 ## Current polish override, 0.1.8

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { newWorld } from './navigation';
 
 // Route the initial module request itself, without an installed worker serving it.
 test.use({ serviceWorkers: 'block' });
@@ -15,7 +16,7 @@ test('character presets work before preview loading and preserve manual choices 
   try {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/?renderer=canvas');
-    await page.locator('#solo').click();
+    await newWorld(page);
     await expect.poll(() => requested).toBe(true);
     const preview = page.locator('#resident-preview');
     await expect(preview).not.toHaveAttribute('data-frame');

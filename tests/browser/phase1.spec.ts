@@ -1,10 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { newWorld, continueWorld, joinCoop, backups, worldSlots } from './navigation';
 import { offlineServer } from './offline-server';
 import { walk, walkTo, inventory, action, dragFurniture } from './controls';
 import { installRtcDiagnostics, reportRtcDiagnostics } from './rtc-diagnostics';
 
-async function create(page: Page, name = 'Ada') {
-  await page.getByRole('button', { name: /^Single Player/ }).click();
+async function create(page: Page, name = 'Ada', slot: 1 | 2 = 1) {
+  await newWorld(page, slot);
   await page.getByLabel('Your name', { exact: true }).fill(name);
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await expect(page.locator('#resident-label')).toContainText(name);
@@ -14,7 +15,9 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/?renderer=canvas');
   await expect(page.getByRole('heading', { name: /Haunted Chocolatier/ })).toBeVisible();
+  await worldSlots(page, 'new');
   await expect(page.getByRole('button', { name: /World Save Slot/ })).toHaveCount(2);
+  await page.locator('#close-dialog').click();
   await create(page);
   await walkTo(page, 'y', 294); await walkTo(page, 'x', 790); await walkTo(page, 'y', 266);
   await action(page);
@@ -24,17 +27,17 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   await expect(page.getByRole('button', { name: 'Cacao bean, 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('button', { name: 'Save and return to title' }).click();
-  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
+  await expect(page.locator('#continue')).toBeVisible();
+  await expect(page.locator('#continue')).toBeEnabled();
   await page.reload();
-  await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await continueWorld(page);
   await inventory(page);
   await expect(page.getByRole('button', { name: 'Cacao bean, 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.getByRole('button', { name: 'Save and return to title' }).click();
-  await page.getByRole('button', { name: /World Save Slot 2/ }).click();
-  await create(page, 'Bryn');
+  await create(page, 'Bryn', 2);
   await page.getByRole('button', { name: 'Save and return to title' }).click();
-  await page.getByRole('button', { name: 'Backups', exact: true }).click();
+  await backups(page);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export both saves' }).click();
   expect((await download).suggestedFilename()).toBe('twilight-worlds.json');
@@ -54,7 +57,7 @@ test('offline package survives a cold page and permits save/load without its ori
   const coldPage = await context.newPage();
   await coldPage.goto(server.url + '/?renderer=canvas');
   await expect(coldPage.locator('#offline-label')).toHaveText('Ready for offline play');
-  await coldPage.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await continueWorld(coldPage);
   await expect(coldPage.locator('#game-canvas canvas')).toBeVisible();
   await inventory(coldPage, 'journal');
   await expect(coldPage.getByText('The first page is waiting.')).toBeVisible();
@@ -80,7 +83,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
     try { await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 }); }
     catch (error) { console.log('Host pairing error:', await host.locator('#toast').textContent()); await reportRtcDiagnostics([host, guest], 'offer failure', true); throw error; }
     const offer = await host.locator('#pair-output').inputValue();
-    await guest.getByRole('button', { name: 'Join Co-op', exact: true }).click();
+    await joinCoop(guest);
     await guest.locator('#pair-input').fill(offer);
     await guest.getByRole('button', { name: 'Create answer' }).click();
     await expect(guest.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 });

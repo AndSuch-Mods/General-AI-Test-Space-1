@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { newWorld, continueWorld } from './navigation';
 import { inventory, position } from './controls';
 import { dragFurniture, furnitureCenter, roomPoint } from './layout-controls';
 
 test('portrait guard covers creation and preserves its choices', async ({ page }) => {
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   await page.locator('#player-name').fill('Mira');
   await page.locator('#appearance').selectOption('violet');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -29,7 +30,7 @@ test('portrait guard covers creation and preserves its choices', async ({ page }
 });
 
 test('room drafting clamps, rejects invalid drops, rotates valid pieces, and cancels without saving', async ({ page }) => {
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   await inventory(page, 'household'); await page.locator('#arrange-room').click();
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-arranging', 'room');
@@ -55,6 +56,6 @@ test('room drafting clamps, rejects invalid drops, rotates valid pieces, and can
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-layout', saved!);
   await page.locator('#save-layout').click(); await expect(page.locator('#arrange-bar')).toHaveCount(0);
   await expect.poll(async () => JSON.parse((await page.locator('#game-canvas').getAttribute('data-layout'))!).carpet?.rotation).toBe(1);
-  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click(); await position(page);
+  await page.locator('#leave').click(); await page.reload(); await continueWorld(page); await position(page);
   await expect.poll(async () => JSON.parse((await page.locator('#game-canvas').getAttribute('data-layout'))!).carpet?.rotation).toBe(1);
 });

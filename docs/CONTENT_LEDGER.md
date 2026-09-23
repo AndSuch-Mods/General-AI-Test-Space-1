@@ -1,5 +1,9 @@
 # Content ledger
 
+## 0.1.9 main menu
+
+The user-supplied title artwork replaces the earlier title treatment. The five menu actions expose the existing game, save, co-op, settings and backup systems. No characters, maps, quests or progression counts are added; the existing emptiness audit remains open.
+
 ## 0.1.8 household polish
 
 Existing objects gain corrected projected rotations, fixed doorframes, more visible pane animation, closer A targeting, deliberate bed use, moving quick slots and a quieter fire mix. No characters, locations, stories, recipes or quests are added. The earlier emptiness audit and open progression gaps remain unchanged.

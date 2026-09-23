@@ -1,0 +1,51 @@
+/* The supplied photo is preserved verbatim. Its scene and logo are separate
+   CSS views so the real controls retain 44px touch targets on small phones. */
+.title-screen.twilight-menu {
+  display: block; padding: 0; overflow: hidden;
+  background: radial-gradient(ellipse at 74% 20%, #111b68, #060a30 66%, #040820);
+}
+.twilight-menu::after { display: none; }
+.title-menu-art { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mask-image: linear-gradient(90deg, #000 0%, #000 65%, transparent 74%); }
+.title-menu-art img { position: absolute; width: 100%; max-width: none; height: auto; left: 0; top: 50%; transform: translateY(-50%); }
+.title-menu-controls {
+  position: absolute; right: max(4vw, calc(env(safe-area-inset-right) + 12px)); top: env(safe-area-inset-top); bottom: env(safe-area-inset-bottom);
+  width: clamp(190px, 24vw, 310px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.menu-logo { position: relative; overflow: hidden; flex: none; width: min(100%, calc((100dvh - 266px) * 1.88235), 300px); aspect-ratio: 320 / 170; mix-blend-mode: screen; mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent), linear-gradient(0deg, transparent, #000 4%, #000 96%, transparent); mask-composite: intersect; }
+.menu-logo img { position: absolute; width: 400%; max-width: none; height: auto; left: -293.75%; top: -41.17647%; }
+.title-menu-nav { width: 100%; display: grid; gap: 7px; }
+.castle-menu-button {
+  position: relative; width: 100%; height: 48px; min-height: 44px; padding: 0 25px; border: 2px solid #5151a2; border-radius: 0;
+  background: linear-gradient(#151343ee, #0a0e35ee); color: #eee7d1; font: 20px Georgia, serif; letter-spacing: .02em;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  box-shadow: inset 0 0 0 2px #0a103b, inset 0 0 0 3px #3d3a87; text-shadow: 0 1px #060824;
+}
+.castle-menu-button::before { content: ''; position: absolute; inset: 5px; border: 1px solid #6961a333; pointer-events: none; }
+.castle-menu-button.menu-default, .castle-menu-button:hover:not(:disabled), .castle-menu-button:focus-visible {
+  border-color: #c8ebff; color: #fff3cd; background: linear-gradient(#192379ee, #101a50ee);
+  box-shadow: inset 0 0 0 2px #273ba6, inset 0 0 0 3px #b9d7ff; outline: none;
+}
+.castle-menu-button.menu-default::after, .castle-menu-button:focus-visible::after, .castle-menu-button:hover:not(:disabled)::after { content: '›'; position: absolute; right: 13px; top: 50%; transform: translateY(-54%); color: #d5edff; font: 29px Georgia, serif; }
+.castle-menu-button:disabled { opacity: .44; cursor: default; }
+.twilight-menu footer { left: max(12px, env(safe-area-inset-left)); right: auto; bottom: max(8px, env(safe-area-inset-bottom)); max-width: 60%; }
+.twilight-menu footer button { min-height: 44px; color: #f4e5c7; background: #11133bd9; border-color: #626db1; }
+.title-choice { width: min(600px, 86vw); background: linear-gradient(135deg, #151942, #0b102e); border: 2px solid #6975b8; border-radius: 2px; }
+.title-choice .slots { margin: 12px 0 0; }
+.title-choice .slot { min-height: 64px; border: 1px solid #6570ab; background: #10183f; }
+.title-choice .slot:hover:not(:disabled), .title-choice .slot:focus-visible { border-color: #d3e7ff; background: #1c2958; }
+.title-choice .slot:disabled { opacity: .5; }
+.title-choice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+.title-choice-actions button { min-height: 52px; }
+.credits-title { color: #f6deb0; font: 24px Georgia, serif; }
+@media (max-height: 480px) {
+  .title-menu-controls { gap: 8px; }
+  .title-menu-nav { gap: 4px; }
+  .castle-menu-button { height: 44px; font-size: 17px; }
+}
+@media (max-width: 600px) and (orientation: landscape) { .title-menu-controls { width: 174px; right: max(12px, env(safe-area-inset-right)); } }
+@media (orientation: portrait) {
+  .title-menu-controls { width: min(76vw, 310px); left: 50%; right: auto; transform: translateX(-50%); }
+  .title-menu-art { mask-image: linear-gradient(#0008, #0003); }
+  .title-menu-art img { width: 220%; left: -48%; }
+  .twilight-menu footer { max-width: calc(100% - 24px); }
+}

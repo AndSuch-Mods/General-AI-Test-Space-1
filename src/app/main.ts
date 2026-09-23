@@ -1,4 +1,5 @@
 import './style.css';
+import './title-menu.css';
 import { BUILD_VERSION, CharacterLookSchema, createPlayer, createWorld, type Player, type Slot, type World } from '../game/model';
 import { BODY_OPTIONS, HAIR_STYLE_OPTIONS, HAIR_COLOR_OPTIONS, SKIN_TONE_OPTIONS, OUTFIT_OPTIONS, DEFAULT_LOOK, type CharacterLook } from '../game/art/character-look';
 import { Authority, type Intent } from '../game/authority';
@@ -11,7 +12,6 @@ import { WebRTCTransport, decodePairing, encodePairing } from '../networking/web
 import { GuestSession, HostSession } from '../networking/session';
 import { scanPairing, showPairingQR } from '../ui/pairing';
 import { mountTouchControls, type TouchControls } from '../ui/touch-controls';
-import { ROOM_MATERIAL_IMAGE } from '../game/art/room-atlas';
 import { clockLabel, dayPhase, fatigueMessage, SLEEP_RULES } from '../game/time';
 
 import { LayoutDesigner } from '../ui/layout-designer';
@@ -111,7 +111,7 @@ function dialog(title: string, body: string, kind: DialogKind = 'menu') {
   return modal;
 }
 function refreshOffline() {
-  const label = document.getElementById('offline-label'); if (label) { label.textContent = offline.label; label.classList.toggle('sr-only', offline.ready); }
+  const label = document.getElementById('offline-label'); if (label) label.textContent = offline.label;
   const details = document.getElementById('offline-details'); if (details) details.textContent = offline.label;
   const action = document.getElementById('offline-install'); if (action) action.hidden = offline.ready;
   const update = document.getElementById('apply-update'); if (update) update.hidden = !offline.updateReady;
@@ -127,39 +127,48 @@ async function title() {
   destroyScene?.(); destroyScene = undefined; releaseLock?.(); releaseLock = undefined;
   authority = undefined; world = undefined;
   const records = await Promise.all(([1, 2] as Slot[]).map(id => db.load(id)));
-  app.innerHTML = `<section class="title-screen">
-    <div class="title-art" aria-hidden="true"><canvas id="title-materials" width="640" height="400"></canvas></div>
-    <div class="title-copy"><h1>Haunted<br>Chocolatier<span>TWILIGHT</span></h1></div>
-    <div class="menu-panel"><div class="menu-heading"><p>Select game</p></div>
-    <div class="slots" role="group" aria-label="World save slots">${records.map((record, index) => `<button class="slot ${slot === index + 1 ? 'selected' : ''}" id="slot-${index + 1}" aria-pressed="${slot === index + 1}"><span class="slot-number">0${index + 1}</span><span><b>World Save Slot ${index + 1}</b><small>${record ? `${escape(record.world.players[record.world.hostId].name)} · The castle` : 'A new beginning'}</small></span><span class="slot-mark">${record ? '◈' : '+'}</span></button>`).join('')}</div>
-    <button id="solo" class="primary">${records[slot - 1] ? 'Continue / Single Player' : 'Single Player'}<span>→</span></button>
-    <div class="coop-buttons"><button id="host">Host Co-op</button><button id="join">Join Co-op</button></div>
-    <div class="menu-links"><button id="backups">Backups</button><span>·</span><button id="settings">Settings & help</button></div>
+  const hasWorld = records.some(Boolean), art = `${import.meta.env.BASE_URL}art/title-menu-reference.jpg`;
+  app.innerHTML = `<section class="title-screen twilight-menu">
+    <div class="title-menu-art" aria-hidden="true"><img src="${art}" alt="" fetchpriority="high" /></div>
+    <div class="title-menu-controls">
+      <h1 class="sr-only">Haunted Chocolatier: Twilight</h1>
+      <div class="menu-logo" aria-hidden="true"><img src="${art}" alt="" /></div>
+      <nav class="title-menu-nav" aria-label="Main menu">
+        <button id="continue" class="castle-menu-button ${hasWorld ? 'menu-default' : ''}" ${hasWorld ? '' : 'disabled'}>Continue</button>
+        <button id="new-game" class="castle-menu-button ${hasWorld ? '' : 'menu-default'}">New Game</button>
+        <button id="coop" class="castle-menu-button">Co-Op</button>
+        <button id="settings" class="castle-menu-button">Settings</button>
+        <button id="credits" class="castle-menu-button">Credits</button>
+      </nav>
     </div>
-    <footer><div class="offline"><span id="offline-label"></span><button id="offline-install">Make Available Offline</button><button id="apply-update" hidden>Update ready · restart</button></div></footer>
+    <footer><div class="offline"><span id="offline-label" class="sr-only" role="status"></span><button id="apply-update" hidden>Update ready · restart</button></div></footer>
   </section>`;
-  on('slot-1', () => { slot = 1; return title(); }); on('slot-2', () => { slot = 2; return title(); });
-  on('solo', () => begin(false)); on('host', () => begin(true)); on('join', joinDialog);
-  on('backups', backupDialog); on('settings', settingsDialog);
-  on('offline-install', () => offline.install()); on('apply-update', () => offline.applyUpdate()); refreshOffline();
-  void paintTitleMaterials(document.getElementById('title-materials') as HTMLCanvasElement).catch(fail);
+  on('continue', () => chooseWorld('continue')); on('new-game', () => chooseWorld('new'));
+  on('coop', () => {
+    const panel = dialog('Co-op', '<div class="title-choice-actions"><button id="host">Host Co-op</button><button id="join">Join Co-op</button></div>');
+    panel.classList.add('title-choice'); on('host', () => chooseWorld('host')); on('join', joinDialog);
+  });
+  on('settings', settingsDialog);
+  on('credits', () => {
+    const panel = dialog('Credits', '<p class="credits-title">Haunted Chocolatier: Twilight</p><p>Title artwork supplied by the project owner.</p><p>Original game code, world, characters, music and sound created for this project.</p><p class="muted">Built with Phaser, Dexie, Zod, jsQR and qrcode.</p>');
+    panel.classList.add('title-choice');
+  });
+  on('apply-update', () => offline.applyUpdate()); refreshOffline();
 }
-async function paintTitleMaterials(canvas: HTMLCanvasElement) {
-  const source = new Image(); source.src = ROOM_MATERIAL_IMAGE; await source.decode();
-  if (!canvas.isConnected) return;
-  const floor = document.createElement('canvas'), wall = document.createElement('canvas');
-  floor.width = floor.height = 64; wall.width = 64; wall.height = 68;
-  const floorContext = floor.getContext('2d')!, wallContext = wall.getContext('2d')!, context = canvas.getContext('2d')!;
-  floorContext.imageSmoothingEnabled = wallContext.imageSmoothingEnabled = context.imageSmoothingEnabled = false;
-  floorContext.drawImage(source, 0, 0, 887, 887, 0, 0, 64, 64);
-  wallContext.drawImage(source, 887, 0, 887, 812, 0, 0, 64, 68);
-  for (let x = 0; x < 640; x += 128) {
-    context.drawImage(wall, x, 0, 128, 136);
-    for (let y = 144; y < 400; y += 128) context.drawImage(floor, x, y, 128, 128);
-  }
-  context.fillStyle = '#2e262a'; context.fillRect(0, 132, 640, 12); context.fillStyle = '#8c6243'; context.fillRect(0, 132, 640, 2);
-  context.fillStyle = '#271f32'; context.fillRect(28, 192, 296, 164); context.fillStyle = '#75535a'; context.fillRect(32, 196, 288, 156);
-  context.fillStyle = '#bb967b'; context.fillRect(39, 203, 274, 142); context.fillStyle = '#52313e'; context.fillRect(42, 206, 268, 136);
+async function chooseWorld(mode: 'continue' | 'new' | 'host') {
+  const records = await Promise.all(([1, 2] as Slot[]).map(id => db.load(id)));
+  const heading = mode === 'new' ? 'New Game' : mode === 'host' ? 'Host Co-op' : 'Continue';
+  const panel = dialog(heading, `<div class="slots" role="group" aria-label="World save slots">${records.map((record, index) => {
+    const unavailable = mode === 'new' ? !!record : mode === 'continue' ? !record : false;
+    return `<button class="slot" id="slot-${index + 1}" ${unavailable ? 'disabled' : ''}><span class="slot-number">0${index + 1}</span><span><b>World Save Slot ${index + 1}</b><small>${record ? `${escape(record.world.players[record.world.hostId].name)} · Day ${Math.floor(record.world.clock.totalMinutes / 1440) + 1}` : 'A new beginning'}</small></span></button>`;
+  }).join('')}</div>${mode === 'new' && records.every(Boolean) ? '<p>Both world slots are in use. Your existing worlds are kept safe.</p>' : ''}`);
+  panel.classList.add('title-choice');
+  for (const id of [1, 2] as Slot[]) on(`slot-${id}`, async () => {
+    const latest = await db.load(id);
+    if (mode === 'new' && latest) throw Error('That world slot is already in use.');
+    if (mode === 'continue' && !latest) throw Error('That world slot is empty.');
+    slot = id; await begin(mode === 'host');
+  });
 }
 async function begin(hosting: boolean) {
   const record = await db.load(slot);
@@ -680,7 +689,7 @@ async function backupDialog() {
 async function settingsDialog() {
   const value = (await db.settings.get('reducedMotion'))?.value === true;
   const audioOff = (await db.settings.get('audioOff'))?.value === true, musicOff = (await db.settings.get('musicOff'))?.value === true;
-  dialog('Settings & help', `<label class="check-label"><input id="audio-enabled" type="checkbox" ${audioOff ? '' : 'checked'} /> Sound effects and ambience</label><label class="check-label"><input id="music-enabled" type="checkbox" ${musicOff ? '' : 'checked'} /> Music</label><label class="check-label"><input id="reduced-motion" type="checkbox" ${value ? 'checked' : ''} /> Reduce decorative motion</label><h3>Offline installation</h3><p id="offline-details">${escape(offline.label)}</p><button id="offline-settings-install">Check or repair offline package</button><h3>On your iPhone</h3><p>In Safari, open Share and choose Add to Home Screen. Check the offline status here before leaving the network. Turn your phone sideways to play.</p><h3>Sharing the castle</h3><p>Use the same Wi-Fi network on both phones. Networks that isolate devices can prevent local pairing. Keep the host app open. If either app is suspended, reconnect through Co-op.</p><p class="muted">Haunted Chocolatier: Twilight · ${BUILD_VERSION}</p>`);
+  dialog('Settings & help', `<label class="check-label"><input id="audio-enabled" type="checkbox" ${audioOff ? '' : 'checked'} /> Sound effects and ambience</label><label class="check-label"><input id="music-enabled" type="checkbox" ${musicOff ? '' : 'checked'} /> Music</label><label class="check-label"><input id="reduced-motion" type="checkbox" ${value ? 'checked' : ''} /> Reduce decorative motion</label><h3>World saves</h3><button id="backups">Backups</button><h3>Offline installation</h3><p id="offline-details">${escape(offline.label)}</p><button id="offline-settings-install">Check or repair offline package</button><h3>On your iPhone</h3><p>In Safari, open Share and choose Add to Home Screen. Check the offline status here before leaving the network. Turn your phone sideways to play.</p><h3>Sharing the castle</h3><p>Use the same Wi-Fi network on both phones. Networks that isolate devices can prevent local pairing. Keep the host app open. If either app is suspended, reconnect through Co-op.</p><p class="muted">Haunted Chocolatier: Twilight · ${BUILD_VERSION}</p>`);
   document.getElementById('audio-enabled')!.addEventListener('change', event => {
     const enabled = (event.target as HTMLInputElement).checked;
     sound.setEnabled(enabled);
@@ -690,7 +699,7 @@ async function settingsDialog() {
     void db.settings.put({ key: 'audioOff', value: !enabled }).catch(fail);
   });
   document.getElementById('music-enabled')!.addEventListener('change', event => { const enabled = (event.target as HTMLInputElement).checked; sound.setMusicEnabled(enabled); void db.settings.put({ key: 'musicOff', value: !enabled }).catch(fail); });
-  on('offline-settings-install', () => offline.install());
+  on('offline-settings-install', () => offline.install()); on('backups', backupDialog);
   document.getElementById('reduced-motion')!.addEventListener('change', event => {
     const checked = (event.target as HTMLInputElement).checked;
     document.documentElement.classList.toggle('reduced-motion', checked);

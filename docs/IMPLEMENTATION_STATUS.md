@@ -1,10 +1,12 @@
 # Implementation status
 
+Current build: **0.1.9 main menu**. The supplied castle/ghost image and logo accompany five responsive working menu actions. New Game protects occupied slots; Continue and Host select one of the two worlds. Save schema 7 and protocol 9 remain. `MAIN_MENU.md` records the current title contract; the household status below is retained.
+
 The original-art eye correction was published at `7b1539b`. Its source-pixel correction is included in the combined household restoration. See `EYE_CORRECTION_RELEASE.md` for that isolated release's evidence and the earlier intermittent CI reconnect history. Combined checks belong in VALIDATION.md and the exact checkpoint's Actions run.
 
 The initial v7 procedural art was rejected. The full household request has resumed. Original furniture fronts are restored, approved generated wooden doors are retained, and compatible raster resident layers are integrated. The eye fix was a priority interruption, not a cancellation. Track every requirement in `HOUSEHOLD_ACCEPTANCE.md`; publication requires the combined restored artwork to pass review and regression checks.
 
-Current build: **0.1.8 household polish**. Corrected projected furniture proportions, stationary wall-aligned doors, visible glass animation, close-range A targeting, A-only bed prompts, hotbar return leeway and a quieter fire mix. This remains an early playable household slice; Phase 1 device acceptance is open.
+Previous build: **0.1.8 household polish**. Corrected projected furniture proportions, stationary wall-aligned doors, visible glass animation, close-range A targeting, A-only bed prompts, hotbar return leeway and a quieter fire mix. This remains an early playable household slice; Phase 1 device acceptance is open.
 
 Implemented: compatible male/female raster layers with stable matched eyes; correctly masked, evenly spaced windows; centered directional doors crossed by walking; blocked-input facing; full-room touch layout drafts with clamping, placement colors, rotation and atomic saving; shared sofa/chair seating; directional beds, containers and attached desk objects; centered functional menus; portrait blocking through creation and play; smoother original fire ambience; a distinct entry hall and basic kitchen. Approved furniture fronts remain pixel-identical. Added views use explicit floor depth and upright elevation.
 

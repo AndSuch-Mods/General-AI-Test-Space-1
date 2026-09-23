@@ -5,7 +5,7 @@ import { currentGeometry, layoutGeometryError, migrateProjectedLayout, schema6Ge
 import { layoutError } from '../content/furnishing';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.7';
+export const BUILD_VERSION = '0.1.9';
 export const PROTOCOL_VERSION = 9;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();

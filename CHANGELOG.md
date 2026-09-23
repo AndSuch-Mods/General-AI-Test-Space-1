@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9 main menu
+
+- Replaced the room-material title with the supplied castle, moon and ghosts artwork and its logo.
+- Added responsive blue-framed Continue, New Game, Co-Op, Settings and Credits buttons, each with at least 44px touch height.
+- Moved world selection behind Continue/New Game and Host Co-op. Occupied slots cannot be used by New Game. Backups and offline repair live in Settings.
+- Preserved the explicit update restart, existing saves, character creation, gameplay, co-op and offline behavior.
+
 ## 0.1.8 household polish
 
 - Corrected turned furniture proportions with one floor projection; original front views and designs remain unchanged.

@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
+import { newWorld, continueWorld, joinCoop } from './navigation';
 import { action, inventory, position, walkTo, throughDoor } from './controls';
 
 async function create(page: Page) {
   await page.goto('/?renderer=canvas');
-  await page.locator('#solo').click();
+  await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await position(page);
 }
@@ -37,7 +38,7 @@ test('bed entry advances solo time, windows change, menus pause and the new day 
   await bed(page);
   await expect.poll(async () => Number(await page.locator('#game-canvas').getAttribute('data-total-minutes'))).toBeGreaterThan(beforeSecond + 1400);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
-  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await page.locator('#leave').click(); await page.reload(); await continueWorld(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
 });
@@ -47,7 +48,7 @@ test('exit door reaches a saved living room and returns through its own door', a
   await throughDoor(page, 'door-out', 'living');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-left');
-  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await page.locator('#leave').click(); await page.reload(); await continueWorld(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
   await throughDoor(page, 'door-left', 'castle');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
@@ -64,7 +65,7 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     test.skip(!await host.evaluate(() => typeof RTCPeerConnection === 'function'), `${browserName} runtime has no RTCPeerConnection; two-iPhone checks remain required.`);
     await inventory(host, 'session'); await host.locator('#session').click();
     await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 });
-    await guest.locator('#join').click();
+    await joinCoop(guest);
     await guest.getByLabel('Character', { exact: true }).selectOption('female');
     await guest.getByLabel('Hair style').selectOption('braid');
     await guest.locator('#pair-input').fill(await host.locator('#pair-output').inputValue());

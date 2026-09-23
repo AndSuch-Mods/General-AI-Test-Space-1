@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { newWorld, continueWorld } from './navigation';
 import { action, inventory, position, walkTo } from './controls';
 import { dragFurniture } from './layout-controls';
 
 test('whole-room drafts cancel and save; containers finish opening before their centered menu', async ({ page }) => {
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   await inventory(page, 'household'); await page.locator('#arrange-room').click();
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-arranging', 'room');
@@ -25,7 +26,7 @@ test('whole-room drafts cancel and save; containers finish opening before their 
   expect(sheet!.width).toBeGreaterThan(700); expect(Math.abs(sheet!.x + sheet!.width / 2 - 422)).toBeLessThan(3);
   await page.locator('#action-b').click(); await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect.poll(async () => JSON.parse((await page.locator('#game-canvas').getAttribute('data-container-poses'))!).chest).toBe(0);
-  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await page.locator('#leave').click(); await page.reload(); await continueWorld(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-layout', saved!);
 });
 

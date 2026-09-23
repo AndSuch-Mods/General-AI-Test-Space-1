@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { newWorld, continueWorld } from './navigation';
 import { action, inventory, position, walk, walkTo } from './controls';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?renderer=canvas');
-  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await position(page);
 });
@@ -65,7 +66,7 @@ test('left/right profiles, bed collision and furniture interaction at the closer
   await action(page);
   await expect(page.getByRole('heading', { name: 'Rest until morning?' })).toHaveCount(0);
   await page.locator('#leave').click();
-  await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await continueWorld(page);
   expect(await position(page)).toEqual(stopped);
 });
 
@@ -91,13 +92,15 @@ test('candle choices persist and seven quick slots retain items while migrating 
   await page.getByRole('button', { name: 'Assign to quick slot 7' }).click();
   await expect(page.locator('#quick-slot-7')).toHaveAttribute('aria-label', 'Quick slot 7: Cacao bean, 3');
   await page.locator('#leave').click();
-  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
+  await expect(page.locator('#continue')).toBeVisible();
+  await expect(page.locator('#continue')).toBeEnabled();
   await page.reload();
-  await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await continueWorld(page);
   await expect(page.locator('#quick-slot-7')).toHaveAttribute('aria-label', 'Quick slot 7: Cacao bean, 3');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state', 'false:false:true:false:false');
   await page.locator('#leave').click();
-  await expect(page.getByRole('button', { name: /Continue \/ Single Player/ })).toBeVisible();
+  await expect(page.locator('#continue')).toBeVisible();
+  await expect(page.locator('#continue')).toBeEnabled();
   // The previous released UI stored five slots. Keep those references and append two empty slots.
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const request = indexedDB.open('twilight-v1');
@@ -116,7 +119,7 @@ test('candle choices persist and seven quick slots retain items while migrating 
     };
   }));
   await page.reload();
-  await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
+  await continueWorld(page);
   await expect(page.locator('.quick-slot')).toHaveCount(7);
   await expect(page.locator('#quick-slot-1')).toHaveAttribute('aria-label', 'Quick slot 1: Cacao bean, 3');
   await expect(page.locator('#quick-slot-5')).toHaveAttribute('aria-pressed', 'true');

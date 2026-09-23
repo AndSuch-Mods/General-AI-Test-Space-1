@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
+import { newWorld, continueWorld, joinCoop } from './navigation';
 import { action, inventory, position, walkTo } from './controls';
 
 async function start(page: Page) {
   await page.goto('/?renderer=canvas');
-  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click();
   await position(page);
 }
@@ -12,7 +13,7 @@ test('compact resident creation previews clothing changes without tinting the fa
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?renderer=canvas');
-  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await newWorld(page);
   const canvas = page.locator('#resident-preview');
   await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
   await expect(page.locator('#new-resident input,#new-resident select')).toHaveCount(7);
@@ -46,7 +47,7 @@ test('compact resident creation previews clothing changes without tinting the fa
     expect(protectedChanges).toBe(0);
   }
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await page.getByRole('button', { name: 'Join Co-op', exact: true }).click();
+  await joinCoop(page);
   await expect(page.locator('#guest-name')).toHaveValue('Companion');
   await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', 'down-idle');
   await page.getByLabel('Clothing color').selectOption('moss');
@@ -54,11 +55,11 @@ test('compact resident creation previews clothing changes without tinting the fa
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   for (let attempt = 0; attempt < 3; attempt++) {
-    await page.getByRole('button', { name: /^Single Player/ }).click();
+    await newWorld(page);
     await expect(page.locator('#resident-preview')).toHaveAttribute('data-frame', /^(down|right|up)-(idle|step-left|passing|step-right)$/);
     await page.getByRole('button', { name: 'Close dialog' }).click();
   }
-  await page.getByRole('button', { name: /^Single Player/ }).click();
+  await newWorld(page);
   await page.getByLabel('Character', { exact: true }).selectOption('female');
   await page.getByLabel('Hair style').selectOption('braid');
   await page.getByLabel('Hair color').selectOption('silver');
@@ -82,7 +83,7 @@ test('compact resident creation previews clothing changes without tinting the fa
 
 test('creation choices change the native preview and survive entering and reopening a world', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   const canvas = page.locator('#resident-preview'); await expect(canvas).toHaveAttribute('data-frame', 'down-idle');
   const pixels = () => canvas.evaluate(el => (el as HTMLCanvasElement).toDataURL());
   await page.getByLabel('Character', { exact: true }).selectOption('female');
@@ -103,7 +104,7 @@ test('creation choices change the native preview and survive entering and reopen
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   const scene = page.locator('#game-canvas');
   await expect(scene).toHaveAttribute('data-resident-texture', 'resident-raster-v8-wine-female-swept-copper-brown-dress');
-  await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await page.locator('#leave').click(); await page.reload(); await continueWorld(page);
   await expect(scene).toHaveAttribute('data-resident-texture', 'resident-raster-v8-wine-female-swept-copper-brown-dress');
 });
 

@@ -1,5 +1,12 @@
 # Validation
 
+## 0.1.9, supplied main-menu artwork
+
+- Local `pnpm check` passes specification coverage, lint, TypeScript, 132 unit tests and production build. Offline package `3aedc283e9f266cb` contains 29 files, 26,917,597 bytes. The new JPEG is byte-identical to the user attachment; its hash and UI contract are recorded in MAIN_MENU.md. Gameplay assets and save schema remain unchanged.
+- Both new menu scenarios pass locally on Chromium and WebKit, checking the five controls, 44px touch targets at 844x390, 667x375 and 568x320, credits, host creation, occupied-slot protection and continuing the chosen resident. Reviewed rendered phone screenshots. Chromium also passes offline-package repair, explicit update/restart preservation and malformed/occupied import handling through the new Settings navigation.
+- The local default WebGL regression reaches gameplay but stalls on a browser interaction in this Windows VM, as in prior releases. It remains enabled and unchanged; full Chromium and macOS WebKit CI must pass before Pages deployment. The full suite now contains 28 browser scenarios per engine, preserving the existing solo, shared-world, reconnect, sleep, persistence and offline assertions through shared navigation helpers.
+- A two-world installed 0.1.8 profile is retained for post-deployment update/restart and cold-offline verification, including the exact JPEG from the offline cache. Physical iPhone touch and installation acceptance remain separate from browser-engine results. This revision does not advance a content phase.
+
 ## 0.1.8, focused household polish
 
 - Checkpoint `4c466e9` passed 132 units and 25/26 browser cases on both Chromium and macOS WebKit in [run 35817381352](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions/runs/35817381352). Both engines stopped at the guest chest approach: the old y=355 target allowed a settled y=350, 31 pixels from the chest collision, outside the new 28-pixel reach. The test now walks to y=365 before pressing A; interaction rules and every storage/reconnect assertion remain intact. The earlier publication attempt stopped at specification coverage because an edit removed the save document's required final blank line; that exact source-section ending is restored. Deployment remains gated on a full passing release run.

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { newWorld, continueWorld } from './navigation';
 import { action, inventory, position, walkTo, throughDoor } from './controls';
 
 test('living room connects private bedrooms; visitors can sleep and read a saved daily journal', async ({ page }) => {
   test.setTimeout(150000);
-  await page.goto('/?renderer=canvas'); await page.locator('#solo').click();
+  await page.goto('/?renderer=canvas'); await newWorld(page);
   await page.getByRole('button', { name: 'Enter the castle' }).click(); await position(page);
   await throughDoor(page, 'door-out', 'living');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
@@ -27,7 +28,7 @@ test('living room connects private bedrooms; visitors can sleep and read a saved
   await expect(page.getByRole('heading', { name: 'Yesterday at the castle' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Our household' })).toBeVisible();
   await expect(page.getByText('You rested until morning.')).toBeVisible();
-  await page.locator('#action-b').click(); await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
+  await page.locator('#action-b').click(); await page.locator('#leave').click(); await page.reload(); await continueWorld(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'bedroom-2');
   await action(page); await expect(page.getByText('You rested until morning.')).toBeVisible();
 });
@@ -36,7 +37,7 @@ test('living room connects private bedrooms; visitors can sleep and read a saved
 test('entry hall and kitchen have reciprocal automatic doors and usable seating', async ({page},testInfo) => {
   test.setTimeout(150000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('/?renderer=canvas');await page.locator('#solo').click();await page.getByRole('button',{name:'Enter the castle'}).click();await position(page);
+  await page.goto('/?renderer=canvas');await newWorld(page);await page.getByRole('button',{name:'Enter the castle'}).click();await position(page);
   await throughDoor(page,'door-out','living');
   await walkTo(page,'y',378);await walkTo(page,'x',400);await action(page);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-seated','sofa');
