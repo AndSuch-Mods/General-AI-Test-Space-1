@@ -256,11 +256,16 @@ async function dispatch(intent: Intent) {
 }
 function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
-  moving = true; void dispatch({ kind: 'move', dx, dy }).then(() => {
+  moving = true;
+  document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'true');
+  void dispatch({ kind: 'move', dx, dy }).then(() => {
     const entered = inBedEntry(world!.players[localId], roomLayout(world!, world!.players[localId].map));
     if (entered && !bedEntryLatched) { bedEntryLatched = true; sleepPrompt(); }
     if (!entered) bedEntryLatched = false;
-  }).catch(fail).finally(() => { moving = false; });
+  }).catch(fail).finally(() => {
+    moving = false;
+    document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'false');
+  });
 }
 function controlsBlocked() { return !!modal || !!arranging || portraitMedia.matches || interacting || exiting || document.hidden || performance.now() < dawnUntil || !!world?.players[localId]?.fatigue.sleeping; }
 async function interact() {
@@ -370,7 +375,7 @@ async function play() {
     selected: Number.isInteger(savedQuick?.selected) && savedQuick!.selected! >= 0 && savedQuick!.selected! < QUICK_SLOT_COUNT ? savedQuick!.selected! : 0,
     seen: typeof savedQuick?.seen === 'string' ? savedQuick.seen : '' };
   if (generation !== playGeneration) return;
-  app.innerHTML = `<section class="play-screen"><div id="game-canvas" aria-label="Castle arrival hall"></div>
+  app.innerHTML = `<section class="play-screen"><div id="game-canvas" data-movement-pending="false" aria-label="Castle arrival hall"></div>
     <div id="touch-surface" aria-label="Drag the left side to move"><div id="thumbstick" hidden aria-hidden="true"><div id="thumbstick-knob"></div></div></div>
     <span id="resident-label" class="sr-only"></span><span id="save-state" class="sr-only" aria-live="polite"></span>
     <header class="game-hud"><div class="hud-clock" aria-label="World time"><span class="clock-moon" aria-hidden="true">☾</span><time id="game-clock">18:00</time></div><button id="inventory-toggle" class="hud-button" aria-label="Inventory and missions"><span>I</span><span id="notification-dot" hidden aria-label="New mission or discovery"></span></button><button id="leave" class="hud-button" aria-label="Save and return to title"><span>ESC</span></button></header>

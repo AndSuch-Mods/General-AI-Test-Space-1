@@ -61,11 +61,29 @@ async function moveTo(page: Page, key: string, axis: 'x' | 'y', sign: number, ta
       try {
         await page.keyboard.down(heldKey);
         const result = await driver.evaluate(driver => driver.done);
-        coordinate = result.coordinate;
-        if (result.sleeping) return;
-        if (result.reason === 'timeout' || result.reason === 'map changed') throw new Error(`Movement ${result.reason} at ${axis}=${coordinate}; target ${target} within ${timeout}ms`);
-        // A coalesced network update can cross the tolerance. Correct through normal
-        // input with the original deadline instead of accepting an overshoot.
+        await page.keyboard.up(heldKey);
+        if (result.reason === 'timeout' || result.reason === 'map changed') throw new Error(`Movement ${result.reason} at ${axis}=${result.coordinate}; target ${target} within ${timeout}ms`);
+        // The frame that reports the target can already have sent one more step.
+        // Wait for its actual acknowledgement, then let scene telemetry catch up.
+        // A quiet-time heuristic would still race a slow guest recovery save.
+        const settled = await page.evaluate(({ axis, remaining }) => new Promise<{ coordinate: number; sleeping: boolean }>((resolve, reject) => {
+          const element = document.querySelector('#game-canvas')!;
+          let idleFrame = false, frame = 0;
+          const timer = setTimeout(() => { cancelAnimationFrame(frame); reject(Error('Movement did not settle before its original deadline')); }, Math.max(0, remaining));
+          const check = () => {
+            if (element.getAttribute('data-movement-pending') !== 'false') idleFrame = false;
+            else if (idleFrame) {
+              clearTimeout(timer);
+              resolve({ coordinate: Number(element.getAttribute(`data-player-${axis}`)), sleeping: element.getAttribute('data-sleeping') === 'true' });
+              return;
+            } else idleFrame = true;
+            frame = requestAnimationFrame(check);
+          };
+          frame = requestAnimationFrame(check);
+        }), { axis, remaining: deadline - Date.now() });
+        coordinate = settled.coordinate;
+        if (settled.sleeping) return;
+        // Correct an acknowledged overshoot through real input with the same deadline.
       } finally {
         await driver.evaluate(driver => driver.cancel());
         await page.keyboard.up(heldKey); await driver.dispose();
