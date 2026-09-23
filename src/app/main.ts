@@ -585,7 +585,7 @@ function itemDetails(id: string) {
 }
 function chestDialog(container: StorageId = 'chest') {
   const resident = world!.players[localId];
-  const label = container === 'desk' ? `${resident.drawer === 'left' ? 'Left' : 'Right'} desk drawer` : getRoomObjects(resident.map).find(o => o.id === container)!.label;
+  const label = container === 'desk' ? `${resident.drawer === 'left' ? 'Left' : 'Right'} desk drawer` : container === 'pantry' ? 'Household pantry' : getRoomObjects(resident.map).find(o => o.id === container)!.label;
   const panel = dialog(label, `<p class="muted">${storageCapacity(container)} spaces · Both residents can use this storage.</p><div id="chest-content"></div>${container === 'bookshelf' || container === 'worktop' ? '<button id="read-recipes">Recipe book</button>' : ''}`, 'object');
   panel.classList.add('chest-dialog');
   let busy = false;
@@ -598,7 +598,8 @@ function chestDialog(container: StorageId = 'chest') {
     previousContents = nextContents;
     const rows = (direction: 'deposit' | 'withdraw') => STORED_ITEMS.filter(item => item === 'cacao-bean' || personal[item] || shared[item]).map(item => {
       const count = (direction === 'deposit' ? personal : shared)[item] ?? 0;
-      return `<div class="storage-item"><p>${count} ${escape(itemName(item))}</p><button id="chest-${direction}${item === 'cacao-bean' ? '' : '-letter'}" ${count && !busy ? '' : 'disabled'}>${direction === 'deposit' ? 'Deposit one →' : '← Take one'}</button></div>`;
+      const name = item === 'cacao-bean' ? `cacao bean${count === 1 ? '' : 's'}` : itemName(item);
+      return `<div class="storage-item"><p>${count} ${escape(name)}</p><button id="chest-${direction}${item === 'cacao-bean' ? '' : '-letter'}" ${count && !busy ? '' : 'disabled'}>${direction === 'deposit' ? 'Deposit one →' : '← Take one'}</button></div>`;
     }).join('');
     panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3>${rows('deposit')}</div><div><h3>${label}</h3>${rows('withdraw')}</div></div>${shared['welcome-letter'] ? '<button id="read-stored-letter">Read letter</button>' : ''}`;
     const transfer = async (direction: 'deposit' | 'withdraw', item: typeof STORED_ITEMS[number]) => {

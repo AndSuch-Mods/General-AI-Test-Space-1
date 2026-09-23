@@ -2,6 +2,8 @@
 
 ## 0.1.10 household batch
 
+At `07f57a2`, Chromium passed 27/30 browser cases, including the new moving-A/ledger/drawer/nightstand case and co-op bed/disturbance sequence. The three failures were pantry-title and cacao-count wording changed by the generic storage view. The view now retains “Household pantry” and correctly pluralized cacao counts; storage assertions remain unchanged. Production package after this text repair: `cad1fdfe675ead53`, 35 files, 28,401,163 bytes.
+
 The first release gate at `0b3d3a3` stopped before deployment: the longer side-facing seated calves had a gap at the knee, and older fixtures still assumed fixed sleep positions, the smaller bookshelf and the previous desk/ledger reach. The inverse leg mapping now keeps the knee connected while reaching the floor; all four affected files (32 tests) pass. Updated fixtures preserve the original collision, reach, idempotency and rollback assertions under the newly requested behavior. No migration implementation was added.
 
 Local TypeScript, lint and production build pass. Focused coverage includes 70 existing authority/room/time/layout cases, 16 new household cases, 14 door/window cases, 12 audio cases and 10 short-code adapter cases. Rendered the assembled bedroom, living room, entry, kitchen, seating and both residents in all four bed directions; no page errors. Audio samples stay below music without clipping; physical iPhone listening remains open. These focused checks do not replace the repository's existing Chromium/macOS WebKit publication gate. The short-code public-service smoke and final release result are recorded with the checkpoint when available.
