@@ -3,7 +3,7 @@ import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld, type World } from '../src/game/model';
 import { startSleep } from '../src/game/time';
 import { storageCapacity, storedItems } from '../src/game/storage';
-import { bedLocal, bedPoint, canInteract, canStand, getRoomObjects, inBedEntry, moveInRoom, roomLayout, type RoomLayout, type RoomMap, type Turn } from '../src/content/room';
+import { bedLocal, bedPoint, canInteract, canStand, getRoomObjects, inBedEntry, moveInRoom, roomLayout, seatPosition, type RoomLayout, type RoomMap, type Turn } from '../src/content/room';
 
 function household() {
   const host = createPlayer('Keeper'), guest = createPlayer('Companion', 'moss'), world = createWorld(host);
@@ -19,7 +19,32 @@ function household() {
 }
 
 describe('nearest sofa seats', () => {
-  it.each([{ x: 361, slot: 0 }, { x: 403, slot: 1 }, { x: 445, slot: 2 }])('chooses slot $slot when approaching at x=$x', async ({ x, slot }) => {
+  it.each([0, 1, 2, 3] as const)('scoots a center lounger to the opposite cushion and stands in front at rotation %i', async rotation => {
+    for (const side of [0, 2]) {
+      const { authority, act, host, guest } = household();
+      const layout = authority.world.roomLayouts.living = { sofa: { x: 0, y: 0, rotation } };
+      const sofa = getRoomObjects('living', layout).find(o => o.id === 'sofa')!;
+      const [dx, dy] = [[0, 1], [-1, 0], [0, -1], [1, 0]][rotation];
+      const approach = (id: string, slot: number) => {
+        const seat = seatPosition(sofa, slot);
+        Object.assign(authority.world.players[id], { map: 'living', x: seat.x + dx * (sofa.floor!.width / 2 + 18), y: seat.y + dy * (sofa.floor!.height / 2 + 18) });
+      };
+      approach(host, 1); await act(host, { kind: 'interact', target: 'sofa' });
+      expect(authority.world.players[host].seated?.slot).toBe(1);
+      const belongings = structuredClone(authority.world.players[host].inventory);
+      approach(guest, side); await act(guest, { kind: 'interact', target: 'sofa' });
+      expect(authority.world.players[host]).toMatchObject({ ...seatPosition(sofa, 2 - side), seated: { id: 'sofa', slot: 2 - side }, inventory: belongings });
+      expect(authority.world.players[guest]).toMatchObject({ ...seatPosition(sofa, side), seated: { id: 'sofa', slot: side } });
+      expect(parseWorld(JSON.parse(JSON.stringify(authority.world)))).toEqual(authority.world);
+      const before = structuredClone(authority.world.players[host]);
+      await act(host, { kind: 'stand' });
+      const after = authority.world.players[host];
+      expect(canStand(after, 'living', layout)).toBe(true);
+      expect((after.x - before.x) * dx + (after.y - before.y) * dy).toBeGreaterThan(0);
+      expect(Math.abs(dx ? after.y - before.y : after.x - before.x)).toBeLessThan(.01);
+    }
+  });
+  it.each([{ x: 376, slot: 0 }, { x: 403, slot: 1 }, { x: 430, slot: 2 }])('chooses slot $slot when approaching at x=$x', async ({ x, slot }) => {
     const { authority, at, act, host } = household(); at(host, 'living', x, 376);
     await act(host, { kind: 'interact', target: 'sofa' });
     expect(authority.world.players[host]).toMatchObject({ x, y: 336, seated: { id: 'sofa', slot }, facing: 'down' });
@@ -30,7 +55,7 @@ describe('nearest sofa seats', () => {
     at(host, 'living', 445, 376); await act(host, { kind: 'interact', target: 'sofa' });
     const first = structuredClone(authority.world.players[host]);
     at(guest, 'living', 445, 376); await act(guest, { kind: 'interact', target: 'sofa' });
-    expect(authority.world.players[guest]).toMatchObject({ x: 403, y: 336, seated: { id: 'sofa', slot: 1 } });
+    expect(authority.world.players[guest]).toMatchObject({ x: 376, y: 336, seated: { id: 'sofa', slot: 0 } });
     expect(authority.world.players[host]).toEqual(first);
   });
 });

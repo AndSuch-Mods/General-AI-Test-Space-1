@@ -21,7 +21,7 @@ const PHRASES: readonly (readonly (number | null)[])[] = [
 const HARMONY = [[50, 57, 60, 65], [46, 53, 57, 62], [43, 50, 57, 62], [45, 52, 55, 61],
   [50, 57, 60, 64], [46, 53, 57, 60], [43, 50, 55, 62], [45, 52, 55, 61]] as const;
 const EIGHTH = 60 / 70 / 2;
-const FIRE_BED_LEVEL = .24;
+const FIRE_BED_LEVEL = .10;
 const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
 /** Entirely local synthesis. Nothing is constructed or played until unlock(). */
@@ -34,6 +34,8 @@ export class HouseholdAudio {
   private graph: AudioNode[] = [];
   private noise?: AudioBuffer;
   private fireBed?: AudioBuffer;
+  private recordedFire = false;
+  private fireLoad?: AbortController;
   private fireVoice?: Voice;
   private fireGain?: GainNode;
   private fireStartedAt = 0;
@@ -156,7 +158,8 @@ export class HouseholdAudio {
     window.removeEventListener('pagehide', this.leaving);
     this.graph.forEach(node => node.disconnect()); this.graph = [];
     if (this.context) void this.context.close().catch(() => undefined);
-    this.context = undefined; this.noise = undefined; this.fireBed = undefined;
+    this.fireLoad?.abort(); this.fireLoad = undefined;
+    this.context = undefined; this.noise = undefined; this.fireBed = undefined; this.recordedFire = false;
     this.applianceBeds = {};
   }
 
@@ -200,6 +203,7 @@ export class HouseholdAudio {
     const data = this.noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = random();
     this.fireBed = this.buildFireBed(context);
+    void this.loadRecordedFire(context);
     this.applianceBeds = { sink: this.buildApplianceBed(context, 'sink'), stove: this.buildApplianceBed(context, 'stove') };
     this.setScene(this.scene);
   }
@@ -241,7 +245,7 @@ export class HouseholdAudio {
       if (pitch !== null) this.note(pitch, at + (beat % 2 ? .014 : 0), 1.65, (beat === 0 ? .13 : .105) * roomLevel, 'music');
       this.scoreStep = (this.scoreStep + 1) % 128; this.nextNote += EIGHTH;
     }
-    if (this.fireVoice && now >= this.nextCrackle) {
+    if (this.fireVoice && !this.recordedFire && now >= this.nextCrackle) {
       // Small dry wood releases, occasionally paired, give the quiet bed its fire
       // texture. Rounded attacks avoid isolated digital clicks.
       this.ember(now + .02, .14 + this.fireRandom() * .2, 1100 + this.fireRandom() * 1600, .018 + this.fireRandom() * .02);
@@ -255,6 +259,37 @@ export class HouseholdAudio {
     return (seed >>> 0) / 4294967296;
   }
 
+  private async loadRecordedFire(context: AudioContext) {
+    // Sadiquecat's CC0 wood fire, processed locally. Included in the offline package.
+    // Loading never delays gesture unlock, music or appliance cues.
+    const abort = this.fireLoad = new AbortController();
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}audio/wood-fire-cc0.mp3`, { signal: abort.signal });
+      if (!response.ok) return;
+      const recording = await context.decodeAudioData(await response.arrayBuffer());
+      if (this.disposed || abort.signal.aborted || this.context !== context) return;
+      const rate = recording.sampleRate, trim = Math.round(rate * .5), length = recording.length - trim * 2;
+      const buffer = context.createBuffer(recording.numberOfChannels, length, rate);
+      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+        const source = recording.getChannelData(channel).subarray(trim, trim + length), data = buffer.getChannelData(channel);
+        let energy = 0;
+        for (const value of source) energy += value * value;
+        const gain = .045 / Math.max(.0001, Math.sqrt(energy / length));
+        for (let i = 0; i < length; i++) data[i] = Math.tanh(source[i] * gain * 2) / 2;
+      }
+      this.fireBed = this.finishLoop(buffer); this.recordedFire = true;
+      const now = this.audioTime();
+      if (now === undefined) return;
+      if (this.fireVoice && this.fireGain) {
+        this.fireGain.gain.cancelScheduledValues(now);
+        this.fireGain.gain.setTargetAtTime(0, now, .08);
+        this.fireVoice.sources.forEach(source => source.stop(now + .4));
+        this.fireVoice = undefined; this.fireGain = undefined;
+      }
+      this.updateFire(now);
+    } catch { /* Local synthesis remains available if decoding/loading fails. */ }
+  }
+
   private buildFireBed(context: AudioContext) {
     // Overlapping wood-grain releases, not a continuous wind/rain noise bed.
     // Each release has a rounded onset, a dry noisy body and short wood resonance.
@@ -264,7 +299,7 @@ export class HouseholdAudio {
       const data = buffer.getChannelData(channel);
       for (let at = .02; at < duration; at += .035 + this.fireRandom() ** 2 * .25) {
         const span = .07 + this.fireRandom() * .24, level = .045 + this.fireRandom() * .10;
-        const body = 180 + this.fireRandom() * 230, attack = .008 + this.fireRandom() * .016;
+        const attack = .008 + this.fireRandom() * .016;
         let grain = 0;
         for (let i = 0; i < span * rate; i++) {
           const t = i / rate, index = Math.floor(at * rate) + i;
@@ -272,8 +307,7 @@ export class HouseholdAudio {
           grain = grain * .55 + (this.fireRandom() * 2 - 1) * .45;
           const rise = Math.sin(Math.min(1, t / attack) * Math.PI / 2) ** 2;
           const envelope = rise * Math.exp(-5 * t / span) * Math.min(1, (span - t) / .012);
-          const timber = Math.sin(t * body * Math.PI * 2) * .18 + Math.sin(t * body * 1.43 * Math.PI * 2) * .07;
-          data[index] += (grain + timber * Math.exp(-t * 22)) * envelope * level;
+          data[index] += grain * envelope * level;
         }
       }
     }
@@ -340,7 +374,7 @@ export class HouseholdAudio {
     source.buffer = this.fireBed!; source.loop = true;
     // The folded tail reaches the first 350 ms of audio. Resume beyond that
     // matching section on wrap, preserving a continuous waveform at loopEnd.
-    source.loopStart = .35; source.loopEnd = 11.3;
+    source.loopStart = .35; source.loopEnd = this.fireBed!.duration ?? 11.3;
     high.type = 'highpass'; high.frequency.value = 110; high.Q.value = .5;
     low.type = 'lowpass'; low.frequency.value = 4000; low.Q.value = .4;
     source.connect(high); high.connect(low); low.connect(gain); gain.connect(this.effects!);
@@ -378,18 +412,15 @@ export class HouseholdAudio {
 
   private ember(at: number, duration: number, cutoff: number, level: number) {
     const context = this.context!, source = context.createBufferSource(), filter = context.createBiquadFilter(), high = context.createBiquadFilter(), envelope = context.createGain();
-    const timber = context.createOscillator(), partial = context.createGain();
     envelope.gain.value = 0;
     source.buffer = this.noise!;
     filter.type = 'lowpass'; filter.frequency.value = cutoff; filter.Q.value = .4;
     high.type = 'highpass'; high.frequency.value = 170; high.Q.value = .5;
-    timber.type = 'sine'; timber.frequency.value = 190 + this.fireRandom() * 220; partial.gain.value = .13;
     const attack = .012 + this.fireRandom() * .012;
     envelope.gain.setValueAtTime(0, at); envelope.gain.linearRampToValueAtTime(level, at + attack);
     envelope.gain.exponentialRampToValueAtTime(.00001, at + duration); envelope.gain.linearRampToValueAtTime(0, at + duration + .02);
     source.connect(high); high.connect(filter); filter.connect(envelope); envelope.connect(this.effects!);
-    timber.connect(partial); partial.connect(envelope);
-    this.track({ sources: [source, timber], nodes: [source, high, filter, envelope, timber, partial], bus: 'fire' }, at, duration + .04, this.fireRandom());
+    this.track({ sources: [source], nodes: [source, high, filter, envelope], bus: 'fire' }, at, duration + .04, this.fireRandom());
   }
 
   private note(midi: number, at: number, duration: number, level: number, bus: Bus, pad = false) {

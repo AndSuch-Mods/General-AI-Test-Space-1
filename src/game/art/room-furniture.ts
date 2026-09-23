@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { ROOM_FRAMES, ROOM_TEXTURE } from './room-atlas';
-import { FLOOR_Y_SCALE } from '../../content/room';
+import { FLOOR_Y_SCALE, SOFA_SEAT_OFFSETS } from '../../content/room';
 
 /** The default views continue to use ROOM_TEXTURE, byte-for-byte original assets. */
 export const FURNITURE_IMAGES = [
@@ -38,7 +38,7 @@ export function furnitureArt(id: string, turn: ArtTurn = 0) {
     full: 'open-0', base: 'base', foreground: 'foreground', openFrames: ['open-0', 'open-1', 'open-2', 'open-3'],
     drawerFrames: { left: ['left-0', 'left-1', 'left-2', 'left-3'], right: ['right-0', 'right-1', 'right-2', 'right-3'] },
     seatRise: SEAT_RISE,
-    seats: id === 'sofa' ? [-42, 0, 42].map(offset => anchor(spec.width / 2 + offset, spec.depth / 2, SEAT_RISE))
+    seats: id === 'sofa' ? SOFA_SEAT_OFFSETS.map(offset => anchor(spec.width / 2 + offset, spec.depth / 2, SEAT_RISE))
       : id === 'armchair' ? [anchor(spec.width / 2, spec.depth / 2, SEAT_RISE)] : [],
     // Measured pillow centers in the original front and derived side/rear artwork.
     pillows: id === 'bed' ? [

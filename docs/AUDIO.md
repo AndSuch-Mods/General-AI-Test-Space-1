@@ -1,5 +1,9 @@
 # Household audio
 
+## Current hearth, 0.1.11
+
+A processed CC0 wood-fire recording replaces synthetic hearth pops. See HOUSEHOLD_POLISH_11.md for provenance and offline/lifecycle behavior. Local asset loading never blocks unlock/music, the loop seam is blended, and added pop scheduling stops once loaded. Other audio remains synthesized. Synthesis-only descriptions below refer to earlier builds.
+
 `src/audio/household-audio.ts` synthesizes all sound locally with Web Audio. It has no downloaded samples, third-party melodies, runtime network calls or package dependencies.
 
 The original miniature, **An Unlatched Window**, uses eight written bars in D minor at 70 BPM. A soft triangle/sine instrument plays a fixed melody over sustained harmony and a quiet bass. The second statement changes the ending. Rests, note envelopes and a short synthesized room response leave space for movement and interactions. The entry hall is quieter and more muffled. Day and night alter the room filter.

@@ -1,5 +1,7 @@
 # Haunted Chocolatier: Twilight
 
+Read `docs/HOUSEHOLD_POLISH_11.md` before household work. Preserve the approved north door and open leaves. The couch has two cushion positions plus a solo-only center pose with a co-op scoot. Standing transitions must retain their visual anchor and depth.
+
 Read `docs/HOUSEHOLD_POLISH_10.md` first for the current household batch and user overrides, including short-code co-op, ledger/storage, free-position sleep and artwork corrections.
 
 During active buildout, prioritize the requested game and UI changes over development-save compatibility. The user accepts save resets and overwrites. Do not add migrations or run extra save-preservation exercises solely to retain development progress. This overrides the older preservation requirements below for buildout; unrelated files and repositories remain outside scope.

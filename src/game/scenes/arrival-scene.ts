@@ -21,6 +21,7 @@ type Resident = {
   container: Phaser.GameObjects.Container; sprite: Phaser.GameObjects.Image;
   facing: ResidentFacing; distance: number; lastTravel: number; map: RoomMap; sleeping: boolean; seated: boolean;
   settlingAt: number; settleFrom: { x: number; y: number };
+  seatBlend: number; seatBlendFrom: number; seatId?: string; seatSlot?: number;
   bedDisturbances: number; reactionAt: number; reaction: Phaser.GameObjects.Image;
 };
 type Furnishing = { object: RoomObject; amount: number; image: Phaser.GameObjects.Image; frames: string[] };
@@ -232,9 +233,15 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         if (item.id === 'stove') {
           for (const [index, burner] of anchors.burners.entries()) {
             const bx = Math.round((x + burner.x) / 2) * 2, by = Math.round((y + burner.y) / 2) * 2;
-            effect.fillStyle(0x527cc8, .85); effect.fillRect(bx - 4, by - 2, 8, 4);
-            effect.fillStyle(0x9ccfea, .9); effect.fillRect(bx - 2, by - 2 - ((frame + index) % 3 === 0 ? 2 : 0), 4, 4);
-            effect.fillStyle(0x292840); effect.fillRect(bx - 2, by, 4, 2);
+            // A dark burner cap surrounded by separate tapering gas jets.
+            // Violet bases and warm tips distinguish fire from the sink stream.
+            effect.fillStyle(0x30264d); effect.fillRect(bx - 6, by - 2, 12, 4);
+            for (const [jet, offset] of [-6, 0, 6].entries()) {
+              const height = 4 + ((frame + index * 2 + jet) % 3 === 0 ? 2 : 0);
+              effect.fillStyle(0x7061d9); effect.fillRect(bx + offset - 2, by - 2, 4, 2);
+              effect.fillStyle(0xe5a84d); effect.fillRect(bx + offset, by - height, 2, height - 2);
+              effect.fillStyle(0xffe5a0); effect.fillRect(bx + offset, by - height, 2, 2);
+            }
           }
         } else if (anchors.spout) {
           const sx = x + anchors.spout.x, sy = y + anchors.spout.y, bottom = y + anchors.waterEnd!;
@@ -301,7 +308,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           const parts: Phaser.GameObjects.GameObject[] = [shadow, sprite, reaction];
           if (id !== current.localId) parts.push(this.add.text(0, -102, p.name, { fontSize: '9px', fontFamily: 'sans-serif', color: '#d7e5d7', stroke: '#211b24', strokeThickness: 3 }).setOrigin(.5));
           const container = this.add.container(target.x, target.y, parts);
-          actor = { container, sprite, reaction, facing: p.facing, distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, seated: !!p.seated, settlingAt: -Infinity, settleFrom: target, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
+          actor = { container, sprite, reaction, facing: p.facing, distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, seated: !!p.seated, seatBlend: p.seated ? 1 : 0, seatBlendFrom: p.seated ? 1 : 0, seatId: p.seated?.id, seatSlot: p.seated?.slot, settlingAt: -Infinity, settleFrom: target, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
         }
         actor.sprite.setTexture(texture); actor.facing = p.facing;
         for (const part of actor.container.list) if (part instanceof Phaser.GameObjects.Text) part.setVisible(!p.fatigue.sleeping);
@@ -309,7 +316,11 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           actor.reactionAt = time; actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
         }
         actor.bedDisturbances = p.bedDisturbances;
-        if (!p.fatigue.sleeping || actor.map !== p.map) actor.reactionAt = -Infinity;
+        if (!p.fatigue.sleeping && !p.seated || actor.map !== p.map) actor.reactionAt = -Infinity;
+        if (p.seated && actor.seated && actor.map === p.map && actor.seatId === p.seated.id && actor.seatSlot !== p.seated.slot) {
+          actor.reactionAt = time; actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
+          actor.seatBlendFrom = actor.seatBlend;
+        }
         if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping || actor.seated !== !!p.seated) {
           if (id === current.localId && p.fatigue.sleeping && !actor.sleeping) {
             for (const [name, key] of Object.entries(this.keys)) if (key.isDown) this.blockedKeys.add(name);
@@ -318,11 +329,14 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           if (actor.map === p.map && !reducedMotion) {
             actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
           } else { actor.container.setPosition(target.x, target.y); actor.settlingAt = -Infinity; }
+          actor.seatBlendFrom = actor.seatBlend;
           actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.seated = !!p.seated; actor.lastTravel = -Infinity;
         }
+        if (p.seated) { actor.seatId = p.seated.id; actor.seatSlot = p.seated.slot; }
         const dx = target.x - actor.container.x, dy = target.y - actor.container.y, remaining = Math.hypot(dx, dy);
         const settling = Math.min(1, Math.max(0, (time - actor.settlingAt) / 420));
         const ease = settling * settling * (3 - 2 * settling);
+        actor.seatBlend = actor.seatBlendFrom + ((p.seated ? 1 : 0) - actor.seatBlendFrom) * ease;
         if (settling < 1) actor.container.setPosition(actor.settleFrom.x + (target.x - actor.settleFrom.x) * ease, actor.settleFrom.y + (target.y - actor.settleFrom.y) * ease);
         else if (!p.fatigue.sleeping && !p.seated && remaining > .35) {
           const amount = Math.min(remaining, Math.max(0, delta) * .14);
@@ -335,14 +349,15 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         const settled = sleepProgress * sleepProgress * (3 - 2 * sleepProgress);
         if (p.fatigue.sleeping) actor.container.setPosition(actor.settleFrom.x + (target.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (target.y - actor.settleFrom.y) * settled);
         const pose = residentFrame(actor.facing, actor.distance, !p.seated && !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
-        const reactionElapsed = time - actor.reactionAt, reacting = p.fatigue.sleeping && reactionElapsed < 900;
+        const reactionElapsed = time - actor.reactionAt, reacting = (p.fatigue.sleeping || !!p.seated) && reactionElapsed < 900;
         const toss = reacting && !reducedMotion ? [0, -2, -4, -2, 0, 2, 4, 2, 0, 0][Math.floor(reactionElapsed / 90)] : 0;
-        actor.sprite.setFrame(reacting ? 'down-grumpy' : p.fatigue.sleeping ? (sleepProgress < .3 ? 'down-idle' : 'down-rest') : p.seated ? p.facing + '-sit' : pose.frame)
+        actor.sprite.setFrame(reacting && p.fatigue.sleeping ? 'down-grumpy' : p.fatigue.sleeping ? (sleepProgress < .3 ? 'down-idle' : 'down-rest') : actor.seatBlend > .5 ? p.facing + '-sit' : pose.frame)
           .setFlipX(!p.fatigue.sleeping && !p.seated && pose.flipX).setPosition(toss, 0)
-          .setOrigin(.5, p.seated ? (47 - 15 * ease) / 48 : RESIDENT_ORIGIN.y).setAngle(sleepTurn * 90 * (reducedMotion ? 1 : settled));
+          .setOrigin(.5, (47 - 15 * actor.seatBlend) / 48).setAngle(sleepTurn * 90 * (reducedMotion ? 1 : settled));
         actor.reaction.setVisible(reacting).setPosition(24, -94)
           .setAlpha(reacting ? Math.min(1, (900 - reactionElapsed) / 250) : 0);
-        const seat = p.seated && objects.find(o => o.id === p.seated!.id);
+        // Keep the resident above the furniture throughout standing up.
+        const seat = (p.seated || actor.seatBlend > 0) && objects.find(o => o.id === actor.seatId);
         actor.container.setDepth(p.fatigue.sleeping ? (bed?.depth ?? p.y) + .2 : seat ? seat.depth + .2 : actor.container.y);
         if (id === current.localId) {
           const camera = this.cameras.main;
@@ -356,6 +371,8 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
             telemetry('hotbarDock', edge);
           }
           telemetry('playerX', Number(p.x.toFixed(2))); telemetry('playerY', Number(p.y.toFixed(2)));
+          telemetry('playerVisualX', actor.container.x); telemetry('playerVisualY', actor.container.y);
+          telemetry('playerOriginY', actor.sprite.originY); telemetry('playerDepth', actor.container.depth);
           telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(actor.sprite.flipX));
           telemetry('nearestObject', nearestInteractable(p, savedLayout, roomFlag(current.world, p.map, 'letter-filed') ? ['letter'] : [])?.id ?? '');
           telemetry('residentWidth', actor.sprite.displayWidth); telemetry('residentHeight', actor.sprite.displayHeight);

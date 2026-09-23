@@ -277,8 +277,9 @@ export function doorCrossed(position: Position, dx: number, dy: number, layout: 
     o.door.wall === 'north' && dy < 0 && position.y <= 234 && Math.abs(position.x - 480) < 32 ||
     o.door.wall === 'south' && dy > 0 && position.y >= 460 && Math.abs(position.x - 480) < 32));
 }
+export const SOFA_SEAT_OFFSETS = [-27, 0, 27] as const;
 export function seatPosition(object: RoomObject, index = 0): Position {
-  const center = groundCenter(object), vector = turnPoint({ x: center.x + (object.id === 'sofa' ? [-42, 0, 42][index] : 0), y: center.y }, center, object.rotation ?? 0);
+  const center = groundCenter(object), vector = turnPoint({ x: center.x + (object.id === 'sofa' ? SOFA_SEAT_OFFSETS[index] : 0), y: center.y }, center, object.rotation ?? 0);
   return vector;
 }
 export function clampPlacement(map: RoomMap, id: FurnitureId, value: Placement, layout: RoomLayout): Placement {

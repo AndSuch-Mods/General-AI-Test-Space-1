@@ -47,13 +47,16 @@ describe('registered original door frames', () => {
   it.each<DoorWall>(['west', 'east'])('%s places upright posts and swings a full face downward into the room', wall => {
     const door = doorFramePixels(source, wall), bounds = doorFrameBounds(wall);
     const top = (x: number) => Array.from({ length: door.height }, (_, y) => y).find(y => door.data[(y * door.width + x) * 4 + 3] > 0)!;
-    expect(Math.abs(top(bounds.x + 3) - top(bounds.x + 12))).toBeLessThanOrEqual(4);
+    expect(top(bounds.x)).toBe(top(bounds.x + bounds.width - 1));
+    expect(bounds.width).toBe(8);
     const closed = doorLeafGeometry(wall, 0), opened = doorLeafGeometry(wall, 1);
-    expect(opened.origin).toEqual(closed.origin); expect(opened.down).toEqual(closed.down);
-    expect(opened.along.y).toBeGreaterThan(closed.along.y);
+    expect(opened.origin.x).toEqual(closed.origin.x);
+    expect(closed.along.y).toBe(0); expect(Math.abs(closed.along.x)).toBe(2);
+    expect(closed.down.x).toBe(0);
     expect(Math.abs(opened.along.x)).toBe(36);
   });
   it('keeps the south leaf full length and the north open knob outside the left jamb', () => {
+    expect(doorFrameBounds('south').height).toBe(9);
     for (const amount of [0, 1 / 3, 2 / 3, 1]) {
       const leaf = doorLeafGeometry('south', amount);
       expect(Math.hypot(leaf.along.x, leaf.along.y)).toBeCloseTo(33);

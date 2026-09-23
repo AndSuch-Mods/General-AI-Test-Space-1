@@ -15,6 +15,8 @@ const parts = {
   eastNear: { x: 824, y: 429, width: 55, height: 358 }, eastFar: { x: 788, y: 385, width: 39, height: 371 },
   beam: { x: 350, y: 837, width: 153, height: 40 }, recess: { x: 365, y: 890, width: 130, height: 270 },
   knob: { x: 499, y: 195, width: 30, height: 31 }, edge: { x: 342, y: 39, width: 191, height: 28 },
+  straightTrim: { x: 316, y: 886, width: 36, height: 246 }, trimCap: { x: 312, y: 852, width: 43, height: 25 },
+  closedEdge: { x: 339, y: 44, width: 14, height: 300 },
 } satisfies Record<string, Crop>;
 
 /** Extra canvas surrounds the unchanged doorway footprint and carries its swinging leaf. */
@@ -26,8 +28,8 @@ export function doorArt(wall: DoorWall) {
 }
 export function doorFrameBounds(wall: DoorWall) {
   return wall === 'north' ? { x: 12, y: 0, width: 43, height: 68 }
-    : wall === 'south' ? { x: 4, y: 36, width: 43, height: 18 }
-    : { x: wall === 'west' ? 0 : 40, y: 0, width: 16, height: 68 };
+    : wall === 'south' ? { x: 4, y: 41, width: 43, height: 9 }
+    : { x: wall === 'west' ? 2 : 46, y: 0, width: 8, height: 68 };
 }
 function painter(target: DoorRaster, source: DoorRaster) {
   const pixel = (x: number, y: number, frame: Crop, u: number, v: number) => {
@@ -50,16 +52,17 @@ function painter(target: DoorRaster, source: DoorRaster) {
   const rect = (frame: Crop, x: number, y: number, width: number, height: number) => quad(frame, { x, y }, { x: width, y: 0 }, { x: 0, y: height });
   return { quad, rect };
 }
-/** Place the newly authored side posts upright; no whole-door squash or shear. */
+/** Side walls are seen edge-on: one narrow upright casing, not two front-facing posts. */
 export function doorFramePixels(source: DoorRaster, wall: DoorWall): DoorRaster {
   const art = doorArt(wall), out = { width: art.width / 2, height: art.height / 2, data: new Uint8ClampedArray(art.width * art.height) };
   const p = painter(out, source), frame = doorFrameBounds(wall);
   if (wall === 'north' || wall === 'south') p.rect(parts[wall], frame.x, frame.y, frame.width, frame.height);
   else {
     const west = wall === 'west', x = frame.x;
-    p.rect(parts.recess, x + 4, 5, 9, 60); p.rect(parts.beam, x + 3, 4, 11, 5);
-    p.rect(west ? parts.westFar : parts.eastFar, x + (west ? 10 : 0), 0, 6, 68);
-    p.rect(west ? parts.westNear : parts.eastNear, x + (west ? 0 : 9), 0, 7, 68);
+    p.rect(parts.recess, x, 0, 8, 68);
+    p.rect(parts.straightTrim, x + (west ? 0 : 4), 3, 4, 62);
+    p.rect(parts.trimCap, x, 0, 8, 3);
+    p.rect(parts.trimCap, x, 65, 8, 3);
   }
   return out;
 }
@@ -75,11 +78,13 @@ export function doorLeafGeometry(wall: DoorWall, amount: number) {
     return { origin: { x: 11, y: 46 }, along: { x: 33 * Math.cos(angle), y: -33 * Math.sin(angle) }, down: { x: -5 * Math.sin(angle), y: -5 * Math.cos(angle) }, back: false };
   }
   const sign = wall === 'west' ? 1 : -1, angle = [0, 32, 62, 90][step] * Math.PI / 180;
+  if (step === 0) return { origin: { x: wall === 'west' ? 6 : 50, y: 3 }, along: { x: sign * 2, y: 0 }, down: { x: 0, y: 62 }, back: wall === 'east' };
   return { origin: { x: wall === 'west' ? 6 : 50, y: 22 }, along: { x: sign * Math.max(6, 36 * Math.sin(angle)), y: -21.6 * Math.cos(angle) }, down: { x: 0, y: 44 }, back: wall === 'east' };
 }
 export function doorNativePixels(source: DoorRaster, wall: DoorWall, amount: number): DoorRaster {
   const out = doorFramePixels(source, wall), p = painter(out, source), leaf = doorLeafGeometry(wall, amount);
-  p.quad(wall === 'south' ? parts.edge : leaf.back ? parts.back : parts.front, leaf.origin, leaf.along, leaf.down, leaf.back);
+  const closedSide = (wall === 'west' || wall === 'east') && Math.round(amount * 3) === 0;
+  p.quad(closedSide ? parts.closedEdge : wall === 'south' ? parts.edge : leaf.back ? parts.back : parts.front, leaf.origin, leaf.along, leaf.down, leaf.back);
   // Hardware follows the leaf, and remains visible on both faces at edge-on poses.
   const free = { x: leaf.origin.x + leaf.along.x * .9 + leaf.down.x * .55, y: leaf.origin.y + leaf.along.y * .9 + leaf.down.y * .55 };
   if (wall === 'south') {

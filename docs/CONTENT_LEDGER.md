@@ -1,5 +1,9 @@
 # Content ledger
 
+## 0.1.11 household corrections
+
+No maps, story, quests or progression counts added. Approved door leaves/furniture are retained. The first licensed recorded ambience is Sadiquecat's CC0 wood fire, with source and processing in HOUSEHOLD_POLISH_11.md. Earlier synthesis-only claims describe earlier builds. Existing emptiness-audit gaps remain open.
+
 ## 0.1.10 household polish
 
 New door components and the user-supplied home icon replace the corresponding presentation assets. Existing furnishings retain their approved designs; the bookshelf is 50% larger and the curtain rod is raised. Ledger, drawer and nightstand storage, nearest seating, chosen-position sleep, kitchen effects and appliance sounds extend the household interactions. No maps, NPCs, recipes, progression tiers or story chapters are counted as new content. The existing emptiness audit remains open; this is household acceptance work.

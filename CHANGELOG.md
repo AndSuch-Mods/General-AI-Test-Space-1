@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.11
+
+- Align side casings/closed edges; halve south frame thickness while preserving north art and open leaves.
+- Keep standing transitions continuous and in front of furniture. Center two residents on couch cushions; a solo center resident scoots aside when joined.
+- Replace synthetic hearth pops with processed CC0 wood fire, bundled offline and credited to Sadiquecat.
+- Draw tapered warm-tipped gas jets instead of water-like blocks. Preserve approved stove, sink and furniture art.
+
+
 ## 0.1.10 household interactions and artwork
 
 - Packaged the September 23 supplied castle/ghost image as the iOS, 192px and 512px app icons.

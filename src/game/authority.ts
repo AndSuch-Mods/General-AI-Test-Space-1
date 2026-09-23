@@ -26,7 +26,7 @@ function standUp(world: World, player: Player) {
   if (!player.seated) return;
   const layout = roomLayout(world, player.map), seat = getRoomObjects(player.map, layout).find(o => o.id === player.seated!.id)!;
   const [dx, dy] = [[0, 1], [-1, 0], [0, -1], [1, 0]][seat.rotation ?? 0];
-  const center = seatPosition(seat, player.seated.slot), front = { x: center.x + dx * (seat.floor!.width / 2 + 24), y: center.y + dy * (seat.floor!.height / 2 + 24) };
+  const center = seatPosition(seat, player.seated.slot), front = { x: center.x + dx * (seat.floor!.width / 2 + 12), y: center.y + dy * (seat.floor!.height / 2 + (dy > 0 ? 10 : 2)) };
   Object.assign(player, safePosition(front, player.map, layout), { seated: null });
 }
 function passDoor(world: World, player: Player, door: ReturnType<typeof doorCrossed>) {
@@ -218,13 +218,20 @@ export class Authority {
         if (object.door) passDoor(world, player, object);
         else if (event.id === 'sofa' || event.id === 'armchair') {
           if (player.seated) standUp(world, player);
-          const occupied = new Set(Object.values(world.players).filter(p => p.map === player.map && p.seated?.id === event.id).map(p => p.seated!.slot));
-          const slots = (event.id === 'sofa' ? [0, 1, 2] : [0]).sort((a, b) => {
+          const occupants = Object.values(world.players).filter(p => p.id !== player.id && p.map === player.map && p.seated?.id === event.id);
+          const occupied = new Set(occupants.map(p => p.seated!.slot));
+          // The center is a solo lounging pose, never a third cushion.
+          const slots = (event.id === 'sofa' ? occupants.length ? [0, 2] : [0, 1, 2] : [0]).sort((a, b) => {
             const pa = seatPosition(object, a), pb = seatPosition(object, b);
             return Math.hypot(pa.x - player.x, pa.y - player.y) - Math.hypot(pb.x - player.x, pb.y - player.y);
           });
           const slot = slots.find(n => !occupied.has(n));
           if (slot === undefined) throw Error('This seat is occupied.');
+          const lounging = occupants.find(p => p.seated!.slot === 1);
+          if (lounging) {
+            const otherSide = slot === 0 ? 2 : 0;
+            Object.assign(lounging, seatPosition(object, otherSide), { seated: { id: event.id, slot: otherSide } });
+          }
           Object.assign(player, seatPosition(object, slot), { seated: { id: event.id, slot }, facing: facingForTurn(object.rotation), interaction: null });
         }
         else if (event.id === 'stove' || event.id === 'sink') world.story.flags[roomFlagKey(player.map, event.id)] = !roomFlag(world, player.map, event.id);

@@ -154,7 +154,7 @@ async function title() {
   });
   on('settings', settingsDialog);
   on('credits', () => {
-    const panel = dialog('Credits', '<p class="credits-title">Haunted Chocolatier: Twilight</p><p>Title artwork supplied by the project owner.</p><p>Original game code, world, characters, music and sound created for this project.</p><p class="muted">Built with Phaser, Dexie, Zod, jsQR and qrcode.</p>');
+    const panel = dialog('Credits', '<p class="credits-title">Haunted Chocolatier: Twilight</p><p>Title artwork supplied by the project owner.</p><p>Original game code, world, characters, music and synthesized sound created for this project.</p><p>Fireplace ambience adapted from “Fireplace wood crackling” by Sadiquecat, Freesound, CC0.</p><p class="muted">Built with Phaser, Dexie, Zod, jsQR, qrcode and PeerJS.</p>');
     panel.classList.add('title-choice');
   });
   on('apply-update', () => offline.applyUpdate()); refreshOffline();

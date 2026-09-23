@@ -1,5 +1,7 @@
 # Implementation status
 
+0.1.11 implements HOUSEHOLD_POLISH_11.md: aligned side casings/closed edges, thinner south trim, continuous stand-up anchors/depth, two-cushion co-op seating with solo-center scooting, recorded hearth ambience and tapered gas jets. No game-content phase is complete.
+
 Current build: **0.1.10 household polish**, protocol 10. See `HOUSEHOLD_POLISH_10.md` for the complete user checklist, `ART_DOORS_V10.md` for generated door provenance and `CODE_ROOMS.md` for connection setup. New state is limited to room/container contents, selected drawer and a third sofa position; no development-save migration is added. The green book is the movable ledger, while personal memories remain in the inventory Journal. Bed placement follows the resident rather than their player number. Previous release records below describe historical builds.
 
 Current build: **0.1.9 main menu**. The supplied castle/ghost image and logo accompany five responsive working menu actions. New Game protects occupied slots; Continue and Host select one of the two worlds. Save schema 7 and protocol 9 remain. `MAIN_MENU.md` records the current title contract; the household status below is retained.

@@ -1,5 +1,11 @@
 # Validation
 
+## 0.1.11 targeted corrections
+
+Focused authority/art tests pass 28 cases, including center-to-side couch sharing and clear stand positions in all four rotations. A rendered two-resident check records 33 stand-up frames with a maximum 2.03-world-pixel frame step and no drop behind the furniture. Reviewed room screenshots show aligned casings, thinner south trim and two residents inside the couch arms. Browser decoded the bundled fire recording successfully; no page errors. The local review script initially used the wrong cleanup method after all assertions; browser teardown still completed. Full pnpm check passes all 174 unit tests, lint, types, master coverage and the production build. The offline package includes the recording. The existing Chromium/WebKit release gate remains required before deployment. Physical iPhone touch/audio acceptance remains open.
+
+Audio render at game gain places the recorded fire 14.77 dB below music RMS, with no clipped samples. The final reduced hearth gain is included in the production build.
+
 ## 0.1.10 household batch
 
 At `07f57a2`, Chromium passed 27/30 browser cases, including the new moving-A/ledger/drawer/nightstand case and co-op bed/disturbance sequence. The three failures were pantry-title and cacao-count wording changed by the generic storage view. The view now retains “Household pantry” and correctly pluralized cacao counts; storage assertions remain unchanged. Production package after this text repair: `cad1fdfe675ead53`, 35 files, 28,401,163 bytes.
