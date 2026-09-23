@@ -115,7 +115,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   await walkTo(guest, 'y', 266);
   await action(guest);
   await guest.locator('#close-dialog').click();
-  await walkTo(guest, 'y', 355);
+  await walkTo(guest, 'y', 365);
   await action(guest);
   await expect(guest.getByRole('heading', { name: 'Household chest', exact: true, level: 2 })).toBeVisible();
   await guest.locator('#chest-deposit').click();
