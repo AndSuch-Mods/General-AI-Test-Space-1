@@ -6,6 +6,7 @@
 - Added responsive blue-framed Continue, New Game, Co-Op, Settings and Credits buttons, each with at least 44px touch height.
 - Moved world selection behind Continue/New Game and Host Co-op. Occupied slots cannot be used by New Game. Backups and offline repair live in Settings.
 - Preserved the explicit update restart, existing saves, character creation, gameplay, co-op and offline behavior.
+- Fixed a Safari audio startup failure that could prevent entering a room. Invalid audio clock values now defer scheduling until the clock recovers, without blocking gameplay or replaying old cues.
 
 ## 0.1.8 household polish
 

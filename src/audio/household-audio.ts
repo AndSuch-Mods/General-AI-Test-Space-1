@@ -48,6 +48,7 @@ export class HouseholdAudio {
   private nextCrackle = 0;
   private scoreStep = 0;
   private cueStep = 0;
+  private clockPending = false;
   private lastCue = new Map<HouseholdCue, number>();
   private readonly hidden = () => { if (document.hidden) this.suspend(); };
   private readonly leaving = () => this.suspend();
@@ -69,7 +70,6 @@ export class HouseholdAudio {
     if (this.disposed || lifecycle !== this.lifecycle || !this.enabled) return;
     if (document.hidden) { this.suspend(); return; }
     this.unlocked = true;
-    this.master!.gain.setTargetAtTime(.48, context.currentTime, .04);
     this.start();
   }
 
@@ -77,8 +77,13 @@ export class HouseholdAudio {
     this.lifecycle++;
     this.enabled = enabled;
     if (!this.context || this.disposed) return;
-    this.master!.gain.cancelScheduledValues(this.context.currentTime);
-    this.master!.gain.setTargetAtTime(enabled ? .48 : 0, this.context.currentTime, .02);
+    const now = this.audioTime();
+    if (now !== undefined) {
+      this.master!.gain.cancelScheduledValues(now);
+      this.master!.gain.setTargetAtTime(enabled ? .48 : 0, now, .02);
+    } else if (!enabled) {
+      this.master!.gain.cancelScheduledValues(0); this.master!.gain.value = 0;
+    }
     if (!enabled) { this.stopTimer(); this.stopVoices(); }
     else if (this.unlocked && this.context.state === 'running' && !document.hidden) this.start();
   }
@@ -86,23 +91,28 @@ export class HouseholdAudio {
   setMusicEnabled(enabled: boolean) {
     this.musicEnabled = enabled;
     if (!this.context || this.disposed) return;
-    this.music!.gain.setTargetAtTime(enabled ? .32 : 0, this.context.currentTime, .08);
+    const now = this.audioTime();
+    if (now !== undefined) this.music!.gain.setTargetAtTime(enabled ? .32 : 0, now, .08);
+    else if (!enabled) { this.music!.gain.cancelScheduledValues(0); this.music!.gain.value = 0; }
     if (!enabled) this.stopVoices('music');
     this.scoreStep -= this.scoreStep % 8;
-    this.nextNote = this.context.currentTime + .1;
+    this.nextNote = now === undefined ? 0 : now + .1;
   }
 
   setScene(scene: HouseholdSoundScene) {
     if (scene.map === this.scene.map && scene.night === this.scene.night && scene.hearth === this.scene.hearth) return;
     this.scene = { ...scene };
     if (!this.context || this.disposed) return;
-    this.roomFilter!.frequency.setTargetAtTime(scene.map === 'landing' ? 1650 : scene.night ? 2400 : 3300, this.context.currentTime, 1.2);
-    this.updateFire();
+    const now = this.audioTime();
+    if (now === undefined) return;
+    this.roomFilter!.frequency.setTargetAtTime(scene.map === 'landing' ? 1650 : scene.night ? 2400 : 3300, now, 1.2);
+    this.updateFire(now);
   }
 
   cue(name: HouseholdCue) {
     if (!this.canPlay()) return;
-    const now = this.context!.currentTime;
+    const now = this.audioTime();
+    if (now === undefined) return;
     if (now - (this.lastCue.get(name) ?? -1) < (name === 'step' ? .12 : .07)) return;
     this.lastCue.set(name, now); this.cueStep++;
     const tone = (start: number, end: number, length: number, gain: number, delay = 0) => this.wood(now + delay, start, end, length, gain);
@@ -141,6 +151,17 @@ export class HouseholdAudio {
 
   private canPlay() { return !this.disposed && this.enabled && this.unlocked && !document.hidden && this.context?.state === 'running'; }
 
+  private audioTime(): number | undefined {
+    const now = this.context?.currentTime;
+    if (now === undefined || !Number.isFinite(now) || now < 0) {
+      // A waking WebKit context can transiently expose an unusable clock.
+      // Keep the authorized scheduler alive, but never send it to Web Audio.
+      this.clockPending = true;
+      return;
+    }
+    return now;
+  }
+
   private build() {
     const Constructor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Constructor) throw Error('This browser does not support game audio.');
@@ -173,17 +194,25 @@ export class HouseholdAudio {
 
   private start() {
     if (this.timer || !this.canPlay()) return;
-    this.nextNote = this.context!.currentTime + .08;
-    this.nextCrackle = this.context!.currentTime + .8;
-    this.scoreStep -= this.scoreStep % 8;
-    this.updateFire();
+    this.clockPending = true;
     this.timer = setInterval(() => this.schedule(), 100);
     this.schedule();
   }
 
   private schedule() {
     if (!this.canPlay()) { this.stopTimer(); return; }
-    const now = this.context!.currentTime;
+    const now = this.audioTime();
+    if (now === undefined) return;
+    if (this.clockPending) {
+      this.master!.gain.cancelScheduledValues(now);
+      this.master!.gain.setTargetAtTime(.48, now, .04);
+      this.music!.gain.setTargetAtTime(this.musicEnabled ? .32 : 0, now, .08);
+      this.roomFilter!.frequency.setTargetAtTime(this.scene.map === 'landing' ? 1650 : this.scene.night ? 2400 : 3300, now, 1.2);
+      this.nextNote = now + .08; this.nextCrackle = now + .8;
+      this.scoreStep -= this.scoreStep % 8;
+      this.clockPending = false;
+    }
+    this.updateFire(now);
     if (this.nextNote < now - .2) this.nextNote = now + .05;
     if (this.musicEnabled) while (this.nextNote < now + .18) {
       const bar = Math.floor(this.scoreStep / 8) % 8, beat = this.scoreStep % 8, statement = Math.floor(this.scoreStep / 64) % 2;
@@ -242,14 +271,13 @@ export class HouseholdAudio {
     return buffer;
   }
 
-  private updateFire() {
+  private updateFire(now: number) {
     if (!this.context) return;
     const audible = this.canPlay() && this.scene.hearth && this.scene.map !== 'landing';
     if (!audible) {
       const voice = this.fireVoice, gain = this.fireGain;
       this.fireVoice = undefined; this.fireGain = undefined; this.nextCrackle = 0;
       if (voice && gain) {
-        const now = this.context.currentTime;
         const held = FIRE_BED_LEVEL * Math.min(1, Math.max(0, now - this.fireStartedAt) / 1.3);
         gain.gain.cancelScheduledValues(now); gain.gain.setValueAtTime(held, now); gain.gain.linearRampToValueAtTime(0, now + .45);
         voice.sources.forEach(source => source.stop(now + .5));
@@ -265,10 +293,10 @@ export class HouseholdAudio {
     high.type = 'highpass'; high.frequency.value = 145; high.Q.value = .5;
     low.type = 'lowpass'; low.frequency.value = 1450; low.Q.value = .4;
     source.connect(high); high.connect(low); low.connect(gain); gain.connect(this.effects!);
-    gain.gain.setValueAtTime(0, context.currentTime); gain.gain.linearRampToValueAtTime(FIRE_BED_LEVEL, context.currentTime + 1.3);
-    this.fireStartedAt = context.currentTime;
+    gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(FIRE_BED_LEVEL, now + 1.3);
+    this.fireStartedAt = now;
     this.fireVoice = { sources: [source], nodes: [source, high, low, gain], bus: 'fire' }; this.fireGain = gain;
-    this.track(this.fireVoice, context.currentTime, Infinity); this.nextCrackle = context.currentTime + .8;
+    this.track(this.fireVoice, now, Infinity); this.nextCrackle = now + .8;
   }
 
   private ember(at: number, duration: number, cutoff: number, level: number) {

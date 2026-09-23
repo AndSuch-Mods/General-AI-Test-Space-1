@@ -10,6 +10,8 @@ Wooden footsteps, chest/door movement, paper, ignition, extinguishing, placement
 
 Create one `HouseholdAudio`. Call and await `unlock()` directly from a pointer or keyboard gesture, and again after mobile suspension. It creates no AudioContext before that call. Catch an unsupported-browser or resume error without blocking gameplay.
 
+Every scheduling path requires a finite, nonnegative audio clock. A temporarily invalid clock defers scheduling while the authorized timer waits for recovery; the latest scene and sound preferences then apply. Old one-shot cues are dropped. Muting still cancels voices immediately, and suspension still requires a new gesture. The main-menu release exposed this failure in macOS WebKit; a browser regression injects a NaN clock during resident creation and verifies that entering the room succeeds and audio can resume.
+
 The sound checkbox calls `unlock()` again inside its enabling change event. The earlier pointer-down can run while sound is still muted. A lifecycle counter rejects stale resume completions after mute or suspension, so an old gesture cannot undo a later enable. Returning to the title clears the room fire state before another gesture can resume sound.
 
 - `setEnabled(false)` mutes music, ambience and effects. Re-enabling does not bypass the gesture requirement.
