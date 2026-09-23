@@ -81,7 +81,7 @@ describe('room persistence and shared interaction', () => {
   });
   it('toggles candles once per intent without confusing them with story completion', async () => {
     const initial = createWorld(createPlayer('Keeper'));
-    Object.assign(initial.players[initial.hostId], { x: 382, y: 300 });
+    Object.assign(initial.players[initial.hostId], { x: 416, y: 308 });
     const authority = new Authority(initial, async () => {});
     await authority.dispatch(initial.hostId, 1, { kind: 'interact', target: 'candle-desk' });
     await authority.dispatch(initial.hostId, 1, { kind: 'interact', target: 'candle-desk' });

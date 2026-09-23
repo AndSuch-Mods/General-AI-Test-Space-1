@@ -277,6 +277,8 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 .in-game-dialog .inventory-tabs button { font-size: 13px; padding: 8px 12px; }
 .in-game-dialog .game-actions { right: max(30px, calc(env(safe-area-inset-right) + 20px)); bottom: max(26px, calc(env(safe-area-inset-bottom) + 18px)); }
 .play-screen.designing #touch-surface, .play-screen.designing .quickbar, .play-screen.designing .game-hud, .play-screen.designing .game-actions { display: none; }
+.quickbar[data-dock=top] { top: max(6px, env(safe-area-inset-top)); bottom: auto; left: max(12px, env(safe-area-inset-left)); transform: none; }
+@media (max-width: 650px) { .quickbar[data-dock=top] { top: max(52px, calc(env(safe-area-inset-top) + 46px)); } }
 #arrange-bar { position: absolute; z-index: 3; bottom: max(8px, env(safe-area-inset-bottom)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; justify-content: space-between; gap: 14px; pointer-events: none; }
 #arrange-bar>div { background: #25232ee8; border: 2px solid #a68a62; padding: 6px 18px; text-align: center; }
 #arrange-bar button { pointer-events: auto; border-radius: 0; min-width: 96px; }

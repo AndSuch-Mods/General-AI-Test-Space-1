@@ -27,7 +27,7 @@ describe('persistent resident choices and occupied beds', () => {
     const raw = JSON.parse(JSON.stringify(old)); raw.schemaVersion = 4;
     for (const p of Object.values(raw.players) as Record<string, unknown>[]) { delete p.look; delete p.bedDisturbances; delete p.bedDisturbedAt; }
     const upgraded = parseWorld(raw);
-    expect(upgraded.schemaVersion).toBe(6); expect(upgraded.players[old.hostId].look).toEqual(DEFAULT_LOOK);
+    expect(upgraded.schemaVersion).toBe(7); expect(upgraded.players[old.hostId].look).toEqual(DEFAULT_LOOK);
     expect(upgraded.players).toEqual(old.players); expect(upgraded.layout).toEqual(old.layout); expect(upgraded.chest).toEqual(old.chest);
   });
   it.each(['castle', 'bedroom-2'] as const)('reacts to crossing a moved bed in %s once without waking, and rolls back failed saves', async map => {

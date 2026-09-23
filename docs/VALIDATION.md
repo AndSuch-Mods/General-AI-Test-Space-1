@@ -1,5 +1,14 @@
 # Validation
 
+## 0.1.8, focused household polish
+
+- Local `pnpm check` passes: unchanged master hash/all 53 sections, lint, TypeScript, 132 unit tests and production build. Offline package `7c8d44b301dce867` contains 28 files, 26,698,183 bytes. The source PNG assets are unchanged.
+- Local Chromium passes the two bedroom/entry/kitchen cases and all three time-room cases, including actual peer pairing, separate maps, A-only rest, occupied-bed disturbance and saved dawn reports. The new hotbar case first exposed a trigger too close to the camera limit. Its corrected run passes nearby A rejection, south-exit clearance, reversal leeway, HUD separation and room-transition reset. Complete Chromium and macOS WebKit suites remain mandatory gates before Pages deployment; use the release commit's Actions result for those outcomes.
+- Furniture tests cover projection, collision/visual agreement, original front pixels and occupied masks. Reviewed composed side-facing beds with both residents, sofa/chair views and the door opening sheet. Five door tests protect fixed frame pixels and straight side jambs. In a composed bedroom, four game minutes change 422 daylight glass pixels and 385 night pixels by at least three RGB levels, with zero changes in sampled frame, drape and mullion pixels.
+- Eight migration cases validate schema 6 before schema 7 conversion, preserve both profiles and unrelated state, repair wall/solid/door conflicts with reachable placement, retain unchanged layouts and keep original stored/recovery records. A separate authority regression verifies sleeper reprojection without restarting rest or altering fatigue, and no duplicate resume save.
+- Offline audio renders put the revised fire 14.8 dB below the previous fire RMS and 13.9 dB below unchanged music RMS. Activation and two mute/unmute cycles pass; context lifecycle checks leave no old voices. These are signal/lifecycle checks, not a claim of human listening or physical iPhone speaker acceptance.
+- An isolated installed 0.1.7 fixture retains two UI-created worlds and their customized residents for the post-deployment update/restart and cold-offline checks. Physical two-iPhone networking, touch feel and listening remain open. No content phase advances in this batch.
+
 ## 0.1.7, restored household artwork and combined repairs
 
 - Combined implementation checkpoint `8785d2932251798cd3dc38bb6c1208918becc6be` passed all 114 unit tests and all 24 browser scenarios on both Chromium and macOS WebKit in [Actions run 35810816556](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions/runs/35810816556). Both engines produced offline package `a4bca926e983d668`. This includes the unchanged default renderer check, actual peer reconnect and shared sleep, persistence and offline play. Documentation-only corrections follow this implementation checkpoint; their exact branch and main workflows must still pass before deployment.

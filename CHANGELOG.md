@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.8 household polish
+
+- Corrected turned furniture proportions with one floor projection; original front views and designs remain unchanged.
+- Straightened side doors and held doorframes stationary during opening. Restored visible mist/night motion within the window glass.
+- Tightened object reach. Sleep now requires A inside the bed opening, allowing uninterrupted crossings and sleepy reactions.
+- Moved the quickbar above the room near the south camera limit, with five steps of return leeway and touch-hold protection.
+- Reduced fire volume below the music and replaced windy rumble with softer irregular crackles.
+- Added schema 7 migration for resized furniture, preserving valid layouts, resident progression and recovery copies. Protocol 9 requires matching updated apps for co-op.
+
 ## 0.1.7 art restoration
 
 - Resumed the entire household request after the priority eye correction. Preserved all pending artwork and gameplay work.

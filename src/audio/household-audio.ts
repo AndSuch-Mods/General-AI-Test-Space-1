@@ -19,6 +19,7 @@ const PHRASES: readonly (readonly (number | null)[])[] = [
 const HARMONY = [[50, 57, 60, 65], [46, 53, 57, 62], [43, 50, 57, 62], [45, 52, 55, 61],
   [50, 57, 60, 64], [46, 53, 57, 60], [43, 50, 55, 62], [45, 52, 55, 61]] as const;
 const EIGHTH = 60 / 70 / 2;
+const FIRE_BED_LEVEL = .07;
 const frequency = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
 /** Entirely local synthesis. Nothing is constructed or played until unlock(). */
@@ -111,8 +112,8 @@ export class HouseholdAudio {
       case 'open': tone(230, 145, .24, .043); rustle(.24, 650, .06, 0, true); tone(90, 42, .12, .052, .16); break;
       case 'close': tone(103, 37, .22, .09); rustle(.07, 920, .072); break;
       case 'paper': rustle(.13, 2100, .047, 0, true); rustle(.18, 3100, .033, .1, true); break;
-      case 'ignite': rustle(.78, 720, .088); rustle(.34, 1700, .038, .16, true); break;
-      case 'extinguish': rustle(.5, 1500, .045, 0, true); break;
+      case 'ignite': rustle(.48, 720, .034); rustle(.23, 1400, .016, .12, true); break;
+      case 'extinguish': rustle(.35, 1300, .025, 0, true); break;
       case 'door': tone(190, 105, .46, .065); rustle(.43, 410, .078, 0, true); tone(89, 39, .19, .066, .31); break;
       case 'place': tone(151, 64, .12, .06); rustle(.065, 1150, .047); break;
       case 'disturbed': rustle(.24, 740, .048, 0, true); tone(118, 81, .23, .025, .08); break;
@@ -199,10 +200,11 @@ export class HouseholdAudio {
       this.scoreStep = (this.scoreStep + 1) % 128; this.nextNote += EIGHTH;
     }
     if (this.fireVoice && now >= this.nextCrackle) {
-      // Soft, irregular ember releases sit inside a continuous air/wood bed.
-      // Every burst gets fresh buffer position, cutoff, attack and decay.
-      this.ember(now + .02, .13 + this.fireRandom() * .3, 680 + this.fireRandom() * 1350, .017 + this.fireRandom() * .017);
-      this.nextCrackle = now + .45 + this.fireRandom() * 1.8;
+      // Small dry wood releases, occasionally paired, give the quiet bed its fire
+      // texture. Rounded attacks avoid isolated digital clicks.
+      this.ember(now + .02, .075 + this.fireRandom() * .12, 850 + this.fireRandom() * 1250, .010 + this.fireRandom() * .014);
+      if (this.fireRandom() < .28) this.ember(now + .07 + this.fireRandom() * .07, .09 + this.fireRandom() * .08, 700 + this.fireRandom() * 900, .007 + this.fireRandom() * .006);
+      this.nextCrackle = now + .22 + this.fireRandom() * 1.1;
     }
   }
 
@@ -212,7 +214,8 @@ export class HouseholdAudio {
   }
 
   private buildFireBed(context: AudioContext) {
-    // Low sample rate saves mobile memory; the final low-pass removes bright fizz.
+    // A restrained band of warm combustion texture, without sub-bass wind,
+    // broadband hiss or slow gust-shaped modulation. Crackles carry its identity.
     const rate = 24000, duration = 7.3, length = Math.round(rate * duration);
     const buffer = context.createBuffer(2, length, rate);
     for (let channel = 0; channel < 2; channel++) {
@@ -220,11 +223,8 @@ export class HouseholdAudio {
       let low = 0, mid = 0;
       for (let i = 0; i < length; i++) {
         const white = this.fireRandom() * 2 - 1;
-        low = low * .993 + white * .007; mid = mid * .947 + white * .053;
-        const phase = i / length * Math.PI * 2;
-        const breath = .8 + .12 * Math.sin(phase * 2 + channel * .4) + .08 * Math.sin(phase * 5 + 1.7);
-        const hiss = .023 * (.7 + .3 * Math.sin(phase * 7 + .8));
-        data[i] = (low * 3.7 + mid * .65) * breath + (white - mid) * hiss;
+        low = low * .975 + white * .025; mid = mid * .86 + white * .14;
+        data[i] = (mid - low) * .42 + low * .07;
       }
       // Fold the tail into the head across 350 ms. Both ends then have the same
       // samples and slope, so the loop has no discontinuity or periodic pop.
@@ -250,7 +250,7 @@ export class HouseholdAudio {
       this.fireVoice = undefined; this.fireGain = undefined; this.nextCrackle = 0;
       if (voice && gain) {
         const now = this.context.currentTime;
-        const held = .19 * Math.min(1, Math.max(0, now - this.fireStartedAt) / 1.3);
+        const held = FIRE_BED_LEVEL * Math.min(1, Math.max(0, now - this.fireStartedAt) / 1.3);
         gain.gain.cancelScheduledValues(now); gain.gain.setValueAtTime(held, now); gain.gain.linearRampToValueAtTime(0, now + .45);
         voice.sources.forEach(source => source.stop(now + .5));
       }
@@ -262,10 +262,10 @@ export class HouseholdAudio {
     // The folded tail reaches the first 350 ms of audio. Resume beyond that
     // matching section on wrap, preserving a continuous waveform at loopEnd.
     source.loopStart = .35; source.loopEnd = 7.3;
-    high.type = 'highpass'; high.frequency.value = 55; high.Q.value = .5;
-    low.type = 'lowpass'; low.frequency.value = 2300; low.Q.value = .4;
+    high.type = 'highpass'; high.frequency.value = 145; high.Q.value = .5;
+    low.type = 'lowpass'; low.frequency.value = 1450; low.Q.value = .4;
     source.connect(high); high.connect(low); low.connect(gain); gain.connect(this.effects!);
-    gain.gain.setValueAtTime(0, context.currentTime); gain.gain.linearRampToValueAtTime(.19, context.currentTime + 1.3);
+    gain.gain.setValueAtTime(0, context.currentTime); gain.gain.linearRampToValueAtTime(FIRE_BED_LEVEL, context.currentTime + 1.3);
     this.fireStartedAt = context.currentTime;
     this.fireVoice = { sources: [source], nodes: [source, high, low, gain], bus: 'fire' }; this.fireGain = gain;
     this.track(this.fireVoice, context.currentTime, Infinity); this.nextCrackle = context.currentTime + .8;
@@ -275,8 +275,8 @@ export class HouseholdAudio {
     const context = this.context!, source = context.createBufferSource(), filter = context.createBiquadFilter(), high = context.createBiquadFilter(), envelope = context.createGain();
     source.buffer = this.noise!;
     filter.type = 'lowpass'; filter.frequency.value = cutoff; filter.Q.value = .4;
-    high.type = 'highpass'; high.frequency.value = 230; high.Q.value = .5;
-    const attack = .028 + this.fireRandom() * .03;
+    high.type = 'highpass'; high.frequency.value = 170; high.Q.value = .5;
+    const attack = .012 + this.fireRandom() * .012;
     envelope.gain.setValueAtTime(0, at); envelope.gain.linearRampToValueAtTime(level, at + attack);
     envelope.gain.exponentialRampToValueAtTime(.00001, at + duration); envelope.gain.linearRampToValueAtTime(0, at + duration + .02);
     source.connect(high); high.connect(filter); filter.connect(envelope); envelope.connect(this.effects!);

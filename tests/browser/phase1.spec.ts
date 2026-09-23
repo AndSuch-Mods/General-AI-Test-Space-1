@@ -16,7 +16,7 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   await expect(page.getByRole('heading', { name: /Haunted Chocolatier/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /World Save Slot/ })).toHaveCount(2);
   await create(page);
-  await walk(page, 'ArrowUp', 5); await walk(page, 'ArrowRight', 19);
+  await walkTo(page, 'y', 294); await walkTo(page, 'x', 790); await walkTo(page, 'y', 266);
   await action(page);
   await expect(page.getByRole('heading', { name: 'Household pantry', exact: true, level: 2 })).toBeVisible();
   await page.locator('#close-dialog').click();
@@ -103,7 +103,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   // Both existing peers and a fresh pairing must work without the web server.
   await server.stop();
   await expect(async () => { await fetch(server.url); }).rejects.toThrow();
-  await walk(guest, 'ArrowUp', 5);
+  await walk(guest, 'ArrowUp', 7);
   await action(guest);
   await expect(guest.locator('dialog[open]')).toHaveCount(0);
   await expect(guest.locator('#game-canvas')).toHaveAttribute('data-light-state', /^true:/);
@@ -112,6 +112,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   await host.getByRole('button', { name: 'Close dialog' }).click();
   await walkTo(guest, 'y', 290);
   await walkTo(guest, 'x', 782);
+  await walkTo(guest, 'y', 266);
   await action(guest);
   await guest.locator('#close-dialog').click();
   await walkTo(guest, 'y', 355);

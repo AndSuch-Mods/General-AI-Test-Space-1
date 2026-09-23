@@ -12,7 +12,7 @@ Solo menus and object dialogue pause time. In co-op, a private inventory, chest 
 
 ## Rest
 
-Walking into the bed's entry gap starts rest. No button or confirmation is required. The tuning values live in `SLEEP_RULES` and use game minutes:
+Current 0.1.8 override: walk into the bed opening, press A and confirm sleep. Walking through it alone causes no prompt or rest. The authority enforces the opening's rotated position. The tuning values live in `SLEEP_RULES` and use game minutes:
 
 - A full rest takes at least eight game hours.
 - Evening/night rest aims for 06:00, subject to that minimum. Sleeping at 18:00 wakes at 06:00; sleeping at 01:00 wakes at 09:00.

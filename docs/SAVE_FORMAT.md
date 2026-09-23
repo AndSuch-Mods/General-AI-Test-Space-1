@@ -1,6 +1,6 @@
 # save format
 
-Latest override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) defines build 0.1.7, save schema 6 and protocol 8. The current contract below takes precedence over historical version notes.
+Latest override: build **0.1.8**, save **schema 7**, network **protocol 9**. [SAVE_MIGRATIONS.md](SAVE_MIGRATIONS.md) defines the validated furniture-projection migration and preserved recovery copies. Both devices must update before pairing. Earlier notes below are historical.
 
 Schema 6 adds persistent player facing and an optional sofa/chair seat, quarter-turn furnishing rotations, and shared entry-hall/kitchen layouts. Draft layouts stay private until one validated Save layout transaction. Rejected or failed saves do not publish partial state; concurrent edits compare the complete expected room layout. Occupied furnishings and door approaches remain protected.
 
@@ -101,4 +101,3 @@ Maintain a small rolling recovery checkpoint where practical.
 
 
 ---
-

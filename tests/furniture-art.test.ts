@@ -87,10 +87,13 @@ describe('approved furniture source and directional geometry', () => {
     for (const map of ROOM_MAPS) for (const object of getRoomObjects(map)) for (const turn of [0, 1, 2, 3] as ArtTurn[]) {
       const art = furnitureArt(object.id, turn); if (!art) continue;
       const turned = getRoomObjects(map, { [object.id as FurnitureId]: { x: 0, y: 0, rotation: turn } }).find(o => o.id === object.id)!;
-      expect({ width: art.width, height: art.height }, `${map}/${object.id}/${turn}`).toEqual({ width: turned.bounds.width, height: turned.bounds.height });
+      expect(art.width, `${map}/${object.id}/${turn} width`).toBeCloseTo(turned.bounds.width, 8);
+      expect(art.height, `${map}/${object.id}/${turn} height`).toBeCloseTo(turned.bounds.height, 8);
     }
-    expect([furnitureArt('desk', 1)!.width, furnitureArt('desk', 1)!.height]).toEqual([48, 122]);
-    expect([furnitureArt('chest', 1)!.width, furnitureArt('chest', 1)!.height]).toEqual([44, 96]);
+    expect([furnitureArt('bed', 1)!.width, furnitureArt('bed', 1)!.height]).toEqual([160, 118]);
+    expect([furnitureArt('desk', 1)!.width, furnitureArt('desk', 1)!.height]).toEqual([80, 80]);
+    expect(furnitureArt('chest', 1)!.width).toBeCloseTo(73.333333);
+    expect(furnitureArt('chest', 1)!.height).toBeCloseTo(60.8);
   });
   it('splits the approved bed without losing art and leaves both sleeping faces uncovered in every view', () => {
     const full = rendered('bed'), base = rendered('bed', 0, 'base'), front = rendered('bed', 0, 'foreground');

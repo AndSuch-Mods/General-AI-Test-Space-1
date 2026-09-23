@@ -1,5 +1,7 @@
 # Architecture artwork restoration
 
+0.1.8 corrects rendering without regenerating the approved source atlas. Each upright doorway keeps the closed pose's frame pixels across every animation state. Only its measured interior leaf aperture changes. The side views apply one consistent column projection to align both jambs with the straight room walls. Five source-pixel tests verify stationary frames and straight jamb boundaries; native review is `.local/architecture-polish-review.png`.
+
 These files are integrated into the combined household restoration. The user liked the generated wooden door design and explicitly asked to retain it. Commit-specific validation and deployment evidence belong in `VALIDATION.md` and the repository's Actions runs.
 
 The built-in imagegen tool created `public/art/doors-v8.png` and `public/art/household-materials-v8.png` on September 22, using only this project's original v2 prop and material sheets as references. The approved bedroom furniture, wallpaper and floor were not regenerated. The new material sheet supplies only the entry hall and kitchen. No external game assets were supplied.

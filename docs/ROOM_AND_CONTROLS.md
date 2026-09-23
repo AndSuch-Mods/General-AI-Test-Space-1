@@ -21,7 +21,7 @@ Left-facing animation mirrors a genuine side profile. Walking poses follow dista
 
 Every furnishing has an interaction. The desk offers letter reading, candle tending and inspection. Books, plant, windows and table have personal discoveries. The cupboard retains its once-per-resident cacao parcel. Hearth and candles remain shared. Chest lids, cupboard doors and desk drawers animate from authoritative per-resident interaction state. They stay open while any present resident uses them and close when the last user leaves. Shared chest transfers remain atomic and replay-safe.
 
-The bed has separate head/pillow and foreground quilt layers. Two solid rectangles leave a horizontal entry gap. Walking into that gap starts sleep, with the resident under the quilt. Waking places them on clear floor. Input held before sleep cannot move them automatically after waking. See TIME_AND_SLEEP.md for shared time, independent sleep and fatigue.
+The bed has separate head/pillow and foreground quilt layers. Two solid rectangles leave an entry gap that follows rotation. In 0.1.8, walking into that gap has no automatic action; A from inside it offers a sleep choice. Waking places the resident on clear floor. Input held before sleep cannot move them automatically after waking. See TIME_AND_SLEEP.md for shared time, independent sleep and fatigue.
 
 The visible exit opens on approach; A travels to a small castle landing with a working return door, windows and a stair awaiting repair. Residents can occupy these maps separately. This does not complete town, kitchen or forest exploration.
 

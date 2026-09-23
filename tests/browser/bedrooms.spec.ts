@@ -15,8 +15,9 @@ test('living room connects private bedrooms; visitors can sleep and read a saved
   await inventory(page, 'household'); await expect(page.locator('#arrange-room')).toBeDisabled();
   await page.locator('#action-b').click();
   await walkTo(page, 'y', 364); await walkTo(page, 'x', 422); await walkTo(page, 'y', 302);
-  await page.keyboard.down('ArrowLeft');
-  try { await expect(page.locator('#confirm-sleep')).toBeVisible(); } finally { await page.keyboard.up('ArrowLeft'); }
+  await walkTo(page, 'x', 394);
+  await expect(page.locator('#confirm-sleep')).toHaveCount(0);
+  await action(page); await expect(page.locator('#confirm-sleep')).toBeVisible();
   await page.locator('#confirm-sleep').click();
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-frame', 'down-rest');
   await expect(page.locator('#night-transition')).toBeVisible();
@@ -50,7 +51,7 @@ test('entry hall and kitchen have reciprocal automatic doors and usable seating'
   await inventory(page,'household');await page.locator('#arrange-room').click();await page.screenshot({path:testInfo.outputPath('entry-hall.png')});await page.locator('#cancel-layout').click();
   await throughDoor(page,'door-right','kitchen');
   await inventory(page,'household');await page.locator('#arrange-room').click();await page.screenshot({path:testInfo.outputPath('kitchen.png')});await page.locator('#cancel-layout').click();
-  await walkTo(page,'y',343);await walkTo(page,'x',650);await action(page);await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state',/:true:false$/);
+  await walkTo(page,'y',343);await walkTo(page,'x',650);await walkTo(page,'y',326);await action(page);await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state',/:true:false$/);
   await action(page);await expect(page.locator('#game-canvas')).toHaveAttribute('data-light-state',/:false:false$/);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await throughDoor(page,'door-home','landing');await throughDoor(page,'door-home','living');

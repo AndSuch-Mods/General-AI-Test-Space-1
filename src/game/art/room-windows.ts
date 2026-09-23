@@ -22,7 +22,7 @@ export class RoomWindowSky {
   }
   update(world: World, reducedMotion: boolean) {
     const minute = world.clock.totalMinutes, light = daylight(minute), variant = nightVariant(world);
-    const phase = reducedMotion ? 0 : Math.floor(minute / 2);
+    const phase = reducedMotion ? 0 : minute;
     const key = `${Math.floor(minute)}:${variant}:${world.weather}:${phase}`;
     if (key === this.key) return;
     this.key = key;
@@ -43,20 +43,22 @@ export class RoomWindowSky {
         source = mix(source, background, moonMask * hideMoon);
       }
       const luminance = source[0] * .21 + source[1] * .71 + source[2] * .08;
-      const day = [68 + luminance * 1.12, 87 + luminance * 1.08, 92 + luminance * 1.05];
+      const day = [34 + luminance * .95, 65 + luminance, 76 + luminance * 1.05];
       const night = source.map(value => value * (variant === 'clouded' ? .72 : 1));
       let color = mix(night, day, light);
       // Broad, slowly moving mist preserves the atlas's trees and painted grain.
       // It has no hard horizontal stripes or new geometric tree silhouettes.
-      const drift = .5 + .5 * Math.sin(x * .13 + y * .07 - phase * .045);
-      const fog = (world.weather === 'fog' ? .22 : world.weather === 'rain' ? .12 : .025) * drift;
+      const drift = Math.pow(.5 + .5 * Math.sin(x * .18 + y * .11 - phase * .32), 2);
+      const fog = (world.weather === 'fog' ? .40 : world.weather === 'rain' ? .28 : .21) * drift;
       color = mix(color, mix([55, 65, 94], [154, 173, 174], light), fog);
-      pixel(x, y, rgb(color));
-    }
-    if (light < .45) {
-      if (variant === 'drifting-lights') {
-        for (let i = 0; i < 3; i++) pixel(12 + (phase + i * 7) % 28, 34 + (i * 11 + phase) % 29, i % 2 ? '#a9bdc5' : '#b6c9a8');
+      if (light < .45 && variant === 'drifting-lights') {
+        for (let i = 0; i < 3; i++) {
+          const px = 25 + Math.sin(phase * .13 + i * 2.1) * 8, py = 43 + Math.sin(phase * .09 + i * 2.7) * 12;
+          const distance = (x - px) ** 2 + (y - py) ** 2;
+          color = mix(color, i % 2 ? [169, 189, 197] : [182, 201, 168], .75 * Math.exp(-distance / 2));
+        }
       }
+      pixel(x, y, rgb(color));
     }
     this.texture.refresh();
   }

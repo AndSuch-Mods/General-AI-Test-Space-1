@@ -1,6 +1,12 @@
 # Save and protocol revisions
 
-Latest override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) defines build 0.1.7, save schema 6 and protocol 8. The current contract below takes precedence over historical version notes.
+Latest override: build **0.1.8**, save **schema 7**, network **protocol 9**. Both devices must update before pairing. The current contract below takes precedence over historical version notes.
+
+Schema 7 corrects quarter-turn floor projection. Migration first validates against frozen schema 6 geometry. Existing valid positions, rotations, both profiles and all progression remain intact. Only resized quarter-turn pieces that now conflict with walls, solids or door approaches are repositioned. Candidate selection checks reachable furnishing paths as well as geometry. It never resets a room. If no safe repair exists, loading stops and retains the original save. Earlier migrations still run before this step.
+
+Stored records are not rewritten just by loading. The first later save retains the old record as recovery. Imports use the same validation and migration. On resume, sleeping residents are aligned to their existing bed side without restarting sleep or changing fatigue/timers. Eight migration tests cover unchanged layouts, constrained repairs, invalid legacy data, both save slots, imports and recovery.
+
+## Schema 6, build 0.1.7 (historical)
 
 Schema 6 adds persistent player facing and an optional sofa/chair seat, quarter-turn furnishing rotations, and shared entry-hall/kitchen layouts. Draft layouts stay private until one validated Save layout transaction. Rejected or failed saves do not publish partial state; concurrent edits compare the complete expected room layout. Occupied furnishings and door approaches remain protected.
 

@@ -10,6 +10,7 @@ import { ARCHITECTURE_IMAGES, doorArt } from '../art/room-architecture';
 import { buildRoomTextures } from '../art/room-textures';
 import { RoomWindowSky } from '../art/room-windows';
 import { daylight, dayPhase, nightVariant } from '../time';
+import { HotbarDock } from '../../ui/hotbar-dock';
 
 import type { RoomPresentation } from '../presentation';
 
@@ -24,6 +25,14 @@ export type RoomDesignView = { layout: RoomLayout; selected?: FurnitureId; inval
 export type RoomDesignControls = { select: (id: FurnitureId) => void; drag: (id: FurnitureId, dx: number, dy: number) => void; drop: (id: FurnitureId) => void; rotate: (id: FurnitureId) => void; cancelDrag?: () => void };
 
 export async function mountArrival(parent: HTMLElement, state: () => { world: World; localId: string; activeIds: string[]; design?: RoomDesignView }, direction: (dx: number, dy: number) => void, interact: () => void, paused: () => boolean, presentation: RoomPresentation, designControls?: RoomDesignControls) {
+  const hotbar = parent.parentElement?.querySelector<HTMLElement>('.quickbar');
+  const hotbarDock = new HotbarDock();
+  let hotbarHeld = false;
+  const holdHotbar = () => { hotbarHeld = true; };
+  const releaseHotbar = () => { hotbarHeld = false; };
+  hotbar?.addEventListener('pointerdown', holdHotbar);
+  window.addEventListener('pointerup', releaseHotbar);
+  window.addEventListener('pointercancel', releaseHotbar);
   const reducedMotion = document.documentElement.classList.contains('reduced-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
   const logicalSize = () => ({ width: 640, height: Math.max(280, Math.min(480, Math.round(640 * parent.clientHeight / Math.max(1, parent.clientWidth)))) });
   const telemetry = (key: string, value: string | number) => {
@@ -307,6 +316,12 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           if (current.design) {
             camera.stopFollow(); camera.removeBounds(); camera.setZoom(Math.min((this.scale.width - 16) / 960, (this.scale.height - 48) / 500)); camera.centerOn(480, 268); this.followed = '';
           } else if (this.followed !== id) { camera.setZoom(1).setBounds(0, 38, ROOM_SIZE.width, 464); camera.startFollow(actor.container, true, .15, .15, 0, 90); this.followed = id; }
+          if (!current.design && !hotbarHeld && hotbar) {
+            const height = camera.height / camera.zoom;
+            const edge = hotbarDock.update(p.map, actor.container.y, camera.scrollY + height, height);
+            if (hotbar.dataset.dock !== edge) hotbar.dataset.dock = edge;
+            telemetry('hotbarDock', edge);
+          }
           telemetry('playerX', Number(p.x.toFixed(2))); telemetry('playerY', Number(p.y.toFixed(2)));
           telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(actor.sprite.flipX));
           telemetry('nearestObject', nearestInteractable(p, savedLayout)?.id ?? '');
@@ -346,5 +361,5 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     scene: ArrivalScene, audio: { noAudio: true } });
   const resize = new ResizeObserver(() => { const next = logicalSize(); if (next.height !== game.scale.height) game.scale.resize(next.width, next.height); });
   resize.observe(parent);
-  return () => { resize.disconnect(); game.destroy(true); };
+  return () => { resize.disconnect(); hotbar?.removeEventListener('pointerdown', holdHotbar); window.removeEventListener('pointerup', releaseHotbar); window.removeEventListener('pointercancel', releaseHotbar); game.destroy(true); };
 }

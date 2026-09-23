@@ -17,7 +17,7 @@ World schema 3 adds a typed shared layout of original-furnishing offsets. Schema
 
 Opening containers first commits interaction state, plays sound and finishes its visible animation, then opens the bottom sheet. Closing removes the sheet before clearing the resident's interaction and animating the lid closed. A second resident still using the container keeps it open. The UI waits on rendered poses rather than assuming a timer finished the animation.
 
-Walking into the wider bed opening at y288-316 offers a sleep choice. A near the bed offers the same choice. Declining leaves the resident awake. Confirmed rest ends at the next 06:00 regardless of bedtime, with the normal host-owned clock. Reaching the chosen morning completes rest. Early B interruption preserves fatigue unless eight game hours were actually slept. One co-op sleeper does not advance time for someone still awake.
+Current 0.1.8 behavior: walking through the bed opening never opens a prompt. A inside the opening offers sleep; A outside it does not. Declining leaves the resident awake. Confirmed rest ends at the next 06:00 regardless of bedtime, with the normal host-owned clock. Reaching the chosen morning completes rest. Early B interruption preserves fatigue unless eight game hours were actually slept. One co-op sleeper does not advance time for someone still awake.
 
 The down-facing native sprite pipeline repairs the right-eye cluster after reducing the original atlas. Both preview and world rendering use that same correction. Candle flames have their furnishing's depth instead of a room-wide foreground layer.
 

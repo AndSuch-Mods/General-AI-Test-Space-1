@@ -2,6 +2,16 @@
 
 This user-directed revision overrides earlier room, menu and appearance notes. The master remains intact. Read this document before changing these systems.
 
+## Current polish override, 0.1.8
+
+Walking into or through the bed opening never opens a prompt. A while inside that opening asks whether to sleep. The authority rejects sleep from outside it. Crossing a sleeping resident remains an uninterrupted playful disturbance. Other actions require close physical reach, with separate letter, journal and candle targets; the window area and neighboring props must not activate the journal.
+
+The seven-slot bar defaults to the bottom. Near the south camera limit it moves to the upper left, clear of the clock and I/ESC. It stays there through small reversals and returns only after about five movement steps north. Do not move it during a held slot touch; room transitions reset its default. Keep all seven slots and their 44-pixel touch targets.
+
+Use a consistent 0.6 projected floor Y scale for turning furniture, while vertical height remains upright. Keep original fronts, materials and design unchanged. Match rotated collision, attachments, seats and bed layers. Straighten the side-door perspective to the wall; hold each doorframe fixed while the leaf opens. Day mist and night variants must visibly animate inside the existing glass without painting over the frame or mullions.
+
+Fire should sit below the music, with restrained warm, irregular crackles and little wind-like noise. Retain gesture unlock, toggles, offline audio and saved mute settings. This pass adds no content counts or new game phase. Existing saves and both residents must survive the geometry update.
+
 ## Art preservation correction
 
 The user rejected the first v7 artwork pass. Its procedural replacements lowered the detail and changed approved designs. That development checkpoint must not be published as the accepted revision.

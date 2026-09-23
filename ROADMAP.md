@@ -1,5 +1,7 @@
 # Roadmap
 
+Current work: **0.1.8 household polish**. Correct turned proportions, stationary wall-aligned doors, visible pane motion, accurate A targeting, A-only bed prompts, a hotbar with return leeway and quieter fire. Preserve prior saves and run the combined solo/co-op/offline checks. This remains household acceptance; no content phase advances.
+
 Focused eye correction completed and published at `7b1539b`; live and installed-save offline update checks pass. The user's September 23 clarification resumes all preserved household work. Follow `docs/HOUSEHOLD_ACCEPTANCE.md` and carry the fixed eyes into the combined release.
 
 The rejected procedural art has been replaced by the restored original furnishings and compatible raster character layers. The generated wooden doors are retained. Added furniture directions, container states, window masks, fire audio, touch layouts, entry hall and kitchen are integrated. The matched-eye correction from `7b1539b` remains covered by source-pixel and gait tests. Physical iPhone acceptance remains open.

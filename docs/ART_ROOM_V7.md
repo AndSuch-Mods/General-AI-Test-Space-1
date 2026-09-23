@@ -1,5 +1,7 @@
 # Room art, directional furnishings and exact windows
 
+0.1.8 polish uses the same approved source pixels with a shared floor Y projection of 0.6. A quarter-turn unprojects floor depth, rotates it and projects it again; elevation stays upright. The sideways bed is now 160 by 118 world pixels, with scaled pillow/blanket masks and distinct native-size sleeping faces. Original front frames remain exact. Door frames remain fixed while their leaf moves, side views align to straight walls, and mist/night motion is visibly composited only inside the glass. Source and actual-room captures are recorded in VALIDATION.md.
+
 ## September 22 correction: preserve the approved furniture
 
 The user rejected the broad procedural furniture redesign and its reduced detail. The current furniture correction restores the approved original bed, desk, bookshelf, pantry, chest and nightstand from `public/art/room-v2-props.png`. Their south-facing closed frames use the original measured source rectangles and the existing nearest-neighbor native-size conversion. A canvas comparison verified identical RGBA values for all six default frames. The old three-diamond carpet motif was recovered from commit `a5dbcaa`, retaining its colors and border; its drawing is normalized to the current 226×132 footprint so this art correction does not change collision or saved placement geometry.

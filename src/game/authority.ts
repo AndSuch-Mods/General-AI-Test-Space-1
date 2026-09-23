@@ -4,6 +4,7 @@ import { arrival } from '../content/arrival';
 import { LayoutSchema, createPlayer, parseWorld, type Player, type World } from './model';
 import { canInteract, canStand, doorEntry, doorCrossed, facingForTurn, groundCenter, seatPosition, getRoomObjects, turnPoint, baseRoomObjects, objectOffset, ROOM_MAPS, inBedEntry, moveInRoom, objectForAction, roomFlag, roomFlagKey, roomLayout, safePosition, FURNITURE_IDS } from '../content/room';
 import { advanceWorldClock, gameMinutes, startSleep, wakePlayer } from './time';
+import { BED_REST, bedPoint } from '../content/room';
 
 export const IntentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('move'), dx: z.number().min(-1).max(1), dy: z.number().min(-1).max(1) }).strict(),
@@ -22,7 +23,8 @@ export type CommitWorld = (world: World) => Promise<void>;
 function standUp(world: World, player: Player) {
   if (!player.seated) return;
   const layout = roomLayout(world, player.map), seat = getRoomObjects(player.map, layout).find(o => o.id === player.seated!.id)!;
-  const center = groundCenter(seat), front = turnPoint({ x: center.x, y: center.y + ((seat.rotation ?? 0) % 2 ? seat.floor!.width : seat.floor!.height) / 2 + 24 }, center, seat.rotation ?? 0);
+  const [dx, dy] = [[0, 1], [-1, 0], [0, -1], [1, 0]][seat.rotation ?? 0];
+  const center = groundCenter(seat), front = { x: center.x + dx * (seat.floor!.width / 2 + 24), y: center.y + dy * (seat.floor!.height / 2 + 24) };
   Object.assign(player, safePosition(front, player.map, layout), { seated: null });
 }
 function passDoor(world: World, player: Player, door: ReturnType<typeof doorCrossed>) {
@@ -93,10 +95,16 @@ export class Authority {
     });
   }
   async prepareRoom() {
-    if (Object.values(this.world.players).every(player => !player.interaction && (player.fatigue.sleeping || player.seated && this.activeIds.includes(player.id) || canStand(player, player.map, roomLayout(this.world, player.map))))) return;
+    const rest = (world: World, player: Player) => bedPoint({ x: BED_REST.x + (player.id === world.hostId ? -27 : 27), y: BED_REST.y }, player.map, roomLayout(world, player.map));
+    if (Object.values(this.world.players).every(player => {
+      if (player.interaction) return false;
+      if (player.fatigue.sleeping) { const point = rest(this.world, player); return player.x === point.x && player.y === point.y; }
+      return player.seated && this.activeIds.includes(player.id) || canStand(player, player.map, roomLayout(this.world, player.map));
+    })) return;
     await this.transaction(world => {
       for (const player of Object.values(world.players)) {
         player.interaction = null;
+        if (player.fatigue.sleeping) Object.assign(player, rest(world, player));
         if (player.seated && !this.activeIds.includes(player.id)) standUp(world, player);
         if (!player.fatigue.sleeping && !player.seated) Object.assign(player, safePosition(player, player.map, roomLayout(world, player.map)));
       }
@@ -140,7 +148,7 @@ export class Authority {
         // Held movement cannot wake a resident or retrigger bed entry after a jump.
       } else if (intent.kind === 'sleep') {
         const bed = objectForAction('bed', player.map, layout);
-        if (!bed || !(inBedEntry(player, layout) || canInteract(player, bed, layout))) throw Error('Move closer to the bed.');
+        if (!bed || !canInteract(player, bed, layout)) throw Error('Step into the bed to rest.');
         startSleep(player, world.clock.totalMinutes, layout, actor === world.hostId ? 'left' : 'right');
       } else if (intent.kind === 'place') {
         placeFurniture(world, actor, intent.target, { x: intent.x, y: intent.y, rotation: intent.rotation }, intent.expected);

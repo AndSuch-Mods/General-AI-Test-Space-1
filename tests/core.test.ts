@@ -28,7 +28,7 @@ describe('world persistence and authority', () => {
     expect(parseWorld(JSON.parse(JSON.stringify(host.world)))).toEqual(host.world);
   });
   it('never rewards duplicated intents or repeated personal discoveries twice', async () => {
-    const initial = world(); initial.players[initial.hostId].x = 785; initial.players[initial.hostId].y = 300;
+    const initial = world(); initial.players[initial.hostId].x = 785; initial.players[initial.hostId].y = 270;
     const host = new Authority(initial, async () => {});
     await Promise.all([host.dispatch(initial.hostId, 1, { kind: 'interact', target: 'pantry' }), host.dispatch(initial.hostId, 1, { kind: 'interact', target: 'pantry' })]);
     await host.dispatch(initial.hostId, 2, { kind: 'interact', target: 'pantry' });
@@ -38,12 +38,12 @@ describe('world persistence and authority', () => {
     const host = new Authority(world(), async () => {}); const id = crypto.randomUUID();
     await host.join({ id, key: crypto.randomUUID(), name: 'Guest', appearance: 'violet', worldId: host.world.worldId, epoch: host.world.epoch, revision: 0 });
     let sequence = 0;
-    for (let i = 0; i < 6; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: 0, dy: -1 });
+    for (let i = 0; i < 8; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: 0, dy: -1 });
     await host.dispatch(id, ++sequence, { kind: 'interact', target: 'hearth' });
     expect(host.world.story.flags.hearth).toBe(true);
     expect(host.world.events[0].actor).toBe(id);
     expect(host.world.players[host.world.hostId].discoveries).toEqual([]);
-    for (let i = 0; i < 2; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: 0, dy: 1 });
+    for (let i = 0; i < 4; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: 0, dy: 1 });
     for (let i = 0; i < 12; i++) await host.dispatch(id, ++sequence, { kind: 'move', dx: -1, dy: 0 });
     await host.dispatch(id, sequence + 1, { kind: 'interact', target: 'letter' });
     expect(host.world.players[id].discoveries).toContain('letter');

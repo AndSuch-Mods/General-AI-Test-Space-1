@@ -127,7 +127,9 @@ describe('window frame and animated aperture', () => {
     expect(nightColors.size).toBeGreaterThan(100);
     world.clock.totalMinutes = 720; view.update(world, false);
     expect(Math.max(...color(21, 29))).toBeLessThan(180);
-    expect(color(21, 29)).toEqual(color(30, 29));
+    // The removed moon matches its mirrored sky background beneath a moving
+    // mist bank; the local fog phase may change a few channel values.
+    for (let channel = 0; channel < 3; channel++) expect(Math.abs(color(21, 29)[channel] - color(30, 29)[channel])).toBeLessThan(12);
     world.seed = 2; world.clock.totalMinutes = 1320; view.update(world, false);
     expect(Math.max(...color(21, 29))).toBeLessThan(120);
   });
@@ -142,5 +144,17 @@ describe('window frame and animated aperture', () => {
     view.update(world, true); const reducedStart = sky.pixels.slice();
     world.clock.totalMinutes += 4; view.update(world, true);
     expect(sky.pixels).toEqual(reducedStart);
+  });
+  it('makes clear-day mist visibly move across the glass without washing away its detail', () => {
+    const sky = alphaCanvas(originalWindow());
+    const scene = { textures: { get: () => ({ getSourceImage: () => ({}) }), createCanvas: () => ({ context: sky.context, refresh: () => {} }) } } as unknown as Phaser.Scene;
+    const view = new RoomWindowSky(scene), world = createWorld(createPlayer('Keeper'));
+    world.weather = 'clear'; world.clock.totalMinutes = 720; view.update(world, false);
+    const before = sky.pixels.slice(); world.clock.totalMinutes += 4; view.update(world, false);
+    let visiblyChanged = 0;
+    for (let index = 0; index < sky.pixels.length; index += 4) {
+      if (Math.max(...[0, 1, 2].map(channel => Math.abs(sky.pixels[index + channel] - before[index + channel]))) >= 3) visiblyChanged++;
+    }
+    expect(visiblyChanged).toBeGreaterThan(100);
   });
 });

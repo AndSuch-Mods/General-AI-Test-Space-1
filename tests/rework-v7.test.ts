@@ -134,21 +134,24 @@ describe('rotated furnishings and shared seats', () => {
     const layout: RoomLayout = { sofa: { x: 0, y: 0, rotation: 1 } };
     await authority.dispatch(host, 1, { kind: 'save-layout', map: 'living', layout, expected: {} });
     const sofa = getRoomObjects('living', authority.world.roomLayouts.living).find(object => object.id === 'sofa')!;
-    expect(sofa.floor).toEqual({ x: 381, y: 263, width: 44, height: 146 });
-    expect(objectColliders(sofa)).toEqual([{ x: 381, y: 263, width: 44, height: 146 }]);
-    Object.assign(authority.world.players[host], { x: 369, y: 336 });
+    expect(sofa.floor!.x).toBeCloseTo(366 + 1 / 3); expect(sofa.floor!.y).toBeCloseTo(292.2);
+    expect(sofa.floor!.width).toBeCloseTo(73 + 1 / 3); expect(sofa.floor!.height).toBeCloseTo(87.6);
+    expect(objectColliders(sofa)).toEqual([sofa.floor]);
+    const contactX = sofa.floor!.x - 12;
+    Object.assign(authority.world.players[host], { x: contactX, y: 336 });
     await authority.dispatch(host, 2, { kind: 'move', dx: 1, dy: 0 });
-    expect(authority.world.players[host]).toMatchObject({ x: 369, y: 336, facing: 'right' });
+    expect(authority.world.players[host]).toMatchObject({ x: contactX, y: 336, facing: 'right' });
     await authority.dispatch(host, 3, { kind: 'interact', target: 'sofa' });
-    Object.assign(authority.world.players[guest], { x: 355, y: 336 });
+    Object.assign(authority.world.players[guest], { x: contactX - 8, y: 336 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'sofa' });
-    expect(authority.world.players[host]).toMatchObject({ x: 403, y: 304, facing: 'left', seated: { id: 'sofa', slot: 0 } });
-    expect(authority.world.players[guest]).toMatchObject({ x: 403, y: 368, facing: 'left', seated: { id: 'sofa', slot: 1 } });
+    expect(authority.world.players[host]).toMatchObject({ x: 403, y: 316.8, facing: 'left', seated: { id: 'sofa', slot: 0 } });
+    expect(authority.world.players[guest]).toMatchObject({ x: 403, y: 355.2, facing: 'left', seated: { id: 'sofa', slot: 1 } });
     const occupied = snapshot(authority.world);
     await expect(authority.dispatch(host, 4, { kind: 'save-layout', map: 'living', layout: {}, expected: layout })).rejects.toThrow('using this piece');
     expect(authority.world).toEqual(occupied);
     await authority.dispatch(host, 4, { kind: 'stand' });
-    expect(authority.world.players[host]).toMatchObject({ x: 357, y: 336, seated: null });
+    expect(authority.world.players[host]).toMatchObject({ y: 336, seated: null });
+    expect(authority.world.players[host].x).toBeCloseTo(342 + 1 / 3);
     expect(canStand(authority.world.players[host], 'living', layout)).toBe(true);
     const guestLook = structuredClone(authority.world.players[guest].look);
     authority.world.players[guest].inventory['cacao-bean'] = 7;
@@ -195,8 +198,8 @@ describe('rotated furnishings and shared seats', () => {
     for (const id of [host, guest]) Object.assign(authority.world.players[id], { x: 174, y: 300 });
     expect(canStand(authority.world.players[host], 'castle', layout)).toBe(true);
     await authority.dispatch(host, 2, { kind: 'sleep' }); await authority.dispatch(guest, 1, { kind: 'sleep' });
-    expect(authority.world.players[host]).toMatchObject({ x: 138, y: 281, fatigue: { sleeping: true } });
-    expect(authority.world.players[guest]).toMatchObject({ x: 138, y: 335, fatigue: { sleeping: true } });
+    expect(authority.world.players[host]).toMatchObject({ x: 110, y: 291.8, fatigue: { sleeping: true } });
+    expect(authority.world.players[guest]).toMatchObject({ x: 110, y: 324.2, fatigue: { sleeping: true } });
     const asleep = snapshot(authority.world);
     await expect(authority.dispatch(host, 3, { kind: 'save-layout', map: 'castle', layout: {}, expected: layout })).rejects.toThrow('using this piece');
     expect(authority.world).toEqual(asleep);
@@ -222,7 +225,7 @@ describe('schema 5 household migration', () => {
       roomLayouts: { living: { plant: { ...customPlant } }, 'bedroom-2': { plant: { ...customPlant }, bed: { x: 16, y: 0 }, desk: { x: 16, y: 0 }, 'candle-desk': { x: 16, y: 0 } } },
       players: { [host]: oldPlayer(host), [guest]: oldPlayer(guest) } };
     const original = structuredClone(legacy), migrated = parseWorld(legacy);
-    expect(legacy).toEqual(original); expect(migrated.schemaVersion).toBe(6);
+    expect(legacy).toEqual(original); expect(migrated.schemaVersion).toBe(7);
     expect(migrated.roomLayouts.landing).toEqual({}); expect(migrated.roomLayouts.kitchen).toEqual({});
     for (const id of [host, guest]) expect(migrated.players[id]).toEqual({ ...original.players[id], facing: 'down', seated: null });
     for (const map of ['castle', 'living', 'bedroom-2'] as const) {

@@ -63,8 +63,7 @@ test('left/right profiles, bed collision and furniture interaction at the closer
   expect(stopped.y).toBeGreaterThanOrEqual(348);
   expect(stopped.y).toBeLessThanOrEqual(352);
   await action(page);
-  await expect(page.getByRole('heading', { name: 'Rest until morning?' })).toBeVisible();
-  await page.locator('#cancel-sleep').click();
+  await expect(page.getByRole('heading', { name: 'Rest until morning?' })).toHaveCount(0);
   await page.locator('#leave').click();
   await page.getByRole('button', { name: /Continue \/ Single Player/ }).click();
   expect(await position(page)).toEqual(stopped);
@@ -82,6 +81,7 @@ test('candle choices persist and seven quick slots retain items while migrating 
   await expect(page.getByText('A letter that waited', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await walkTo(page, 'y', 294); await walkTo(page, 'x', 790);
+  await walkTo(page, 'y', 266);
   await action(page);
   await expect(page.getByRole('heading', { name: 'Household pantry', exact: true, level: 2 })).toBeVisible();
   await page.locator('#close-dialog').click();

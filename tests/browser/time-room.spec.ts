@@ -11,8 +11,10 @@ async function bed(page: Page) {
   await walkTo(page, 'y', 355);
   await walkTo(page, 'x', 270);
   await walkTo(page, 'y', 302);
-  await page.keyboard.down('ArrowLeft');
-  try { await expect(page.locator('#confirm-sleep')).toBeVisible(); } finally { await page.keyboard.up('ArrowLeft'); }
+  await action(page); await expect(page.locator('#confirm-sleep')).toHaveCount(0);
+  await walkTo(page, 'x', 242);
+  await expect(page.locator('#confirm-sleep')).toHaveCount(0);
+  await action(page); await expect(page.locator('#confirm-sleep')).toBeVisible();
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
   await page.locator('#confirm-sleep').click();
 }
@@ -91,8 +93,9 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-raster-v8-amber-female-braid-chestnut-warm-skirt');
     await walkTo(guest, 'x', 700); await walkTo(guest, 'y', 355); await walkTo(guest, 'x', 270); await walkTo(guest, 'y', 302);
-    await guest.keyboard.down('ArrowLeft');
-    try { await expect(guest.locator('#confirm-sleep')).toBeVisible(); } finally { await guest.keyboard.up('ArrowLeft'); }
+    await walkTo(guest, 'x', 242);
+    await expect(guest.locator('#confirm-sleep')).toHaveCount(0);
+    await action(guest); await expect(guest.locator('#confirm-sleep')).toBeVisible();
     await guest.locator('#cancel-sleep').click();
     await guest.keyboard.down('ArrowLeft');
     try { await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-count', '1'); }

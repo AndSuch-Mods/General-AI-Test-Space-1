@@ -6,6 +6,8 @@ Build the long-term original iPhone-first, landscape, offline PWA described by t
 
 Read `docs/ROOM_REWORK_V7.md` first for the latest user overrides, including centered menus, touch layout editing, directional furniture and the layered character rebuild.
 
+The latest 0.1.8 polish in that document requires A-only sleep from inside the bed opening, precise nearby object targeting, a hotbar that moves away from the south exit with five steps of hysteresis, projected furniture proportions, stationary door frames and visible animation confined to the glass. Preserve the approved art and keep work and commentary economical.
+
 The September 23 clarification resumes the entire household request. A priority interruption such as the eye fix does not cancel the other tasks. Read `docs/HOUSEHOLD_ACCEPTANCE.md`, retain the generated wooden doors and original furniture designs, and finish the combined changes with the published eye fix included.
 
 Read `docs/EYE_CORRECTION_RELEASE.md` before touching resident art. The combined household renderer retains the matched open idle eyes and fixed face during walking from the original-art hotfix. Never reset the broader work to that earlier isolated release.

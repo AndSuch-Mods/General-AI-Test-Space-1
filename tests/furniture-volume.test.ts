@@ -19,13 +19,13 @@ describe('original furniture volume and saved placement', () => {
   });
 
   it.each<[RoomMap, FurnitureId, number, number]>([
-    ['castle', 'bookshelf', 44, 160], ['castle', 'pantry', 54, 176], ['castle', 'chest', 44, 96],
-    ['castle', 'desk', 48, 122], ['castle', 'side-table', 36, 72],
-    ['kitchen', 'stove', 60, 124], ['kitchen', 'sink', 56, 138], ['kitchen', 'worktop', 56, 160],
+    ['castle', 'bookshelf', 73 + 1 / 3, 120], ['castle', 'pantry', 90, 138.4], ['castle', 'chest', 73 + 1 / 3, 60.8],
+    ['castle', 'desk', 80, 80], ['castle', 'side-table', 60, 48],
+    ['kitchen', 'stove', 100, 85.6], ['kitchen', 'sink', 93 + 1 / 3, 93.2], ['kitchen', 'worktop', 93 + 1 / 3, 104],
   ])('%s %s has readable side depth and a solid rotated floor', (map, id, width, height) => {
     for (const rotation of [1, 3] as const) {
       const object = getRoomObjects(map, { [id]: { x: 0, y: 0, rotation } }).find(o => o.id === id)!;
-      expect(object.bounds.width).toBe(width); expect(object.bounds.height).toBe(height);
+      expect(object.bounds.width).toBeCloseTo(width); expect(object.bounds.height).toBeCloseTo(height);
       expect(objectColliders(object)).toEqual([object.floor]);
     }
   });

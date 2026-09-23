@@ -1,5 +1,9 @@
 # Content ledger
 
+## 0.1.8 household polish
+
+Existing objects gain corrected projected rotations, fixed doorframes, more visible pane animation, closer A targeting, deliberate bed use, moving quick slots and a quieter fire mix. No characters, locations, stories, recipes or quests are added. The earlier emptiness audit and open progression gaps remain unchanged.
+
 ## September 22, 0.1.7 rework
 
 The active resident renderer uses registered raster layers derived from the approved original resident, with provenance and import rules in ART_RESIDENT_V7.md. The approved furniture fronts remain pixel-identical; additional directions, opening and occupied states extend them. ART_ROOM_V7.md and ART_ARCHITECTURE_V8.md record directional furniture, exact window frames, the retained generated walnut doors and distinct hall/kitchen finishes. Generic inspection text is no longer a gameplay interaction.

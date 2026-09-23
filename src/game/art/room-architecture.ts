@@ -20,26 +20,56 @@ export function doorArt(wall: DoorWall) {
     height: wall === 'north' ? 136 : wall === 'south' ? 36 : 120, closed: 'closed', open: 'open', openFrames: ['open-0', 'open-1', 'open-2', 'open-3'] };
 }
 
+type DoorRaster = { width: number; height: number; data: Uint8ClampedArray };
+/** Native moving-leaf region. Jambs, lintel and threshold outside it never move. */
+export function doorAperture(wall: DoorWall) {
+  return wall === 'north' ? { x: 8, y: 13, width: 27, height: 51 }
+    : wall === 'south' ? undefined : { x: 4, y: 11, width: 8, height: 43 };
+}
+export function doorNativePixels(source: DoorRaster, wall: DoorWall, amount: number): DoorRaster {
+  const art = doorArt(wall), width = art.width / 2, height = art.height / 2;
+  const frame = Math.max(0, Math.min(3, Math.round(amount * 3))), data = new Uint8ClampedArray(width * height * 4);
+  const sample = (state: number, x: number, y: number) => {
+    const crop = DOOR_CROPS[wall][state], u = (x + .5) / width;
+    // Remove the source's isometric diagonal from both side-wall jambs. The
+    // same column mapping rectifies every leaf state against a straight wall.
+    const skew = wall === 'west' ? 56 * (1 - u) : wall === 'east' ? 56 * u : 0;
+    const depth = crop.height - (wall === 'west' || wall === 'east' ? 56 : 0);
+    const sx = crop.x + Math.floor(u * crop.width), sy = crop.y + Math.floor(skew + (y + .5) * depth / height);
+    return source.data.subarray((sy * source.width + sx) * 4, (sy * source.width + sx) * 4 + 4);
+  };
+  const aperture = doorAperture(wall);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let color = sample(0, x, y);
+    if (wall === 'south') color = sample(frame, frame === 3 ? width - 1 - x : x, y);
+    else if (frame && aperture && x >= aperture.x && x < aperture.x + aperture.width && y >= aperture.y && y < aperture.y + aperture.height) {
+      if (wall === 'north') {
+        const leafWidth = [27, 20, 11, 4][frame], leafX = x - aperture.x;
+        color = sample(3, 20 + Math.floor(leafX * 13 / aperture.width), y);
+        const leafY = y - Math.round(leafX / leafWidth * [0, 3, 5, 6][frame]);
+        if (leafX < leafWidth && leafY >= aperture.y) color = sample(0, aperture.x + Math.floor(leafX * aperture.width / leafWidth), leafY);
+      } else color = sample(frame, x, y);
+    }
+    const at = (y * width + x) * 4;
+    if (color[3] >= 192) { data.set(color, at); data[at + 3] = 255; }
+  }
+  return { width, height, data };
+}
+const doorSources = new WeakMap<CanvasImageSource, DoorRaster>();
 export function drawDoor(context: CanvasRenderingContext2D, source: CanvasImageSource, wall: DoorWall, amount: number) {
-  const art = doorArt(wall), frame = Math.max(0, Math.min(3, Math.round(amount * 3))), crop = DOOR_CROPS[wall][frame];
-  context.imageSmoothingEnabled = false;
-  if (wall === 'south' && frame === 3) {
-    // Keep the same left hinge as the preceding overhead opening poses.
-    context.save(); context.translate(art.width / 2, 0); context.scale(-1, 1);
-    context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, art.width / 2, art.height / 2);
-    context.restore(); return;
+  let pixels = doorSources.get(source);
+  if (!pixels) {
+    const image = source as HTMLImageElement, canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth || image.width; canvas.height = image.naturalHeight || image.height;
+    const c = canvas.getContext('2d')!; c.drawImage(source, 0, 0);
+    pixels = { width: canvas.width, height: canvas.height, data: c.getImageData(0, 0, canvas.width, canvas.height).data };
+    doorSources.set(source, pixels);
   }
-  if (wall === 'north' && frame === 2) {
-    // Reuse the original walnut leaf and recess. The supplied middle poses were
-    // nearly identical; compress the leaf's horizontal projection for 60 degrees.
-    const back = DOOR_CROPS.north[3], leaf = DOOR_CROPS.north[1];
-    context.drawImage(source, back.x, back.y, back.width, back.height, 0, 0, art.width / 2, art.height / 2);
-    context.save(); context.translate(8, 0); context.scale(.57, 1); context.translate(-8, 0);
-    context.beginPath(); context.moveTo(8, 12); context.lineTo(29, 17); context.lineTo(29, 67); context.lineTo(8, 60); context.closePath(); context.clip();
-    context.drawImage(source, leaf.x, leaf.y, leaf.width, leaf.height, 0, 0, art.width / 2, art.height / 2);
-    context.restore(); return;
-  }
-  context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, art.width / 2, art.height / 2);
+  const native = doorNativePixels(pixels, wall, amount), canvas = document.createElement('canvas');
+  canvas.width = native.width; canvas.height = native.height;
+  const c = canvas.getContext('2d')!, image = c.createImageData(native.width, native.height);
+  image.data.set(native.data); c.putImageData(image, 0, 0);
+  context.imageSmoothingEnabled = false; context.drawImage(canvas, 0, 0);
 }
 
 export function buildDoorTextures(scene: Phaser.Scene) {

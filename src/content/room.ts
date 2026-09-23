@@ -18,7 +18,8 @@ export type RoomObject = {
 };
 export const ROOM_SIZE = { width: 960, height: 540 };
 export const WALK_AREA: Rect = { x: 80, y: 210, width: 800, height: 266 };
-export const INTERACT_RANGE = 58;
+export const INTERACT_RANGE = 28;
+export const FLOOR_Y_SCALE = .6;
 export const PLAYER_FOOT = { halfWidth: 12, height: 10 };
 export const BED_ENTRY: Rect = { x: 106, y: 288, width: 148, height: 28 };
 export const BED_REST = { x: 180, y: 334 };
@@ -104,9 +105,9 @@ export function objectOffset(id: string, layout: RoomLayout = {}): Position {
   return layout[id as FurnitureId] ?? (parent ? layout[parent] : undefined) ?? { x: 0, y: 0 };
 }
 export function turnPoint(point: Position, center: Position, rotation: number): Position {
-  let x = point.x - center.x, y = point.y - center.y;
+  let x = point.x - center.x, y = (point.y - center.y) / FLOOR_Y_SCALE;
   for (let i = 0; i < (rotation % 4 + 4) % 4; i++) [x, y] = [-y, x];
-  return { x: center.x + x, y: center.y + y };
+  return { x: center.x + x, y: center.y + y * FLOOR_Y_SCALE };
 }
 export function turnRect(rect: Rect, center: Position, rotation: number): Rect {
   const points = [turnPoint(rect, center, rotation), turnPoint({ x: rect.x + rect.width, y: rect.y + rect.height }, center, rotation)];
@@ -229,7 +230,10 @@ export function objectDistance(position: Position, object: RoomObject) {
   return Math.hypot(point.x - position.x, point.y - position.y);
 }
 export function canInteract(position: Position, object: RoomObject, layout: RoomLayout = {}) {
-  if (!canStand(position, position.map, layout) || objectDistance(position, object) > INTERACT_RANGE) return false;
+  if (!canStand(position, position.map, layout)) return false;
+  if (object.id === 'bed') return inBedEntry(position, layout);
+  const smallProp = ['letter', 'journal', 'candle-desk', 'candle-table'].includes(object.id);
+  if (objectDistance(position, object) > (smallProp ? 24 : INTERACT_RANGE)) return false;
   const end = closestPoint(position, object), length = Math.hypot(end.x - position.x, end.y - position.y);
   for (let step = 1; step < length; step += 2) {
     const x = position.x + (end.x - position.x) * step / length, y = position.y + (end.y - position.y) * step / length;

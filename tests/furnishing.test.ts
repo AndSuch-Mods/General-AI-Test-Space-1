@@ -46,7 +46,8 @@ describe('shared room arrangement', () => {
       const draft: RoomLayout = { carpet: { x: 8, y: -20, rotation: 1 }, desk: { x: 16, y: 0, rotation: 0 } };
       await host.dispatch(world.hostId, 1, { kind: 'save-layout', map: 'castle', layout: draft, expected: {} });
       expect((await database.load(1))!.world.layout).toEqual(draft);
-      expect(getRoomObjects('castle', draft).find(o => o.id === 'carpet')!.bounds).toEqual({ x: 439, y: 249, width: 132, height: 226 });
+      const carpet = getRoomObjects('castle', draft).find(o => o.id === 'carpet')!.bounds;
+      expect(carpet).toMatchObject({ x: 395, y: 294.2, width: 220 }); expect(carpet.height).toBeCloseTo(135.6);
       const failing = new Authority(host.world, async () => { throw Error('Disk full'); });
       await expect(failing.dispatch(world.hostId, 2, { kind: 'save-layout', map: 'castle', layout: { carpet: { x: 16, y: -20, rotation: 1 }, desk: { x: 24, y: 0 } }, expected: draft })).rejects.toThrow('Disk full');
       expect(failing.world).toEqual(host.world);
@@ -62,7 +63,8 @@ describe('shared room arrangement', () => {
     expect(objectOffset('candle-desk', { ...layout, 'candle-desk': { x: 0, y: 0 } })).toEqual({ x: 0, y: 0 });
     const rotated: RoomLayout = { desk: { x: 16, y: 16, rotation: 1 }, 'candle-desk': { x: -8, y: 0 } };
     const after = getRoomObjects('castle', rotated);
-    expect(after.find(o => o.id === 'letter')!.anchor).toEqual({ x: 369.5, y: 256.5 });
+    const letter = after.find(o => o.id === 'letter')!.anchor;
+    expect(letter.x).toBeCloseTo(350 + 1 / 6); expect(letter.y).toBeCloseTo(264.7);
     expect(after.find(o => o.id === 'candle-desk')!.bounds).toMatchObject({ x: 397, y: 215 });
   });
   it('blocks moving an occupied bed and always wakes at the next six oclock', () => {
@@ -75,7 +77,7 @@ describe('shared room arrangement', () => {
     expect(player.energy).toBe(100); expect(player.fatigue.consecutiveAllNighters).toBe(0);
   });
   it('toggles the hearth without undoing its story event or repeating it', async () => {
-    const world = createWorld(createPlayer('Keeper')); Object.assign(world.players[world.hostId], { x: 550, y: 280 });
+    const world = createWorld(createPlayer('Keeper')); Object.assign(world.players[world.hostId], { x: 550, y: 266 });
     const host = new Authority(world, async () => {});
     for (let i = 1; i <= 3; i++) await host.dispatch(world.hostId, i, { kind: 'interact', target: 'hearth' });
     expect(host.world.story.flags.hearth).toBe(true); expect(host.world.events).toHaveLength(1);

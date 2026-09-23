@@ -1,5 +1,5 @@
 import type { World } from '../game/model';
-import { canArrangeRoom, doorClearance, doorEntry, footBounds, getRoomObjects, objectColliders, objectOffset, roomLayout, FURNITURE_IDS, ROTATABLE_FURNITURE, type FurnitureId, type RoomLayout, type RoomMap, type Placement, type Position, type Rect } from './room';
+import { canArrangeRoom, canInteract, doorClearance, doorEntry, footBounds, getRoomObjects, objectColliders, objectOffset, roomLayout, FURNITURE_IDS, ROTATABLE_FURNITURE, type FurnitureId, type RoomLayout, type RoomMap, type Placement, type Position, type Rect } from './room';
 
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 export const layoutKey = (layout: RoomLayout) => JSON.stringify(FURNITURE_IDS.map(id => [id, layout[id]?.x ?? 0, layout[id]?.y ?? 0, layout[id]?.rotation ?? 0]));
@@ -35,7 +35,7 @@ export function layoutError(world: World, map: RoomMap, layout: RoomLayout): str
   }
   const reachable = [...seen].map(key => { const [x, y] = key.split(',').map(Number); return { x, y }; });
   if (residents.some(p => !p.fatigue.sleeping && !p.seated && !reachable.some(q => Math.hypot(q.x - p.x, q.y - p.y) < 24))) return 'That would block a resident in.';
-  if (objects.some(o => o.actions.length && !reachable.some(p => Math.hypot(p.x - o.anchor.x, p.y - o.anchor.y) < 58))) return 'Leave a path to the furnishings.';
+  if (objects.some(o => o.actions.length && !reachable.some(p => Math.hypot(p.x - o.anchor.x, p.y - o.anchor.y) < 58 && canInteract({ ...p, map }, o, layout)))) return 'Leave a path to the furnishings.';
   return null;
 }
 export function placementError(world: World, id: FurnitureId, offset: Placement, map: RoomMap = 'castle'): string | null {

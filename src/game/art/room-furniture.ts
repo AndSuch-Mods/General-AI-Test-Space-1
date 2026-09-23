@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { ROOM_FRAMES, ROOM_TEXTURE } from './room-atlas';
+import { FLOOR_Y_SCALE } from '../../content/room';
 
 /** The default views continue to use ROOM_TEXTURE, byte-for-byte original assets. */
 export const FURNITURE_IMAGES = [
@@ -24,13 +25,13 @@ export const FURNITURE_ART_SPECS: Record<string, Spec> = {
 export const SEAT_RISE = 24;
 type Point = { x: number; y: number };
 function groundPoint(spec: Spec, turn: ArtTurn, x: number, y: number): Point {
-  return turn === 0 ? { x, y } : turn === 1 ? { x: spec.depth - y, y: x }
-    : turn === 2 ? { x: spec.width - x, y: spec.depth - y } : { x: y, y: spec.width - x };
+  return turn === 0 ? { x, y } : turn === 1 ? { x: (spec.depth - y) / FLOOR_Y_SCALE, y: x * FLOOR_Y_SCALE }
+    : turn === 2 ? { x: spec.width - x, y: spec.depth - y } : { x: y / FLOOR_Y_SCALE, y: (spec.width - x) * FLOOR_Y_SCALE };
 }
 /** Anchors are world pixels relative to the object bounds, before any scene placement. */
 export function furnitureArt(id: string, turn: ArtTurn = 0) {
   const spec = FURNITURE_ART_SPECS[id]; if (!spec) return undefined;
-  const width = turn % 2 ? spec.depth : spec.width, height = (turn % 2 ? spec.width : spec.depth) + spec.elevation;
+  const width = turn % 2 ? spec.depth / FLOOR_Y_SCALE : spec.width, height = (turn % 2 ? spec.width * FLOOR_Y_SCALE : spec.depth) + spec.elevation;
   const anchor = (x: number, y: number, rise: number) => { const p = groundPoint(spec, turn, x, y); return { x: p.x, y: p.y + spec.elevation - rise }; };
   return {
     texture: `furniture-${id}-${turn}`, width, height, nativeWidth: Math.ceil(width / 2), nativeHeight: Math.ceil(height / 2),
@@ -44,7 +45,7 @@ export function furnitureArt(id: string, turn: ArtTurn = 0) {
       [{ x: 70, y: 61 }, { x: 70, y: 111 }],
       [{ x: 97, y: 79 }, { x: 43, y: 79 }],
       [{ x: 26, y: 111 }, { x: 26, y: 61 }],
-    ][turn] : [],
+    ][turn].map(p => turn % 2 ? { x: p.x * width / spec.depth, y: p.y * height / (spec.width + spec.elevation) } : p) : [],
   };
 }
 type Crop = { x: number; y: number; width: number; height: number };
@@ -134,8 +135,9 @@ function nativeFurniture(id: string, turn: ArtTurn, sources: FurnitureSources) {
     // The generated side/back render hid burners; reuse the fixture's full four-burner top plane.
     const kitchen = exteriorCutout(sources.kitchen);
     if (turn % 2) {
-      c.save(); c.translate(canvas.width / 2, 25); c.rotate(turn === 1 ? Math.PI / 2 : -Math.PI / 2);
-      c.drawImage(kitchen, 95, 99, 207, 111, -21, -10, 42, 20); c.restore();
+      const topHeight = canvas.height - Math.round(FURNITURE_ART_SPECS.stove.elevation / 2), topWidth = canvas.width - 4;
+      c.save(); c.translate(canvas.width / 2, topHeight / 2); c.rotate(turn === 1 ? Math.PI / 2 : -Math.PI / 2);
+      c.drawImage(kitchen, 95, 99, 207, 111, -topHeight / 2, -topWidth / 2, topHeight, topWidth); c.restore();
     } else c.drawImage(kitchen, 95, 99, 207, 111, 5, 3, canvas.width - 10, 13);
   }
   return canvas;
@@ -214,6 +216,9 @@ function openingPose(c: CanvasRenderingContext2D, native: HTMLCanvasElement, id:
 
 function foregroundPixel(id: string, turn: ArtTurn, x: number, y: number, w: number, h: number) {
   if (id === 'bed') {
+    // Masks are measured in the source view. Reproject their coordinates with the
+    // artwork so every pillow opening follows its resident at the corrected scale.
+    if (turn % 2) { x *= 48 / w; y *= 87 / h; }
     if (turn === 0) return y >= 27;
     if (turn === 1) return x < 28 || x >= 43 || y >= 68;
     if (turn === 2) return y <= 29 || y >= 49;

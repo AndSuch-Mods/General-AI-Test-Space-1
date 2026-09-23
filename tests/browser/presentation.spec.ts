@@ -109,7 +109,7 @@ test('creation choices change the native preview and survive entering and reopen
 
 test('dedicated A and B operate menus while a right-side world tap does nothing', async ({ page }) => {
   await start(page);
-  await walkTo(page, 'x', 550); await walkTo(page, 'y', 290);
+  await walkTo(page, 'x', 550); await walkTo(page, 'y', 266);
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'hearth');
   const before = await position(page);
   const surface = page.locator('#touch-surface'), bounds = (await surface.boundingBox())!;

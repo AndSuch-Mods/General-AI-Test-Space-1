@@ -3,7 +3,7 @@ import { BUILD_VERSION, CharacterLookSchema, createPlayer, createWorld, type Pla
 import { BODY_OPTIONS, HAIR_STYLE_OPTIONS, HAIR_COLOR_OPTIONS, SKIN_TONE_OPTIONS, OUTFIT_OPTIONS, DEFAULT_LOOK, type CharacterLook } from '../game/art/character-look';
 import { Authority, type Intent } from '../game/authority';
 import { arrival, validateContent, type ArrivalId } from '../content/arrival';
-import { canArrangeRoom, getRoomObjects, inBedEntry, roomFlag, roomLayout, roomOwner, nearestInteractable } from '../content/room';
+import { canArrangeRoom, getRoomObjects, roomFlag, roomLayout, roomOwner, nearestInteractable } from '../content/room';
 import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
@@ -22,7 +22,6 @@ validateContent();
 const roomPresentation = new RoomPresentation();
 const sound = new HouseholdAudio();
 let arranging: LayoutDesigner | undefined;
-let bedEntryLatched = false;
 let lastFootstep = 0;
 let dawnUntil = 0;
 let dawnTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,7 +117,7 @@ function refreshOffline() {
   const update = document.getElementById('apply-update'); if (update) update.hidden = !offline.updateReady;
 }
 async function title() {
-  playGeneration += 1; arranging = undefined; bedEntryLatched = false; sound.suspend();
+  playGeneration += 1; arranging = undefined; sound.suspend();
   sound.setScene({ map: 'castle', night: true, hearth: false });
   clearInterval(clockTimer); clockTimer = undefined; clockLastTime = performance.now();
   touchControls?.destroy(); touchControls = undefined;
@@ -258,11 +257,7 @@ function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
   moving = true;
   document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'true');
-  void dispatch({ kind: 'move', dx, dy }).then(() => {
-    const entered = inBedEntry(world!.players[localId], roomLayout(world!, world!.players[localId].map));
-    if (entered && !bedEntryLatched) { bedEntryLatched = true; sleepPrompt(); }
-    if (!entered) bedEntryLatched = false;
-  }).catch(fail).finally(() => {
+  void dispatch({ kind: 'move', dx, dy }).catch(fail).finally(() => {
     moving = false;
     document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'false');
   });
