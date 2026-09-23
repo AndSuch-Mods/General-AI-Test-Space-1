@@ -1,5 +1,7 @@
 # Roadmap
 
+Current household batch: **0.1.10** implements the icon, rigid door leaves, raised curtains, larger bookshelf, independent ledger/drawer inventories, moving-A interactions, seating/rest polish and appliance audio in `docs/HOUSEHOLD_POLISH_10.md`. Short-code pairing replaces manual pairing as the default; see `docs/CODE_ROOMS.md` for its online setup requirement. Focused local checks and the existing release gate cover this batch; physical two-iPhone feel/audio/network acceptance remains open. No content phase advances.
+
 Main-menu correction: remove the cropped title's rectangular backing while retaining the supplied lettering and the existing controls.
 
 0.1.9 implements the main menu using the user-supplied castle/ghost artwork. Touch layout, menu navigation, host/join, settings/backups and the existing gameplay/offline suites pass on Chromium and macOS WebKit at `c3c04eb`. During buildout, omit extra save-preservation and migration work as requested by the user. No game-content phase advances. See `docs/MAIN_MENU.md` and `docs/VALIDATION.md`.

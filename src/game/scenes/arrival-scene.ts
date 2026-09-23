@@ -5,12 +5,15 @@ import { RESIDENT_FRAMES, RESIDENT_ORIGIN, RESIDENT_NATIVE_WIDTH, RESIDENT_NATIV
 import { residentFrame } from '../art/resident-animation';
 import { residentCanvas, residentTextureKey } from '../art/resident-appearance';
 import { ROOM_FLAME_IMAGE, ROOM_IMAGE, ROOM_MATERIAL_IMAGE, ROOM_TEXTURE } from '../art/room-atlas';
-import { FURNITURE_IMAGES, furnitureArt } from '../art/room-furniture';
+import { FURNITURE_IMAGES, furnitureArt, kitchenAnchors } from '../art/room-furniture';
 import { ARCHITECTURE_IMAGES, doorArt } from '../art/room-architecture';
 import { buildRoomTextures } from '../art/room-textures';
 import { RoomWindowSky } from '../art/room-windows';
+import { WINDOW_FRAME_OFFSET_Y, WINDOW_FRAME_NATIVE } from '../art/room-window-art';
+import { STORAGE_IDS, type StorageId } from '../storage';
 import { daylight, dayPhase, nightVariant } from '../time';
 import { HotbarDock } from '../../ui/hotbar-dock';
+import { bedLocal } from '../../content/room';
 
 import type { RoomPresentation } from '../presentation';
 
@@ -60,7 +63,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
     private blockedKeys = new Set<string>();
     private outdoorLight = -1;
     private drag?: { id: FurnitureId; x: number; y: number; moved: boolean; pointer: number };
-    private kitchenEffects!: Phaser.GameObjects.Graphics;
+    private kitchenEffects = new Map<string, Phaser.GameObjects.Graphics>();
     preload() {
       this.load.image(ROOM_TEXTURE, ROOM_IMAGE);
       this.load.image('room-materials', ROOM_MATERIAL_IMAGE);
@@ -79,7 +82,6 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       this.illumination = this.add.graphics().setDepth(800);
       this.fire = this.add.image(556, 232, 'flames-native', 'fire-0').setOrigin(.5, 1).setScale(2).setTint(0xe9cfad).setDepth(243);
       this.motes = this.add.graphics().setDepth(900);
-      this.kitchenEffects = this.add.graphics();
       this.ambience = this.add.rectangle(0, 0, ROOM_SIZE.width, ROOM_SIZE.height, 0x14152b, .1).setOrigin(0).setDepth(700);
       this.cameras.main.setBounds(0, 38, ROOM_SIZE.width, 464).setRoundPixels(true);
       this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -143,18 +145,18 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         if (object.id.startsWith('candle-')) {
           image('candle'); this.candleFlames.set(object.id, this.add.graphics().setDepth(object.depth + .1));
         } else if (object.id.startsWith('window')) {
-          image('__BASE', 'window-sky-native'); image('window').setDepth(object.depth + .1);
+          image('__BASE', 'window-sky-native'); image('window').setPosition(x, y + WINDOW_FRAME_OFFSET_Y).setDisplaySize(WINDOW_FRAME_NATIVE.width * 2, WINDOW_FRAME_NATIVE.height * 2).setDepth(object.depth + .1);
         } else if (object.door) {
           const art = doorArt(object.door.wall);
-          this.furnishings.push({ object, image: image(art.openFrames[0], art.texture), frames: art.openFrames, amount: 0 });
+          this.furnishings.push({ object, image: image(art.openFrames[0], art.texture).setPosition(x + art.offsetX, y + art.offsetY).setDisplaySize(art.width, art.height), frames: art.openFrames, amount: 0 });
         } else if (art) {
           if (['bed', 'sofa', 'armchair'].includes(object.id)) {
             image(art.base, art.texture).setDepth(object.id === 'bed' ? object.floor!.y : object.depth); image(art.foreground, art.texture).setDepth(object.depth + .4);
           } else {
             const base = image(art.full, art.texture);
-            if (['chest', 'pantry', 'desk'].includes(object.id)) this.furnishings.push({ object, image: base, frames: art.openFrames, amount: 0 });
+            if (STORAGE_IDS.includes(object.id as StorageId)) this.furnishings.push({ object, image: base, frames: art.openFrames, amount: 0 });
           }
-        } else image(object.id);
+        } else if (object.id !== 'letter' || !roomFlag(state().world, this.roomMap, 'letter-filed')) image(object.id);
       }
       const design = state().design, selected = design && getRoomObjects(this.roomMap, this.layout).find(o => o.id === design.selected);
       if (design && selected) {
@@ -171,6 +173,10 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const residents = current.activeIds.map(id => current.world.players[id]).filter(player => player?.map === this.roomMap);
       for (const furnishing of this.furnishings) {
         const { object } = furnishing;
+        if (object.id === 'desk') {
+          const user = residents.find(player => player.interaction === 'desk');
+          if (user) furnishing.frames = furnitureArt('desk', object.rotation)!.drawerFrames[user.drawer];
+        }
         const target = residents.some(player => object.door ? canInteract(player, object, this.layout) : player.interaction === object.id) ? 1 : 0;
         furnishing.amount += Math.sign(target - furnishing.amount) * Math.min(Math.abs(target - furnishing.amount), delta / 240);
         const amount = reducedMotion ? target : furnishing.amount;
@@ -215,15 +221,28 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
         flames.fillStyle(0xffedb0); flames.fillRect(x, y - 4, 2, 2);
         pool(x, y + 32, 108, 0xffbf6c, .019);
       }
-      this.kitchenEffects.clear();
+      for (const graphics of this.kitchenEffects.values()) graphics.clear();
       for (const item of getRoomObjects(this.roomMap, this.layout).filter(o => ['stove', 'sink'].includes(o.id))) {
         if (!roomFlag(world, this.roomMap, item.id)) continue;
-        this.kitchenEffects.setDepth(item.depth + .1);
-        const x = item.bounds.x + item.bounds.width / 2, y = item.bounds.y + item.bounds.height * .38;
+        let effect = this.kitchenEffects.get(item.id);
+        if (!effect) { effect = this.add.graphics(); this.kitchenEffects.set(item.id, effect); }
+        effect.setDepth(item.depth + .1);
+        const anchors = kitchenAnchors(item.id as 'stove' | 'sink', item.rotation);
+        const x = item.bounds.x, y = item.bounds.y;
         if (item.id === 'stove') {
-          this.kitchenEffects.fillStyle(0xe59a4d, .85); this.kitchenEffects.fillRect(x - 12, y, 8, 2); this.kitchenEffects.fillRect(x + 6, y, 8, 2);
-          pool(x, y + 30, 110, 0xf1a147, .019);
-        } else { this.kitchenEffects.fillStyle(0xafdbdf, .8); this.kitchenEffects.fillRect(x + 6, y - 6, 2, 10); this.kitchenEffects.fillRect(x + (frame % 3) * 2, y + 6, 2, 2); }
+          for (const [index, burner] of anchors.burners.entries()) {
+            const bx = Math.round((x + burner.x) / 2) * 2, by = Math.round((y + burner.y) / 2) * 2;
+            effect.fillStyle(0x527cc8, .85); effect.fillRect(bx - 4, by - 2, 8, 4);
+            effect.fillStyle(0x9ccfea, .9); effect.fillRect(bx - 2, by - 2 - ((frame + index) % 3 === 0 ? 2 : 0), 4, 4);
+            effect.fillStyle(0x292840); effect.fillRect(bx - 2, by, 4, 2);
+          }
+        } else if (anchors.spout) {
+          const sx = x + anchors.spout.x, sy = y + anchors.spout.y, bottom = y + anchors.waterEnd!;
+          effect.fillStyle(0x638d9c, .85); effect.fillRect(sx - 1, sy, 3, bottom - sy);
+          effect.fillStyle(0xbce5e5, .85);
+          for (let stream = sy + frame % 3 * 2; stream < bottom; stream += 6) effect.fillRect(sx, stream, 1, Math.min(4, bottom - stream));
+          effect.fillStyle(0xc1e0dc, .6); effect.fillRect(sx - 4 + frame % 3 * 2, bottom, 2, 2);
+        }
       }
       this.motes.clear();
       if (!reducedMotion) for (let i = 0; i < 10; i++) {
@@ -239,7 +258,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       const local = current.world.players[current.localId];
       const savedLayout = roomLayout(current.world, local.map);
       const previewLayout = current.design?.layout ?? savedLayout;
-      const layoutKey = JSON.stringify(previewLayout) + (current.design?.selected ?? '') + !!current.design?.invalid;
+      const layoutKey = JSON.stringify(previewLayout) + (current.design?.selected ?? '') + !!current.design?.invalid + roomFlag(current.world, local.map, 'letter-filed');
       if (local.map !== this.roomMap || layoutKey !== this.layoutKey || !!current.design !== this.wasArranging) {
         this.roomMap = local.map; this.layout = previewLayout; this.layoutKey = layoutKey; this.wasArranging = !!current.design;
         this.buildRoom(); this.followed = '';
@@ -263,9 +282,17 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
       for (const id of current.activeIds) {
         const p = current.world.players[id]; if (!p || p.map !== this.roomMap) continue;
         const texture = this.residentTexture(p), objects = getRoomObjects(p.map, savedLayout);
-        const bed = objects.find(o => o.id === 'bed'), bedArt = bed && furnitureArt('bed', bed.rotation)!;
-        const pillow = bedArt?.pillows[id === current.world.hostId ? 0 : 1];
-        const target = p.fatigue.sleeping && bed && pillow ? { x: bed.bounds.x + pillow.x, y: bed.bounds.y + pillow.y } : { x: p.x, y: p.y - (p.seated ? 24 : 0) };
+        const bed = objects.find(o => o.id === 'bed');
+        const target = { x: p.x, y: p.y - (p.seated ? p.seated.id === 'sofa' ? 2 : 10 : 0) };
+        const sleepTurn = p.fatigue.sleeping ? bed?.rotation ?? 0 : 0;
+        if (sleepTurn && bed) {
+          // Project the resident's actual mattress coordinate continuously into
+          // the side/rear pillow plane. No host/guest slot selects their side.
+          const art = furnitureArt('bed', sleepTurn)!, t = (bedLocal(p, savedLayout).x - 153) / 54;
+          const a = art.pillows[0], b = art.pillows[1], angle = sleepTurn * Math.PI / 2;
+          target.x = bed.bounds.x + a.x + (b.x - a.x) * t - Math.sin(angle) * 66;
+          target.y = bed.bounds.y + a.y + (b.y - a.y) * t + Math.cos(angle) * 66;
+        }
         let actor = this.actors.get(id);
         if (!actor) {
           const shadow = this.add.ellipse(0, -1, 38, 10, 0x100e1b, .38);
@@ -277,7 +304,10 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           actor = { container, sprite, reaction, facing: p.facing, distance: 0, lastTravel: -Infinity, map: p.map, sleeping: p.fatigue.sleeping, seated: !!p.seated, settlingAt: -Infinity, settleFrom: target, bedDisturbances: p.bedDisturbances, reactionAt: -Infinity }; this.actors.set(id, actor);
         }
         actor.sprite.setTexture(texture); actor.facing = p.facing;
-        if (p.bedDisturbances > actor.bedDisturbances && p.fatigue.sleeping && actor.sleeping && actor.map === p.map) actor.reactionAt = time;
+        for (const part of actor.container.list) if (part instanceof Phaser.GameObjects.Text) part.setVisible(!p.fatigue.sleeping);
+        if (p.bedDisturbances > actor.bedDisturbances && p.fatigue.sleeping && actor.sleeping && actor.map === p.map) {
+          actor.reactionAt = time; actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
+        }
         actor.bedDisturbances = p.bedDisturbances;
         if (!p.fatigue.sleeping || actor.map !== p.map) actor.reactionAt = -Infinity;
         if (actor.map !== p.map || actor.sleeping !== p.fatigue.sleeping || actor.seated !== !!p.seated) {
@@ -285,29 +315,32 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
             for (const [name, key] of Object.entries(this.keys)) if (key.isDown) this.blockedKeys.add(name);
             this.input.keyboard!.resetKeys();
           }
-          if (p.fatigue.sleeping && !actor.sleeping && actor.map === p.map && !reducedMotion) {
+          if (actor.map === p.map && !reducedMotion) {
             actor.settlingAt = time; actor.settleFrom = { x: actor.container.x, y: actor.container.y };
           } else { actor.container.setPosition(target.x, target.y); actor.settlingAt = -Infinity; }
           actor.map = p.map; actor.sleeping = p.fatigue.sleeping; actor.seated = !!p.seated; actor.lastTravel = -Infinity;
         }
         const dx = target.x - actor.container.x, dy = target.y - actor.container.y, remaining = Math.hypot(dx, dy);
-        if (!p.fatigue.sleeping && !p.seated && remaining > .35) {
+        const settling = Math.min(1, Math.max(0, (time - actor.settlingAt) / 420));
+        const ease = settling * settling * (3 - 2 * settling);
+        if (settling < 1) actor.container.setPosition(actor.settleFrom.x + (target.x - actor.settleFrom.x) * ease, actor.settleFrom.y + (target.y - actor.settleFrom.y) * ease);
+        else if (!p.fatigue.sleeping && !p.seated && remaining > .35) {
           const amount = Math.min(remaining, Math.max(0, delta) * .14);
           const next = moveInRoom(actor.container, dx / remaining, dy / remaining, amount, p.map, savedLayout);
           const travelled = Math.hypot(next.x - actor.container.x, next.y - actor.container.y);
           actor.distance += travelled; if (travelled > .01) actor.lastTravel = time;
           actor.container.setPosition(next.x, next.y);
         } else if (!p.fatigue.sleeping) actor.container.setPosition(target.x, target.y);
-        const sleepProgress = p.fatigue.sleeping ? Math.min(1, Math.max(0, (time - actor.settlingAt) / 420)) : 0;
+        const sleepProgress = p.fatigue.sleeping ? settling : 0;
         const settled = sleepProgress * sleepProgress * (3 - 2 * sleepProgress);
         if (p.fatigue.sleeping) actor.container.setPosition(actor.settleFrom.x + (target.x - actor.settleFrom.x) * settled, actor.settleFrom.y + (target.y - actor.settleFrom.y) * settled);
         const pose = residentFrame(actor.facing, actor.distance, !p.seated && !p.fatigue.sleeping && time - actor.lastTravel < 115 && !(id === current.localId && paused()));
         const reactionElapsed = time - actor.reactionAt, reacting = p.fatigue.sleeping && reactionElapsed < 900;
         const toss = reacting && !reducedMotion ? [0, -2, -4, -2, 0, 2, 4, 2, 0, 0][Math.floor(reactionElapsed / 90)] : 0;
-        actor.sprite.setFrame(reacting ? 'down-grumpy' : p.fatigue.sleeping ? 'down-rest' : p.seated ? p.facing + '-sit' : pose.frame)
+        actor.sprite.setFrame(reacting ? 'down-grumpy' : p.fatigue.sleeping ? (sleepProgress < .3 ? 'down-idle' : 'down-rest') : p.seated ? p.facing + '-sit' : pose.frame)
           .setFlipX(!p.fatigue.sleeping && !p.seated && pose.flipX).setPosition(toss, 0)
-          .setOrigin(.5, p.fatigue.sleeping ? 14 / 48 : p.seated ? 32 / 48 : RESIDENT_ORIGIN.y).setAngle(p.fatigue.sleeping ? (bed?.rotation ?? 0) * 90 : 0);
-        actor.reaction.setVisible(reacting).setPosition(24, p.fatigue.sleeping ? -42 : -108)
+          .setOrigin(.5, p.seated ? (47 - 15 * ease) / 48 : RESIDENT_ORIGIN.y).setAngle(sleepTurn * 90 * (reducedMotion ? 1 : settled));
+        actor.reaction.setVisible(reacting).setPosition(24, -94)
           .setAlpha(reacting ? Math.min(1, (900 - reactionElapsed) / 250) : 0);
         const seat = p.seated && objects.find(o => o.id === p.seated!.id);
         actor.container.setDepth(p.fatigue.sleeping ? (bed?.depth ?? p.y) + .2 : seat ? seat.depth + .2 : actor.container.y);
@@ -324,7 +357,7 @@ export async function mountArrival(parent: HTMLElement, state: () => { world: Wo
           }
           telemetry('playerX', Number(p.x.toFixed(2))); telemetry('playerY', Number(p.y.toFixed(2)));
           telemetry('playerFacing', actor.facing); telemetry('playerFrame', actor.sprite.frame.name); telemetry('playerFlipX', String(actor.sprite.flipX));
-          telemetry('nearestObject', nearestInteractable(p, savedLayout)?.id ?? '');
+          telemetry('nearestObject', nearestInteractable(p, savedLayout, roomFlag(current.world, p.map, 'letter-filed') ? ['letter'] : [])?.id ?? '');
           telemetry('residentWidth', actor.sprite.displayWidth); telemetry('residentHeight', actor.sprite.displayHeight);
           telemetry('playerMap', p.map); telemetry('renderedMap', this.roomMap); telemetry('playerSleeping', String(p.fatigue.sleeping));
           telemetry('playerHeight', actor.sprite.displayHeight); telemetry('sleeping', String(p.fatigue.sleeping)); telemetry('playerSeated', p.seated?.id ?? '');

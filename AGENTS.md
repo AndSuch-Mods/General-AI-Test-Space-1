@@ -1,5 +1,7 @@
 # Haunted Chocolatier: Twilight
 
+Read `docs/HOUSEHOLD_POLISH_10.md` first for the current household batch and user overrides, including short-code co-op, ledger/storage, free-position sleep and artwork corrections.
+
 During active buildout, prioritize the requested game and UI changes over development-save compatibility. The user accepts save resets and overwrites. Do not add migrations or run extra save-preservation exercises solely to retain development progress. This overrides the older preservation requirements below for buildout; unrelated files and repositories remain outside scope.
 
 Read `docs/MAIN_MENU.md` before title/menu work. The user-supplied castle/ghost image defines the current main menu, with Continue, New Game, Co-Op, Settings and Credits. Preserve the image and use real accessible touch controls; never overwrite a save through New Game.
@@ -37,7 +39,7 @@ The unchanged master is `docs/master/Haunted_Chocolatier_Twilight_AGENTS.md`. `d
 - Only use `AndSuch-Mods/General-AI-Test-Space-1`. It was selected after checking all ten approved repositories. Preserve its existing history. Do not overwrite existing work, force-push, or alter other repositories.
 - Implement in the phase order, through playable vertical slices. Finish architecture only as far as needed to build safely, then build. Report pending work honestly.
 - Keep the host authoritative for shared story, time, world changes and communal storage. Either player can advance shared progression. Profiles, inventories, fatigue, recipes, discoveries, relationships, and personal quests remain separate and persistent.
-- Use transport-independent player intents and WebRTC DataChannels with manual/QR pairing. No cloud game server in normal play. Players can occupy different maps. Support host solo continuation, drop-in/out, guest mirrors, explicit revision reconciliation, and idempotent transactions.
+- Use transport-independent player intents and direct WebRTC DataChannels. Short room codes use PeerJS signaling during setup; manual/QR pairing remains the offline fallback (read `docs/CODE_ROOMS.md`). No cloud game server in normal play. Players can occupy different maps. Support host solo continuation, drop-in/out, guest mirrors, explicit revision reconciliation, and idempotent transactions.
 - Declare quest and scene scope explicitly as personal, shared_world, or cooperative. Required progression must have full solo parity. Shared scenes synchronize; personal scenes do not freeze the other player.
 - Use a configurable `secondsPerGameMinute`, default 1.0. Schedules and timers use game time. Never force sleep at a fixed hour. Preserve the master fatigue and relationship rules.
 - Save exactly two normal worlds in IndexedDB with both profiles. Keep cache, app settings and guest mirrors separate. Validate imports, retain recovery copies, migrate explicitly, and never wipe saves on update. Never replace newer progress silently.

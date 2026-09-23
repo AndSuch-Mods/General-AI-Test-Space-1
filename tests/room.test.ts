@@ -104,12 +104,14 @@ describe('room persistence and shared interaction', () => {
     const guest = crypto.randomUUID();
     await authority.join({ id: guest, key: crypto.randomUUID(), name: 'Guest', appearance: 'moss', worldId: initial.worldId, epoch: initial.epoch, revision: 0 });
     Object.assign(authority.world.players[guest], { x: 804, y: 430 });
-    await authority.dispatch(initial.hostId, 1, { kind: 'transfer', direction: 'deposit', item: 'cacao-bean', count: 3 });
-    await authority.dispatch(initial.hostId, 1, { kind: 'transfer', direction: 'deposit', item: 'cacao-bean', count: 3 });
+    await authority.dispatch(initial.hostId, 1, { kind: 'interact', target: 'chest' });
+    await authority.dispatch(guest, 1, { kind: 'interact', target: 'chest' });
+    await authority.dispatch(initial.hostId, 2, { kind: 'transfer', direction: 'deposit', item: 'cacao-bean', count: 3 });
+    await authority.dispatch(initial.hostId, 2, { kind: 'transfer', direction: 'deposit', item: 'cacao-bean', count: 3 });
     expect(authority.world.chest['cacao-bean']).toBe(3);
     const outcomes = await Promise.allSettled([
-      authority.dispatch(initial.hostId, 2, { kind: 'transfer', direction: 'withdraw', item: 'cacao-bean', count: 3 }),
-      authority.dispatch(guest, 1, { kind: 'transfer', direction: 'withdraw', item: 'cacao-bean', count: 3 }),
+      authority.dispatch(initial.hostId, 3, { kind: 'transfer', direction: 'withdraw', item: 'cacao-bean', count: 3 }),
+      authority.dispatch(guest, 2, { kind: 'transfer', direction: 'withdraw', item: 'cacao-bean', count: 3 }),
     ]);
     expect(outcomes.filter(result => result.status === 'fulfilled')).toHaveLength(1);
     expect(Object.values(authority.world.players).reduce((sum, player) => sum + (player.inventory['cacao-bean'] ?? 0), authority.world.chest['cacao-bean'] ?? 0)).toBe(3);

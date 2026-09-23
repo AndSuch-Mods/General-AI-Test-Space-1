@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { HotbarDock } from '../src/ui/hotbar-dock';
-import { BED_REST, bedPoint, canInteract, furniturePoint, getRoomObjects, inBedEntry, nearestInteractable } from '../src/content/room';
+import { bedPoint, canInteract, furniturePoint, getRoomObjects, inBedEntry, nearestInteractable } from '../src/content/room';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld } from '../src/game/model';
 import { startSleep } from '../src/game/time';
 
 describe('precise household actions', () => {
-  it('repositions a saved sleeper into the projected bed without restarting their rest', async () => {
+  it('keeps a saved sleeper at the chosen position without restarting rest or adding a resume write', async () => {
     const world = createWorld(createPlayer('Sleeper')), id = world.hostId;
     world.layout.bed = { x: 0, y: 0, rotation: 1 };
+    const point = bedPoint({ x: 207, y: 314 }, 'castle', world.layout);
+    Object.assign(world.players[id], point);
     startSleep(world.players[id], world.clock.totalMinutes, world.layout);
     const fatigue = structuredClone(world.players[id].fatigue);
-    world.players[id].x -= 10; world.players[id].y += 15;
     let commits = 0;
     const authority = new Authority(world, async () => { commits++; });
     await authority.prepareRoom();
-    const point = bedPoint({ x: BED_REST.x - 27, y: BED_REST.y }, 'castle', world.layout);
     expect(authority.world.players[id]).toMatchObject(point);
     expect(authority.world.players[id].fatigue).toEqual(fatigue);
-    await authority.prepareRoom(); expect(commits).toBe(1);
+    await authority.prepareRoom(); expect(commits).toBe(0);
   });
   it('selects the nearby desk prop without reaching it from a window or neighboring prop', () => {
     const journal = getRoomObjects().find(o => o.id === 'journal')!;

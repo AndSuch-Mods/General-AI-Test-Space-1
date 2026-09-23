@@ -1,5 +1,9 @@
 # Content ledger
 
+## 0.1.10 household polish
+
+New door components and the user-supplied home icon replace the corresponding presentation assets. Existing furnishings retain their approved designs; the bookshelf is 50% larger and the curtain rod is raised. Ledger, drawer and nightstand storage, nearest seating, chosen-position sleep, kitchen effects and appliance sounds extend the household interactions. No maps, NPCs, recipes, progression tiers or story chapters are counted as new content. The existing emptiness audit remains open; this is household acceptance work.
+
 ## 0.1.9 main menu
 
 The user-supplied title artwork replaces the earlier title treatment. The five menu actions expose the existing game, save, co-op, settings and backup systems. No characters, maps, quests or progression counts are added; the existing emptiness audit remains open.

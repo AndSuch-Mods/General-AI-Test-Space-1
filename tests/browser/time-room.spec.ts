@@ -63,7 +63,7 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     const host = await first.newPage(), guest = await second.newPage();
     await create(host); await guest.goto('/?renderer=canvas');
     test.skip(!await host.evaluate(() => typeof RTCPeerConnection === 'function'), `${browserName} runtime has no RTCPeerConnection; two-iPhone checks remain required.`);
-    await inventory(host, 'session'); await host.locator('#session').click();
+    await inventory(host, 'session'); await host.locator('#session').click(); await host.locator('#manual-pairing').click();
     await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 });
     await joinCoop(guest);
     await guest.getByLabel('Character', { exact: true }).selectOption('female');
@@ -124,7 +124,7 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     await expect.poll(async () => {
       const [hx, gx] = await Promise.all([host.locator('#game-canvas').getAttribute('data-player-x'), guest.locator('#game-canvas').getAttribute('data-player-x')]);
       return Math.abs(Number(hx) - Number(gx));
-    }, { intervals: [30] }).toBe(54);
+    }, { intervals: [30] }).toBeGreaterThanOrEqual(46);
     await expect(host.locator('#night-transition')).toBeVisible();
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');

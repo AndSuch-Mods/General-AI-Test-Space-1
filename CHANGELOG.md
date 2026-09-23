@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.10 household interactions and artwork
+
+- Packaged the September 23 supplied castle/ghost image as the iOS, 192px and 512px app icons.
+- Rebuilt door animation from fixed walnut frames and separately hinged leaves with visible brass hardware. Raised curtain rods above the arches and enlarged the original bookshelf by 50%.
+- Made the green book a movable household ledger. First-read letters enter personal Journal memories and are filed once in the room's left desk drawer. Desktop props take precedence; left/right approaches open one corresponding drawer and center approaches choose one.
+- Added separate room/container storage and two-slot nightstands. Storage sheets follow completed opening animations, with closing after dismissal. A now works while movement is held.
+- Added three nearest-free couch positions, eased sitting/standing, complete boot pixels, a wide bed-entry funnel and sleep at the chosen position. A second resident can nudge a central sleeper aside with the grumpy reaction. The night moon follows an arc before a rising morning sun.
+- Replaced the hearth mix with quieter layered wood crackles while archiving its old texture. Added distinct faucet/stove audio, connected water to the rebuilt spout and confined blue gas flames to burner centers.
+- Added eight-character co-op rooms with automatic PeerJS signaling and direct host-authoritative gameplay. Internet is required for short-code setup; manual offline pairing remains available. Protocol 10 requires both phones to update. No new save migration or content phase.
+
 ## 0.1.9 main menu
 
 - Removed the blue rectangular backing around the supplied title lettering.

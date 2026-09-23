@@ -1,5 +1,13 @@
 # Validation
 
+## 0.1.10 household batch
+
+Local TypeScript, lint and production build pass. Focused coverage includes 70 existing authority/room/time/layout cases, 16 new household cases, 14 door/window cases, 12 audio cases and 10 short-code adapter cases. Rendered the assembled bedroom, living room, entry, kitchen, seating and both residents in all four bed directions; no page errors. Audio samples stay below music without clipping; physical iPhone listening remains open. These focused checks do not replace the repository's existing Chromium/macOS WebKit publication gate. The short-code public-service smoke and final release result are recorded with the checkpoint when available.
+
+An isolated live PeerJS Cloud smoke passed host registration, typed-code join, authoritative guest movement, direct gameplay with both browser contexts offline, dropout and rejoin, with zero page errors. The initial run found an unsupported serializer setting; the corrected raw serializer is covered against the installed library's actual enum. The six-case local browser batch passed bedroom/hall/kitchen and solo time/doors, exposed a duplicate-heading selector in the new drawer check, then stalled during its co-op case while other browser diagnostics were running. That batch was interrupted; it is not counted as a complete pass. The selector is corrected and the release gate runs the combined suite independently.
+
+The user explicitly accepts development-save resets; no extra preservation exercise was added. No content phase advances. Physical two-iPhone networking and touch/visual acceptance remain separate from desktop browser evidence.
+
 ## 0.1.9, supplied main-menu artwork
 
 - Title-backdrop correction `2faecd6` passed the focused phone-menu checks on both engines and the complete Chromium gate. WebKit release run 35829641350 exposed two pre-existing test-driver races in co-op sleep: checking the clock before the guest room mounted, and holding left through remote assertion latency until the guest reached x=100 outside the bed. The test now waits for actual room telemetry and stops its real movement at x=142 while observing the same reaction assertions. Clock advancement, bed interaction and synchronization checks remain unchanged; no gameplay code changed for these test repairs.

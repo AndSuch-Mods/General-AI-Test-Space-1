@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
-import { doorAperture, doorNativePixels, type DoorWall } from '../src/game/art/room-architecture';
+import { doorFrameBounds, doorFramePixels, doorLeafGeometry, doorNativePixels, type DoorWall } from '../src/game/art/room-architecture';
 
 function sourceDoor() {
-  const png = readFileSync(new URL('../public/art/doors-v8.png', import.meta.url));
+  const png = readFileSync(new URL('../public/art/door-parts-v10.png', import.meta.url));
   expect([png[24], png[25], png[28]]).toEqual([8, 6, 0]);
   const width = png.readUInt32BE(16), height = png.readUInt32BE(20), chunks: Buffer[] = [];
   for (let at = 8; at < png.length;) {
@@ -26,21 +26,46 @@ function sourceDoor() {
 }
 const source = sourceDoor();
 describe('registered original door frames', () => {
-  it.each<DoorWall>(['north', 'west', 'east'])('%s keeps every frame pixel outside the moving leaf fixed', wall => {
-    const closed = doorNativePixels(source, wall, 0), aperture = doorAperture(wall)!;
-    for (const amount of [1 / 3, 2 / 3, 1]) {
-      const opened = doorNativePixels(source, wall, amount); let changed = 0;
-      for (let y = 0; y < closed.height; y++) for (let x = 0; x < closed.width; x++) {
-        const at = (y * closed.width + x) * 4, before = closed.data.subarray(at, at + 4), after = opened.data.subarray(at, at + 4);
-        if (x < aperture.x || x >= aperture.x + aperture.width || y < aperture.y || y >= aperture.y + aperture.height) expect(after).toEqual(before);
-        else if (before.some((value, index) => value !== after[index])) changed++;
+  it.each<DoorWall>(['north', 'west', 'south', 'east'])('%s retains fixed exposed jambs while its separate leaf moves', wall => {
+    const frame = doorFramePixels(source, wall);
+    for (const amount of [0, 1 / 3, 2 / 3, 1]) {
+      const opened = doorNativePixels(source, wall, amount), leaf = doorLeafGeometry(wall, amount);
+      const determinant = leaf.along.x * leaf.down.y - leaf.along.y * leaf.down.x;
+      const knob = { x: leaf.origin.x + leaf.along.x * .9 + leaf.down.x * .55, y: leaf.origin.y + leaf.along.y * .9 + leaf.down.y * .55 };
+      let exposed = 0;
+      for (let y = 0; y < frame.height; y++) for (let x = 0; x < frame.width; x++) {
+        const dx = x + .5 - leaf.origin.x, dy = y + .5 - leaf.origin.y;
+        const u = (dx * leaf.down.y - dy * leaf.down.x) / determinant, v = (leaf.along.x * dy - leaf.along.y * dx) / determinant;
+        if (u >= 0 && u < 1 && v >= 0 && v < 1 || Math.hypot(x - knob.x, y - knob.y) < 6) continue;
+        const at = (y * frame.width + x) * 4;
+        expect(opened.data.subarray(at, at + 4)).toEqual(frame.data.subarray(at, at + 4));
+        if (frame.data[at + 3]) exposed++;
       }
-      expect(changed).toBeGreaterThan(20);
+      expect(exposed).toBeGreaterThan(15);
     }
   });
-  it.each<DoorWall>(['west', 'east'])('%s rectifies its jamb tops against a straight side wall', wall => {
-    const door = doorNativePixels(source, wall, 0);
+  it.each<DoorWall>(['west', 'east'])('%s places upright posts and swings a full face downward into the room', wall => {
+    const door = doorFramePixels(source, wall), bounds = doorFrameBounds(wall);
     const top = (x: number) => Array.from({ length: door.height }, (_, y) => y).find(y => door.data[(y * door.width + x) * 4 + 3] > 0)!;
-    expect(Math.abs(top(3) - top(12))).toBeLessThanOrEqual(3);
+    expect(Math.abs(top(bounds.x + 3) - top(bounds.x + 12))).toBeLessThanOrEqual(4);
+    const closed = doorLeafGeometry(wall, 0), opened = doorLeafGeometry(wall, 1);
+    expect(opened.origin).toEqual(closed.origin); expect(opened.down).toEqual(closed.down);
+    expect(opened.along.y).toBeGreaterThan(closed.along.y);
+    expect(Math.abs(opened.along.x)).toBe(36);
+  });
+  it('keeps the south leaf full length and the north open knob outside the left jamb', () => {
+    for (const amount of [0, 1 / 3, 2 / 3, 1]) {
+      const leaf = doorLeafGeometry('south', amount);
+      expect(Math.hypot(leaf.along.x, leaf.along.y)).toBeCloseTo(33);
+    }
+    const north = doorLeafGeometry('north', 1);
+    expect(north.origin.x + north.along.x).toBeLessThan(doorFrameBounds('north').x);
+  });
+  it('retains visible brass hardware on every wall in every opening pose', () => {
+    for (const wall of ['north', 'west', 'south', 'east'] as DoorWall[]) for (const amount of [0, 1 / 3, 2 / 3, 1]) {
+      const { data } = doorNativePixels(source, wall, amount); let brass = 0;
+      for (let at = 0; at < data.length; at += 4) if (data[at] > 190 && data[at + 1] > 130 && data[at + 2] < 120 && data[at + 3]) brass++;
+      expect(brass, `${wall}/${amount}`).toBeGreaterThan(0);
+    }
   });
 });

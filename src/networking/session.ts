@@ -84,7 +84,7 @@ export class GuestSession {
   connected = false;
   private pending = new Map<number, { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   constructor(private transport: Transport, private database: GameDatabase, private identity: { id: string; key: string; name: string; appearance: Player['appearance']; look?: Player['look'] },
-    private pairing: Pairing, private mirror: Mirror | undefined, private update: (world: World) => void, private status: (text: string) => void) {
+    private pairing: Pick<Pairing, 'worldId' | 'epoch'> & Partial<Pairing>, private mirror: Mirror | undefined, private update: (world: World) => void, private status: (text: string) => void) {
     transport.onState = state => {
       if (state === 'open') transport.send({ kind: 'hello', protocol: PROTOCOL_VERSION, ...identity, worldId: pairing.worldId, epoch: pairing.epoch, revision: mirror?.world.revision ?? 0 });
       else { this.connected = false; this.failPending('The host connection closed.'); this.status('The host connection closed. Your recovery copy is kept. Return to the title and pair again.'); }

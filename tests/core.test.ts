@@ -172,7 +172,7 @@ describe('protocol and content', () => {
     expect(guest.world?.players[guestId].x).toBe(host.world.players[guestId].x);
     expect(guest.world?.lastSequence[guestId]).toBe(2);
     expect(guest.world?.players[guestId].look).toEqual(identity.look);
-    Object.assign(host.world.players[host.world.hostId], { x: 242, y: 302 });
+    Object.assign(host.world.players[host.world.hostId], { x: 153, y: 302 });
     await host.dispatch(host.world.hostId, 1, { kind: 'sleep' }); hostSession.publish();
     Object.assign(host.world.players[guestId], { x: 160, y: 302 });
     await guest.dispatch({ kind: 'move', dx: -1, dy: 0 });

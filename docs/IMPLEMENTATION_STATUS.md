@@ -1,5 +1,7 @@
 # Implementation status
 
+Current build: **0.1.10 household polish**, protocol 10. See `HOUSEHOLD_POLISH_10.md` for the complete user checklist, `ART_DOORS_V10.md` for generated door provenance and `CODE_ROOMS.md` for connection setup. New state is limited to room/container contents, selected drawer and a third sofa position; no development-save migration is added. The green book is the movable ledger, while personal memories remain in the inventory Journal. Bed placement follows the resident rather than their player number. Previous release records below describe historical builds.
+
 Current build: **0.1.9 main menu**. The supplied castle/ghost image and logo accompany five responsive working menu actions. New Game protects occupied slots; Continue and Host select one of the two worlds. Save schema 7 and protocol 9 remain. `MAIN_MENU.md` records the current title contract; the household status below is retained.
 
 The original-art eye correction was published at `7b1539b`. Its source-pixel correction is included in the combined household restoration. See `EYE_CORRECTION_RELEASE.md` for that isolated release's evidence and the earlier intermittent CI reconnect history. Combined checks belong in VALIDATION.md and the exact checkpoint's Actions run.

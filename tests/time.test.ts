@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld, type World } from '../src/game/model';
 import { advanceWorldClock, daylight, dayPhase, energyCap, nextWakeMinute, startSleep, wakePlayer } from '../src/game/time';
-import { BED_EXIT, BED_REST, canStand, getRoomObjects, inBedEntry, moveInRoom, objectColliders, FURNITURE_IDS } from '../src/content/room';
+import { BED_EXIT, canStand, getRoomObjects, inBedEntry, moveInRoom, objectColliders, FURNITURE_IDS } from '../src/content/room';
 import { GameDatabase, parseBackup } from '../src/persistence/database';
 
 function household() { return createWorld(createPlayer('Keeper')); }
@@ -67,9 +67,10 @@ describe('shared clock and personal rest', () => {
     const authority = new Authority(world, async () => {});
     await authority.dispatch(player.id, 1, { kind: 'move', dx: -1, dy: 0 });
     expect(authority.world.players[player.id].fatigue.sleeping).toBe(false);
+    const chosen = { x: authority.world.players[player.id].x, y: authority.world.players[player.id].y };
     await authority.dispatch(player.id, 2, { kind: 'sleep' });
     expect(authority.world.players[player.id].fatigue.sleeping).toBe(true);
-    expect(authority.world.players[player.id].x).toBe(BED_REST.x - 27);
+    expect(authority.world.players[player.id]).toMatchObject(chosen);
     await authority.advanceTime(2, { activeIds: [player.id], paused: false });
     const rested = authority.world.players[player.id];
     expect(authority.world.clock.totalMinutes).toBe(1800);

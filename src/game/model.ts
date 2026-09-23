@@ -5,8 +5,8 @@ import { currentGeometry, layoutGeometryError, migrateProjectedLayout, schema6Ge
 import { layoutError } from '../content/furnishing';
 
 export const GAME_TITLE = 'Haunted Chocolatier: Twilight';
-export const BUILD_VERSION = '0.1.9';
-export const PROTOCOL_VERSION = 9;
+export const BUILD_VERSION = '0.1.10';
+export const PROTOCOL_VERSION = 10;
 export const DEFAULT_TIME = { secondsPerGameMinute: 1, daysPerSeason: 24, daysPerWeek: 6 };
 const id = z.string().uuid();
 const counter = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -19,12 +19,13 @@ export const PlayerSchema = z.object({
   look: CharacterLookSchema.default(() => ({ ...DEFAULT_LOOK })),
   bedDisturbances: counter.default(0), bedDisturbedAt: z.number().nonnegative().nullable().default(null),
   facing: z.enum(['down', 'left', 'up', 'right']).default('down'),
-  seated: z.object({ id: z.enum(['sofa', 'armchair']), slot: z.number().int().min(0).max(1) }).strict().nullable().default(null),
+  seated: z.object({ id: z.enum(['sofa', 'armchair']), slot: z.number().int().min(0).max(2) }).strict().nullable().default(null),
   map: z.enum(ROOM_MAPS), x: z.number().min(48).max(912), y: z.number().min(190).max(484),
   health: z.number().min(0).max(100), energy: z.number().min(0).max(100),
   fatigue: z.object({ consecutiveAllNighters: counter, terminalMinutes: z.number().nonnegative(), sleeping: z.boolean(),
     sleepStartedAt: z.number().nonnegative().nullable(), wakeAt: z.number().nonnegative().nullable() }).strict(),
-  interaction: z.enum(['chest', 'pantry', 'desk']).nullable(),
+  interaction: z.enum(['chest', 'pantry', 'desk', 'side-table', 'bookshelf', 'worktop']).nullable(),
+  drawer: z.enum(['left', 'right']).default('left'),
   inventory: counters, equipment: z.record(z.string(), z.string()), money: counter,
   skills: counters, recipes: strings, discoveries: strings, friendships: counters,
   romance: z.record(z.string(), z.object({ stage: z.enum(['friend', 'dating', 'engaged', 'married']), since: counter }).strict()),
@@ -47,7 +48,7 @@ const WorldBase = z.object({
   weather: z.enum(['clear', 'rain', 'storm', 'fog', 'snow']),
   story: z.object({ chapter: counter, flags }).strict(), quests: z.record(z.string(), z.string()),
   townChanges: flags, upgrades: flags, unlocks: strings, bosses: flags,
-  chest: counters, economy: counters,
+  chest: counters, containers: z.record(z.string().max(100), counters).default({}), economy: counters,
   events: z.array(z.object({ id, kind: z.string().max(80), actor: id, minute: z.number().nonnegative() }).strict()).max(1000),
   players: z.record(z.string().uuid(), PlayerSchema),
   lastSequence: z.record(z.string().uuid(), counter),

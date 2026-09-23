@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import type Phaser from 'phaser';
-import { drawWindowFrame, inWindowPane, WINDOW_NATIVE, WINDOW_SOURCE } from '../src/game/art/room-window-art';
+import { windowFramePixels, inWindowPane, WINDOW_NATIVE, WINDOW_SOURCE, WINDOW_FRAME_NATIVE, WINDOW_FRAME_OFFSET_Y } from '../src/game/art/room-window-art';
 import { RoomWindowSky } from '../src/game/art/room-windows';
 import { createPlayer, createWorld } from '../src/game/model';
 import { baseRoomObjects, ROOM_MAPS, ROOM_SIZE } from '../src/content/room';
@@ -59,6 +59,10 @@ function alphaCanvas(original?: Uint8Array) {
     }, clearRect: (x: number, y: number, w: number, h: number) => rect(x, y, w, h, 0) } as unknown as CanvasRenderingContext2D;
   return { alpha, pixels, context };
 }
+function sampleFrame(original: Uint8Array) {
+  const pixels = windowFramePixels(original).subarray(6 * 52 * 4);
+  return { pixels, alpha: Uint8Array.from({ length: 52 * 80 }, (_, index) => pixels[index * 4 + 3]) };
+}
 describe('window frame and animated aperture', () => {
   it('fits the original native window at exactly twice scale, evenly around every room center', () => {
     for (const map of ROOM_MAPS) {
@@ -75,9 +79,12 @@ describe('window frame and animated aperture', () => {
       expect(windows[1].bounds.x).toBeGreaterThan(ROOM_SIZE.width / 2);
     }
   });
-  it('preserves every original drape, stone and mullion pixel outside the measured glass', () => {
-    const original = originalWindow(), frame = alphaCanvas(original);
-    drawWindowFrame(frame.context, {} as CanvasImageSource);
+  it('raises the original curtains while preserving the stone and exact measured glass', () => {
+    const original = originalWindow(), frame = sampleFrame(original);
+    expect(WINDOW_FRAME_NATIVE).toEqual({ width: 52, height: 86 });
+    expect(WINDOW_FRAME_OFFSET_Y).toBe(-12);
+    const extended = windowFramePixels(original);
+    expect(extended.subarray(0, 4 * 52 * 4).some(Boolean)).toBe(true);
     let cleared = 0, preserved = 0;
     for (let y = 0; y < 80; y++) for (let x = 0; x < 52; x++) {
       const index = (y * 52 + x) * 4, source = original.subarray(index, index + 4);
@@ -88,17 +95,17 @@ describe('window frame and animated aperture', () => {
         expect(a, `${x},${y} must belong to the original window`).toBeGreaterThanOrEqual(250);
         expect(b - r >= 20 && b - g >= 15 || r > 160 && g > 160 && b > 130, `${x},${y}: ${source}`).toBe(true);
         expect(frame.alpha[y * 52 + x]).toBe(0);
-      } else {
+      } else if (x > 12 && x < 39 && (y >= 8 || source[2] >= source[1] && source[1] >= source[0])) {
         if (source[3]) preserved++;
-        expect(frame.pixels.subarray(index, index + 4)).toEqual(source);
+        expect(Array.from(frame.pixels.subarray(index, index + 4))).toEqual(Array.from(source));
       }
     }
-    expect(cleared).toBeGreaterThan(600); expect(preserved).toBeGreaterThan(2500);
+    expect(cleared).toBeGreaterThan(600); expect(preserved).toBeGreaterThan(1000);
     // Both uprights, the center mullion, sill, purple drapes and upper stone tracery remain opaque.
     for (const [x, y] of [[16, 40], [25, 40], [26, 40], [35, 40], [25, 66], [8, 30], [42, 30], [23, 16]]) expect(frame.alpha[y * 52 + x]).toBeGreaterThanOrEqual(250);
   });
   it('keeps all daylight, weather and night variants within uncovered glass', () => {
-    const frame = alphaCanvas(originalWindow()), sky = alphaCanvas(originalWindow()); drawWindowFrame(frame.context, {} as CanvasImageSource);
+    const frame = sampleFrame(originalWindow()), sky = alphaCanvas(originalWindow());
     const scene = { textures: { get: () => ({ getSourceImage: () => ({}) }), createCanvas: () => ({ context: sky.context, refresh: () => {} }) } } as unknown as Phaser.Scene;
     const view = new RoomWindowSky(scene), world = createWorld(createPlayer('Keeper'));
     let paneCount = 0;

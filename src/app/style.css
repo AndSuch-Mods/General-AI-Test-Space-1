@@ -195,17 +195,24 @@ body:has(.play-screen) #toast { bottom: max(75px, calc(env(safe-area-inset-botto
 #sleep-label { display: block; font: 17px Georgia, serif; }
 #sleep-overlay small { display: block; margin-top: 7px; font-size: 11px; color: #b8bfb8; }
 #night-transition { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; background: #12172cdb; animation: night-settles 1.4s ease-in both; }
-#night-transition span { position: absolute; top: 18%; left: 18%; color: #e6d9ad; font: 52px Georgia, serif; animation: moon-crossing 2s ease-in-out both; }
+#night-transition span { position: absolute; color: #e6d9ad; font: 52px Georgia, serif; }
+#night-transition .night-moon { animation: moon-crossing 1.7s ease-in-out both; }
+#night-transition .morning-sun { display: none; }
 #night-transition.dawn { background: linear-gradient(#827a8fb0, #d6ad7a80); animation: dawn-clears 1.2s ease-out both; }
-#night-transition.dawn span { display: none; }
+#night-transition.dawn .night-moon { display: none; }
+#night-transition.dawn .morning-sun { display: block; left: 10%; color: #ffd991; animation: sun-rising 1.2s ease-out both; }
 .daily-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .daily-columns h3 { margin: 0 0 5px; font-size: 14px; }
 .daily-columns p { margin: 5px 0; }
 @keyframes night-settles { from { opacity: 0; } to { opacity: 1; } }
-@keyframes moon-crossing { from { transform: translate(0,20px); } to { transform: translate(55vw,-20px); } }
+@keyframes moon-crossing { 0% { left: 8%; top: 90%; } 50% { left: 46%; top: 8%; } 100% { left: 88%; top: 90%; } }
+@keyframes sun-rising { from { top: 104%; } to { top: 76%; } }
 @keyframes dawn-clears { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #night-transition,#night-transition span { animation-duration: .01s; } }
 .reduced-motion #night-transition,.reduced-motion #night-transition span { animation-duration: .01s; }
+.room-code { display: block; margin: 18px 0; text-align: center; font: bold 32px ui-monospace, monospace; letter-spacing: .16em; color: #e8d8ab; user-select: all; }
+#room-input { text-transform: uppercase; letter-spacing: .18em; }
+.storage-item { margin-bottom: 14px; }
 @media (max-height: 480px) {
  .title-screen { padding-top: 14px; padding-bottom: 24px; }
  .title-copy h1 { font-size: clamp(29px, 4.3vw, 42px); }

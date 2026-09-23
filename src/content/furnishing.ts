@@ -16,7 +16,7 @@ export function layoutError(world: World, map: RoomMap, layout: RoomLayout): str
     if (b.x < 80 || b.x + b.width > 880 || b.y < 74 || b.y + b.height > 476 || object.id === 'carpet' && b.y < 210 || footprint.some(r => r.y < 202)) return 'Keep the piece inside the room.';
     if (residents.some(p => p.interaction === object.id || p.seated?.id === object.id || object.id === 'bed' && p.fatigue.sleeping)) return 'Someone is using this piece.';
     if (footprint.some(r => doors.some(door => overlaps(r, doorClearance(door))))) return 'Keep the doorway clear.';
-    if (object.id.startsWith('candle-') && object.depth <= b.y + b.height && !clear(object.anchor)) return 'Place the candle on a surface or clear floor.';
+    if ((object.id.startsWith('candle-') || object.id === 'journal') && object.depth <= b.y + b.height && !clear(object.anchor)) return 'Place the piece on a surface or clear floor.';
     if (objects.some(other => other.id !== object.id && footprint.some(a => objectColliders(other).some(b => overlaps(a, b))))) return 'There is another piece in the way.';
   }
   if (residents.some(p => !p.fatigue.sleeping && !p.seated && !clear(p))) return 'Leave space for both residents.';

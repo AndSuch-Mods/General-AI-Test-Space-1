@@ -24,6 +24,7 @@ export async function continueWorld(page: Page, slot: 1 | 2 = 1) {
 export async function joinCoop(page: Page) {
   await page.locator('#coop').click();
   await page.locator('#join').click();
+  await page.locator('#manual-pairing').click();
   await expect(page.locator('#pair-input')).toBeVisible();
 }
 

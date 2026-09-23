@@ -30,6 +30,7 @@ function clockHarness() {
   const gain = () => ({ ...node(), gain: parameter() });
   const filter = () => ({ ...node(), frequency: parameter(), Q: parameter() });
   class Source {
+    buffer: unknown;
     connect = vi.fn(); disconnect = vi.fn();
     start = vi.fn(finite); stop = vi.fn((time = 0) => finite(time));
     onended: (() => void) | null = null;
@@ -46,7 +47,8 @@ function clockHarness() {
   const note = vi.fn((_midi: number, at: number) => finite(at));
   const wood = vi.fn(finite), noiseVoice = vi.fn(finite), ember = vi.fn(finite);
   const audio = new HouseholdAudio();
-  Object.assign(audio, { context, master, music, effects: node(), roomFilter, note, wood, noiseVoice, ember });
+  Object.assign(audio, { context, master, music, effects: node(), roomFilter, note, wood, noiseVoice, ember,
+    fireBed: { kind: 'fire' }, applianceBeds: { sink: { kind: 'water' }, stove: { kind: 'gas' } } });
   return { audio, context, master, music, roomFilter, note, wood, noiseVoice, sources };
 }
 
@@ -94,7 +96,7 @@ describe('audio clock recovery', () => {
     try {
       context.currentTime = clock;
       await audio.unlock();
-      const scene = { map: 'kitchen', night: false, hearth: true } as const;
+      const scene = { map: 'kitchen', night: false, hearth: false, stove: true } as const;
       expect(() => {
         audio.setScene(scene); audio.cue('step'); audio.setMusicEnabled(false);
         audio.setEnabled(false); audio.setEnabled(true); audio.setMusicEnabled(true);
@@ -153,6 +155,45 @@ describe('audio clock recovery', () => {
     try {
       roomFilter.frequency.setTargetAtTime.mockImplementationOnce(() => { throw Error('Broken audio node'); });
       expect(() => audio.setScene({ map: 'landing', night: false, hearth: false })).toThrow('Broken audio node');
+    } finally { audio.destroy(); }
+  });
+});
+
+describe('separate household sound sources', () => {
+  it('runs water and gas independently, defaults absent flags off, and keeps them when music is muted', async () => {
+    const { audio, sources, context, note } = clockHarness();
+    try {
+      audio.setScene({ map: 'kitchen', night: true, hearth: false, sink: true, stove: true });
+      expect(sources).toHaveLength(0); await audio.unlock();
+      expect(sources.map(source => source.buffer)).toEqual([{ kind: 'water' }, { kind: 'gas' }]);
+      audio.setMusicEnabled(false); const notes = note.mock.calls.length;
+      context.currentTime = 2; vi.advanceTimersByTime(100);
+      expect(note).toHaveBeenCalledTimes(notes); expect(sources[0].stop).not.toHaveBeenCalled(); expect(sources[1].stop).not.toHaveBeenCalled();
+      audio.setScene({ map: 'kitchen', night: true, hearth: false, stove: true });
+      expect(sources[0].stop).toHaveBeenCalledWith(2.32); expect(sources[1].stop).not.toHaveBeenCalled();
+      audio.setScene({ map: 'castle', night: true, hearth: true, sink: true, stove: true });
+      expect(sources[1].stop).toHaveBeenCalledWith(2.32); expect(sources[2].buffer).toEqual({ kind: 'fire' });
+      audio.setScene({ map: 'castle', night: true, hearth: false });
+      expect(sources[2].stop).toHaveBeenCalledWith(2.5);
+    } finally { audio.destroy(); }
+    expect(sources.every(source => source.disconnect.mock.calls.length > 0)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cleans up both appliance loops on hiding and re-creates only the current scene after a gesture', async () => {
+    const { audio, sources } = clockHarness();
+    try {
+      audio.setScene({ map: 'kitchen', night: true, hearth: false, sink: true, stove: true }); await audio.unlock();
+      Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(sources.every(source => source.stop.mock.calls.length && source.disconnect.mock.calls.length)).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+      audio.setScene({ map: 'castle', night: true, hearth: false }); vi.advanceTimersByTime(300);
+      await audio.unlock(); expect(sources).toHaveLength(2);
+      audio.setScene({ map: 'kitchen', night: true, hearth: false, sink: true });
+      expect(sources).toHaveLength(3); expect(sources[2].buffer).toEqual({ kind: 'water' });
+      audio.setEnabled(false); expect(sources[2].disconnect).toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0);
     } finally { audio.destroy(); }
   });
 });

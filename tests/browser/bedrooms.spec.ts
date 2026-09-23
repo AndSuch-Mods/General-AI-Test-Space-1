@@ -25,7 +25,7 @@ test('living room connects private bedrooms; visitors can sleep and read a saved
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-day-phase', 'dawn');
   await expect(page.locator('#night-transition')).toBeHidden();
   await walkTo(page, 'x', 502); await action(page);
-  await expect(page.getByRole('heading', { name: 'Yesterday at the castle' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Household ledger' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Our household' })).toBeVisible();
   await expect(page.getByText('You rested until morning.')).toBeVisible();
   await page.locator('#action-b').click(); await page.locator('#leave').click(); await page.reload(); await continueWorld(page);

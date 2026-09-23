@@ -7,7 +7,7 @@ export type Turn = 0 | 1 | 2 | 3;
 export type Facing = 'down' | 'left' | 'up' | 'right';
 export type Placement = { x: number; y: number; rotation?: Turn };
 export type Position = { x: number; y: number; map?: RoomMap };
-export const FURNITURE_IDS = ['bed', 'desk', 'side-table', 'bookshelf', 'pantry', 'chest', 'candle-desk', 'candle-table', 'carpet', 'plant', 'sofa', 'armchair', 'stove', 'sink', 'worktop'] as const;
+export const FURNITURE_IDS = ['bed', 'desk', 'side-table', 'bookshelf', 'pantry', 'chest', 'candle-desk', 'candle-table', 'journal', 'carpet', 'plant', 'sofa', 'armchair', 'stove', 'sink', 'worktop'] as const;
 export type FurnitureId = typeof FURNITURE_IDS[number];
 export const ROTATABLE_FURNITURE: readonly FurnitureId[] = ['bed', 'desk', 'side-table', 'bookshelf', 'pantry', 'chest', 'carpet', 'sofa', 'armchair', 'stove', 'sink', 'worktop'];
 export type RoomLayout = Partial<Record<FurnitureId, Placement>>;
@@ -48,16 +48,16 @@ export const roomObjects: readonly RoomObject[] = [
   { id: 'bed', label: 'Carved double bed', bounds: { x: 110, y: 210, width: 140, height: 130 }, collisions: [{ x: 110, y: 244, width: 140, height: 34 }, { x: 110, y: 316, width: 140, height: 24 }], anchor: { x: 252, y: 302 }, depth: 340, actions: ['bed'] },
   { id: 'desk', label: 'Writing desk', bounds: { x: 330, y: 220, width: 105, height: 65 }, collision: { x: 330, y: 251, width: 105, height: 32 }, anchor: { x: 382, y: 289 }, depth: 283, actions: ['desk'] },
   { id: 'letter', label: 'Sealed letter', bounds: { x: 357, y: 226, width: 22, height: 16 }, anchor: { x: 362, y: 290 }, depth: 284, actions: ['letter'] },
-  { id: 'journal', label: 'Daily journal', bounds: { x: 382, y: 231, width: 18, height: 14 }, anchor: { x: 386, y: 294 }, depth: 284, actions: ['journal'] },
+  { id: 'journal', label: 'Household ledger', bounds: { x: 382, y: 231, width: 18, height: 14 }, anchor: { x: 386, y: 294 }, depth: 284, actions: ['journal'] },
   { id: 'candle-desk', label: 'Desk candle', bounds: { x: 405, y: 215, width: 10, height: 24 }, anchor: { x: 423, y: 290 }, depth: 284, actions: ['candle-desk'] },
   { id: 'candle-table', label: 'Bedside candle', bounds: { x: 263, y: 382, width: 10, height: 24 }, anchor: { x: 272, y: 446 }, depth: 439, actions: ['candle-table'] },
   { id: 'carpet', label: 'Woven carpet', bounds: { x: 384, y: 316, width: 226, height: 132 }, anchor: { x: 497, y: 448 }, depth: -90, actions: [] },
   { id: 'hearth', label: 'Household hearth', bounds: { x: 500, y: 130, width: 112, height: 112 }, collision: { x: 500, y: 216, width: 112, height: 26 }, anchor: { x: 556, y: 250 }, depth: 242, actions: ['hearth'] },
   { id: 'pantry', label: 'Cacao cupboard', bounds: { x: 750, y: 114, width: 94, height: 136 }, collision: { x: 750, y: 214, width: 94, height: 36 }, anchor: { x: 800, y: 258 }, depth: 250, actions: ['pantry'] },
   { id: 'chest', label: 'Household chest', bounds: { x: 760, y: 355, width: 88, height: 52 }, collision: { x: 760, y: 381, width: 88, height: 26 }, anchor: { x: 804, y: 415 }, depth: 407, actions: ['chest'] },
-  { id: 'bookshelf', label: 'Old bookshelf', bounds: { x: 82, y: 120, width: 100, height: 104 }, collision: { x: 82, y: 202, width: 100, height: 22 }, anchor: { x: 132, y: 232 }, depth: 224, actions: ['bookshelf'] },
+  { id: 'bookshelf', label: 'Old bookshelf', bounds: { x: 82, y: 74, width: 150, height: 156 }, collision: { x: 82, y: 202, width: 150, height: 22 }, anchor: { x: 157, y: 234 }, depth: 230, actions: ['bookshelf'] },
   { id: 'plant', label: 'Moonfern', bounds: { x: 836, y: 414, width: 40, height: 62 }, collision: { x: 836, y: 452, width: 40, height: 24 }, anchor: { x: 824, y: 471 }, depth: 476, actions: [] },
-  { id: 'side-table', label: 'Bedside table', bounds: { x: 240, y: 390, width: 60, height: 48 }, collision: { x: 240, y: 414, width: 60, height: 24 }, anchor: { x: 272, y: 446 }, depth: 438, actions: [] },
+  { id: 'side-table', label: 'Bedside table', bounds: { x: 240, y: 390, width: 60, height: 48 }, collision: { x: 240, y: 414, width: 60, height: 24 }, anchor: { x: 272, y: 446 }, depth: 438, actions: ['side-table'] },
   { id: 'window-west', label: 'West window', bounds: { x: 228, y: 42, width: 104, height: 160 }, anchor: { x: 280, y: 220 }, depth: 202, actions: [] },
   { id: 'window-east', label: 'East window', bounds: { x: 628, y: 42, width: 104, height: 160 }, anchor: { x: 680, y: 220 }, depth: 202, actions: [] },
   wallDoor('door-out', 'Living room', 'east', 'living', 'door-left'),
@@ -123,7 +123,7 @@ export function groundBox(object: RoomObject): Rect {
   return { x: object.bounds.x, y: object.bounds.y + object.bounds.height - height, width: object.bounds.width, height };
 }
 export const FURNITURE_FLOOR_DEPTHS: Partial<Record<FurnitureId, number>> = {
-  bookshelf: 44, pantry: 54, chest: 44, desk: 48, 'side-table': 36,
+  bookshelf: 66, pantry: 54, chest: 44, desk: 48, 'side-table': 36,
   stove: 60, sink: 56, worktop: 56,
 };
 export const groundCenter = (object: RoomObject) => { const r = object.floor ?? groundBox(object); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
@@ -158,14 +158,21 @@ export function getRoomObjects(map: RoomMap = 'castle', layout: RoomLayout = {})
         object = { ...object, bounds: { ...object.bounds, x: point.x - object.bounds.width / 2, y: point.y - elevation - object.bounds.height }, anchor: furniturePoint(parentId as FurnitureId, original.anchor, map, layout), depth: support.depth + 1 };
       }
     }
-    if (!object.id.startsWith('candle-')) return object;
-    const x = object.bounds.x + 5, bottom = object.bounds.y + object.bounds.height;
+    if (!object.id.startsWith('candle-') && object.id !== 'journal') return object;
+    const x = object.bounds.x + object.bounds.width / 2, bottom = object.bounds.y + object.bounds.height;
     const support = objects.find(other => ['desk', 'side-table', 'pantry', 'bookshelf', 'worktop'].includes(other.id) && x >= other.bounds.x + 3 && x <= other.bounds.x + other.bounds.width - 3 && bottom >= other.bounds.y + 8 && bottom <= other.bounds.y + other.bounds.height * .75);
     const anchor = support ? (support.rotation ?? 0) % 2 ? { x: support.anchor.x, y: bottom + (support.elevation ?? 0) } : { x, y: support.anchor.y } : { x, y: bottom + 10 };
     return { ...object, depth: support ? support.depth + 1 : bottom, anchor };
   });
 }
 export const objectColliders = (object: RoomObject): readonly Rect[] => object.collisions ?? (object.collision ? [object.collision] : []);
+/** Coordinates relative to the original west bedroom, regardless of bed rotation. */
+export function bedLocal(position: Position, layout: RoomLayout = {}): Position {
+  const map = position.map ?? 'castle', delta = objectOffset('bed', layout), bed = baseRoomObjects(map).find(o => o.id === 'bed')!;
+  const p = turnPoint({ x: position.x - delta.x, y: position.y - delta.y }, groundCenter(bed), 4 - (layout.bed?.rotation ?? 0));
+  const base = roomObjects.find(o => o.id === 'bed')!;
+  return { x: p.x - bed.bounds.x + base.bounds.x, y: p.y - bed.bounds.y + base.bounds.y };
+}
 export function inBedEntry(position: Position, layout: RoomLayout = {}) {
   const map = position.map ?? 'castle';
   if (!isBedroom(map)) return false;
@@ -216,6 +223,17 @@ export function moveInRoom(position: Position, dx: number, dy: number, distance 
   for (let step = 0; step < steps; step++) {
     if (canStand({ x: result.x + stepX, y: result.y }, map, layout)) result.x += stepX;
     if (canStand({ x: result.x, y: result.y + stepY }, map, layout)) result.y += stepY;
+    if (inBedEntry({ ...result, map }, layout)) {
+      const local = bedLocal({ ...result, map }, layout);
+      // Wide mouths taper smoothly toward the foot of the mattress. A small
+      // downward slide accompanies each step rather than teleporting at sleep.
+      const inward = Math.min(local.x - BED_ENTRY.x, BED_ENTRY.x + BED_ENTRY.width - local.x);
+      const floor = 292 + Math.min(22, Math.max(0, inward) * .8);
+      if (local.y < floor) {
+        const guided = bedPoint({ x: local.x, y: Math.min(floor, local.y + 2) }, map, layout);
+        if (canStand(guided, map, layout)) Object.assign(result, guided);
+      }
+    }
   }
   return result;
 }
@@ -242,8 +260,12 @@ export function canInteract(position: Position, object: RoomObject, layout: Room
   return true;
 }
 export function objectForAction(action: ArrivalId, map?: RoomMap, layout: RoomLayout = {}) { return (map ? getRoomObjects(map, layout) : [...getRoomObjects('castle', layout), ...landingObjects]).find(object => object.actions.includes(action))!; }
-export function nearestInteractable(position: Position, layout: RoomLayout = {}) {
-  return getRoomObjects(position.map, layout).filter(object => object.actions.length && canInteract(position, object, layout)).sort((a, b) => objectDistance(position, a) - objectDistance(position, b))[0];
+export function nearestInteractable(position: Position & { facing?: Facing }, layout: RoomLayout = {}, excluded: readonly string[] = []) {
+  const props = ['letter', 'journal', 'candle-desk', 'candle-table'];
+  return getRoomObjects(position.map, layout).filter(object => !excluded.includes(object.id) && object.actions.length && canInteract(position, object, layout)).sort((a, b) => {
+    const priority = (o: RoomObject) => props.includes(o.id) ? -40 : 0;
+    return priority(a) - priority(b) || objectDistance(position, a) - objectDistance(position, b);
+  })[0];
 }
 
 
@@ -256,13 +278,13 @@ export function doorCrossed(position: Position, dx: number, dy: number, layout: 
     o.door.wall === 'south' && dy > 0 && position.y >= 460 && Math.abs(position.x - 480) < 32));
 }
 export function seatPosition(object: RoomObject, index = 0): Position {
-  const center = groundCenter(object), vector = turnPoint({ x: center.x + (object.id === 'sofa' ? index ? 32 : -32 : 0), y: center.y }, center, object.rotation ?? 0);
+  const center = groundCenter(object), vector = turnPoint({ x: center.x + (object.id === 'sofa' ? [-42, 0, 42][index] : 0), y: center.y }, center, object.rotation ?? 0);
   return vector;
 }
 export function clampPlacement(map: RoomMap, id: FurnitureId, value: Placement, layout: RoomLayout): Placement {
   const object = getRoomObjects(map, { ...layout, [id]: value }).find(o => o.id === id)!;
   const b = object.bounds, solids = objectColliders(object), floorY = solids.length ? Math.min(...solids.map(r => r.y)) : (object.floor ?? b).y;
-  const minimumY = id === 'carpet' ? 210 : id.startsWith('candle-') ? 74 : 202;
+  const minimumY = id === 'carpet' ? 210 : id.startsWith('candle-') || id === 'journal' ? 74 : 202;
   // Quarter turns can produce half-pixel bounds for odd-width pieces. Clamp the
   // integer offset inward, so rounding never pushes a preview outside the wall.
   const minX = Math.ceil(value.x + 80 - b.x), maxX = Math.floor(value.x + 880 - b.x - b.width);

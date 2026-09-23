@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { getRoomObjects } from '../../content/room';
 import { ROOM_TEXTURE, ROOM_FRAMES, ROOM_FLAME_FRAMES, ROOM_FIRE_SIZE } from './room-atlas';
-import { drawWindowFrame } from './room-window-art';
+import { drawWindowFrame, WINDOW_FRAME_NATIVE } from './room-window-art';
 import { buildFurnitureTextures } from './room-furniture';
 import { buildDoorTextures, drawRoomFinish } from './room-architecture';
 export { inWindowPane } from './room-window-art';
@@ -10,14 +10,14 @@ export { inWindowPane } from './room-window-art';
 export const ENV_PIXEL = 2;
 export function buildRoomTextures(scene: Phaser.Scene) {
   // Eighty-pixel cells fit the wider two-resident bed without overlapping the desk.
-  const props = scene.textures.createCanvas('props-native', 320, 320)!;
+  const props = scene.textures.createCanvas('props-native', 384, 384)!;
   props.context.imageSmoothingEnabled = false;
   const source = scene.textures.get(ROOM_TEXTURE).getSourceImage() as HTMLImageElement;
   ROOM_FRAMES.forEach((frame, index) => {
     const object = getRoomObjects().find(object => object.id === frame.name || frame.name === 'window' && object.id === 'window-west');
     const size = object?.bounds ?? ({ candle: { width: 10, height: 24 }, letter: { width: 22, height: 16 }, parcel: { width: 22, height: 26 } }[frame.name as 'candle' | 'letter' | 'parcel']);
-    const width = Math.ceil(size.width / ENV_PIXEL), height = Math.ceil(size.height / ENV_PIXEL);
-    const x = index % 4 * 80, y = Math.floor(index / 4) * 80;
+    const width = frame.name === 'window' ? WINDOW_FRAME_NATIVE.width : Math.ceil(size.width / ENV_PIXEL), height = frame.name === 'window' ? WINDOW_FRAME_NATIVE.height : Math.ceil(size.height / ENV_PIXEL);
+    const x = index % 4 * 96, y = Math.floor(index / 4) * 96;
     if (frame.name === 'window') drawWindowFrame(props.context, source, x, y);
     else props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
     props.add(frame.name, 0, x, y, width, height);

@@ -15,7 +15,7 @@ export function mountTouchControls(surface: HTMLElement, move: (dx: number, dy: 
     direction = { x: 0, y: 0 }; clearInterval(timer); timer = undefined; stick.hidden = true;
     ids.forEach(id => { if (id !== undefined) release(id); });
   };
-  const tick = () => { if (blocked()) { stop(); return; } if (direction.x || direction.y) move(direction.x, direction.y); };
+  const tick = () => { if (blocked()) return; if (direction.x || direction.y) move(direction.x, direction.y); };
   const update = (event: PointerEvent) => {
     if (!movement || event.pointerId !== movement.id) return;
     const dx = event.clientX - movement.x, dy = event.clientY - movement.y;

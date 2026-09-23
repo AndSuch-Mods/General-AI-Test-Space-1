@@ -16,13 +16,22 @@ The sound checkbox calls `unlock()` again inside its enabling change event. The 
 
 - `setEnabled(false)` mutes music, ambience and effects. Re-enabling does not bypass the gesture requirement.
 - `setMusicEnabled(false)` removes musical voices while leaving effects and hearth ambience available.
-- `setScene({ map, night, hearth })` follows authoritative room and world state.
+- `setScene({ map, night, hearth, sink?, stove? })` follows authoritative room and world state. Omitted appliance flags mean off. Pass the actual local room switches on every change; use `hearth` only for fireplaces and the separate kitchen flags for water/gas. Clear all three on the title screen.
+- `cue('stove-ignite' | 'stove-off' | 'sink-on' | 'sink-off')` accompanies accepted appliance changes; `ignite`/`extinguish` remain fireplace cues. Emit each transition once, including replicated changes.
 - `cue(name)` responds to an accepted interaction or actual movement. Do not emit footsteps for a blocked movement request. Emit replicated environmental cues once per accepted change.
 - `suspend()` stops scheduled voices and the scheduler. Visibility loss and page exit also call it automatically. `destroy()` releases the graph, closes the context and removes listeners.
 
 One 100 ms scheduler schedules only 180 ms ahead. At most 40 voices may exist, with one or two sources each. Every voice disconnects on completion; muting, suspension and destruction cancel outstanding voices. Conservative bus gains and output compression bound the mix. No sound starts before unlock or while the document is hidden. A standalone installed iPhone, Bluetooth route changes and interruption/resume still need listening and device acceptance.
 
-## Fireplace balance revision, 2026-09-22
+## Wood, running water and gas, 2026-09-23
+
+The active fireplace now layers rounded wood-grain releases, short resonant tails and irregular paired pops. It has no continuous wind/rain noise layer. The previous exact noise-bed synthesis is retained, unused, in `src/audio/archive/rain-candidate-2026-09-22.ts` for possible future rain work. Production audio does not import it.
+
+The kitchen sink has a separate soft stream with small liquid resonances. The gas stove uses a higher, steady burner hiss and a short igniter/flare cue. Each loop fades independently when switched off or leaving the kitchen; music mute preserves ambience, while master mute, hiding and destruction stop every source. Delayed voice envelopes explicitly start at zero to avoid a one-sample unity-gain tick during ignition.
+
+One focused lifecycle run passed all 12 tests, including independent appliance switches, omitted flags, finite-clock recovery, hiding, mute and gesture resume. Actual Web Audio renders at game gain measured fire/water/gas at 16.6/9.1/10.1 dB below music RMS. The combined music/fire and music/kitchen peaks were -24.9/-24.4 dBFS, with no clipped samples, absolute mean DC below 0.000001 and at most 15 voices. The first render exposed an ignition spike; initializing delayed envelopes at zero removed it in the verification render. Review samples and metrics are in `.local/household-sounds/` (`fire.wav`, `sink.wav`, `stove.wav`, `music-fire.wav`, `music-kitchen.wav`). No normalization or loudness boost was applied. These signal checks do not establish headphone or physical iPhone listening acceptance.
+
+## Archived fireplace balance revision, 2026-09-22
 
 The previous fire overwhelmed the music and resembled wind. Its replacement removes the slow gust envelope, deep rumble and broad hiss. A quieter, narrower band of continuous combustion texture supports short, irregular wood crackles. Ember releases last 75–195 ms with rounded 12–24 ms attacks; occasional softer pairs vary the rhythm without hard impulses. Ignition and extinguishing are quieter too. The stereo loop retains its 350 ms crossfade, DC removal, 1.3 second fade-in and 450 ms fade-out. The existing API, offline synthesis, room selection, music, mute and gesture lifecycle are unchanged.
 

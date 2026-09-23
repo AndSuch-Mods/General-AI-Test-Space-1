@@ -80,6 +80,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   const pair = async () => {
     await inventory(host, 'session');
     await host.locator('#session').click();
+    await host.locator('#manual-pairing').click();
     try { await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 }); }
     catch (error) { console.log('Host pairing error:', await host.locator('#toast').textContent()); await reportRtcDiagnostics([host, guest], 'offer failure', true); throw error; }
     const offer = await host.locator('#pair-output').inputValue();

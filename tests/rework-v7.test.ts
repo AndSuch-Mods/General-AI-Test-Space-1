@@ -129,7 +129,7 @@ describe('whole-room layout transactions', () => {
 });
 
 describe('rotated furnishings and shared seats', () => {
-  it('rotates the sofa footprint, collision and two seat positions together', async () => {
+  it('rotates the sofa footprint and collision while choosing the nearest free of three seats', async () => {
     const { world, host, guest } = household('living'), authority = new Authority(world, async () => {});
     const layout: RoomLayout = { sofa: { x: 0, y: 0, rotation: 1 } };
     await authority.dispatch(host, 1, { kind: 'save-layout', map: 'living', layout, expected: {} });
@@ -144,8 +144,8 @@ describe('rotated furnishings and shared seats', () => {
     await authority.dispatch(host, 3, { kind: 'interact', target: 'sofa' });
     Object.assign(authority.world.players[guest], { x: contactX - 8, y: 336 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'sofa' });
-    expect(authority.world.players[host]).toMatchObject({ x: 403, y: 316.8, facing: 'left', seated: { id: 'sofa', slot: 0 } });
-    expect(authority.world.players[guest]).toMatchObject({ x: 403, y: 355.2, facing: 'left', seated: { id: 'sofa', slot: 1 } });
+    expect(authority.world.players[host]).toMatchObject({ x: 403, y: 336, facing: 'left', seated: { id: 'sofa', slot: 1 } });
+    expect(authority.world.players[guest]).toMatchObject({ x: 403, y: 310.8, facing: 'left', seated: { id: 'sofa', slot: 0 } });
     const occupied = snapshot(authority.world);
     await expect(authority.dispatch(host, 4, { kind: 'save-layout', map: 'living', layout: {}, expected: layout })).rejects.toThrow('using this piece');
     expect(authority.world).toEqual(occupied);
@@ -159,7 +159,7 @@ describe('rotated furnishings and shared seats', () => {
     expect(authority.world.players[guest]).toMatchObject({ seated: null, look: guestLook, inventory: { 'cacao-bean': 7 } });
     expect(canStand(authority.world.players[guest], 'living', layout)).toBe(true);
     await authority.dispatch(host, 5, { kind: 'interact', target: 'sofa' });
-    expect(authority.world.players[host].seated).toEqual({ id: 'sofa', slot: 0 });
+    expect(authority.world.players[host].seated).toEqual({ id: 'sofa', slot: 1 });
     expect(parseWorld(JSON.parse(JSON.stringify(authority.world)))).toEqual(authority.world);
   });
 
@@ -198,8 +198,10 @@ describe('rotated furnishings and shared seats', () => {
     for (const id of [host, guest]) Object.assign(authority.world.players[id], { x: 174, y: 300 });
     expect(canStand(authority.world.players[host], 'castle', layout)).toBe(true);
     await authority.dispatch(host, 2, { kind: 'sleep' }); await authority.dispatch(guest, 1, { kind: 'sleep' });
-    expect(authority.world.players[host]).toMatchObject({ x: 110, y: 291.8, fatigue: { sleeping: true } });
-    expect(authority.world.players[guest]).toMatchObject({ x: 110, y: 324.2, fatigue: { sleeping: true } });
+    expect(authority.world.players[host]).toMatchObject({ bedDisturbances: 1, fatigue: { sleeping: true } });
+    expect(authority.world.players[host].x).toBeCloseTo(174);
+    expect(authority.world.players[host].y).toBeCloseTo(328.8);
+    expect(authority.world.players[guest]).toMatchObject({ x: 174, y: 300, fatigue: { sleeping: true } });
     const asleep = snapshot(authority.world);
     await expect(authority.dispatch(host, 3, { kind: 'save-layout', map: 'castle', layout: {}, expected: layout })).rejects.toThrow('using this piece');
     expect(authority.world).toEqual(asleep);

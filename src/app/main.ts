@@ -9,6 +9,8 @@ import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
 import { WebRTCTransport, decodePairing, encodePairing } from '../networking/webrtc';
+import type { Transport } from '../networking/transport';
+import { STORAGE_IDS, STORED_ITEMS, storedItems, storageCapacity, type StorageId } from '../game/storage';
 import { GuestSession, HostSession } from '../networking/session';
 import { scanPairing, showPairingQR } from '../ui/pairing';
 import { mountTouchControls, type TouchControls } from '../ui/touch-controls';
@@ -39,7 +41,7 @@ let localId = '';
 let authority: Authority | undefined;
 let hostSession: HostSession | undefined;
 let guestSession: GuestSession | undefined;
-let transport: WebRTCTransport | undefined;
+let transport: Transport | undefined;
 let releaseLock: (() => void) | undefined;
 let destroyScene: (() => void) | undefined;
 let sequence = 0;
@@ -48,6 +50,7 @@ let modalCleanup: (() => void) | undefined;
 type DialogKind = 'menu' | 'object' | 'conversation';
 let modalKind: DialogKind = 'menu';
 let moving = false;
+let movementPromise: Promise<void> = Promise.resolve();
 let interacting = false;
 let exiting = false;
 let touchControls: TouchControls | undefined;
@@ -232,15 +235,19 @@ async function enterHost(saved: World) {
 function sharedPresentation(previous: World | undefined, next: World) {
   const oldPlayer = previous?.players[localId], currentPlayer = next.players[localId];
   if (oldPlayer && currentPlayer) {
-    const fireId = currentPlayer.map === 'kitchen' ? 'stove' : 'hearth';
-    if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, fireId) !== roomFlag(next, currentPlayer.map, fireId)) sound.cue(roomFlag(next, currentPlayer.map, fireId) ? 'ignite' : 'extinguish');
+    if (oldPlayer.map === currentPlayer.map) {
+      for (const id of ['hearth', 'stove', 'sink'] as const) if (roomFlag(previous!, oldPlayer.map, id) !== roomFlag(next, currentPlayer.map, id)) {
+        const enabled = roomFlag(next, currentPlayer.map, id);
+        sound.cue(id === 'hearth' ? enabled ? 'ignite' : 'extinguish' : id === 'sink' ? enabled ? 'sink-on' : 'sink-off' : enabled ? 'stove-ignite' : 'stove-off');
+      }
+    }
     if (oldPlayer.map !== currentPlayer.map) sound.cue('door');
-    else if (Math.hypot(oldPlayer.x - currentPlayer.x, oldPlayer.y - currentPlayer.y) > 1 && !currentPlayer.fatigue.sleeping && performance.now() - lastFootstep > 250) { sound.cue('step'); lastFootstep = performance.now(); }
+    else if (Math.hypot(oldPlayer.x - currentPlayer.x, oldPlayer.y - currentPlayer.y) > 1 && !currentPlayer.fatigue.sleeping && !currentPlayer.seated && performance.now() - lastFootstep > 250) { sound.cue('step'); lastFootstep = performance.now(); }
     if (oldPlayer.fatigue.sleeping !== currentPlayer.fatigue.sleeping) sound.cue(currentPlayer.fatigue.sleeping ? 'sleep' : 'wake');
     for (const id of ['candle-desk', 'candle-table']) if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, id, true) !== roomFlag(next, currentPlayer.map, id, true)) sound.cue(roomFlag(next, currentPlayer.map, id, true) ? 'ignite' : 'extinguish');
     const activeIds = [next.hostId, ...(guestSession || hostSession?.guestId ? [next.guestId!] : [])];
     if (activeIds.some(id => previous?.players[id]?.map === currentPlayer.map && next.players[id]?.map === currentPlayer.map && next.players[id].bedDisturbances > previous.players[id].bedDisturbances)) sound.cue('disturbed');
-    for (const target of ['chest', 'pantry', 'desk']) {
+    for (const target of STORAGE_IDS) {
       const was = activeIds.some(id => previous?.players[id]?.map === currentPlayer.map && previous?.players[id]?.interaction === target);
       const is = activeIds.some(id => next.players[id]?.map === currentPlayer.map && next.players[id]?.interaction === target);
       if (was !== is) sound.cue(is ? 'open' : 'close');
@@ -267,7 +274,7 @@ function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
   moving = true;
   document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'true');
-  void dispatch({ kind: 'move', dx, dy }).catch(fail).finally(() => {
+  movementPromise = dispatch({ kind: 'move', dx, dy }).catch(fail).finally(() => {
     moving = false;
     document.getElementById('game-canvas')?.setAttribute('data-movement-pending', 'false');
   });
@@ -275,8 +282,12 @@ function move(dx: number, dy: number) {
 function controlsBlocked() { return !!modal || !!arranging || portraitMedia.matches || interacting || exiting || document.hidden || performance.now() < dawnUntil || !!world?.players[localId]?.fatigue.sleeping; }
 async function interact() {
   if (!world || controlsBlocked()) return;
-  touchControls?.stop();
-  const nearest = nearestInteractable(world.players[localId], roomLayout(world, world.players[localId].map));
+  interacting = true;
+  await movementPromise;
+  interacting = false;
+  if (!world || controlsBlocked()) return;
+  const player = world.players[localId];
+  const nearest = nearestInteractable(player, roomLayout(world, player.map), roomFlag(world, player.map, 'letter-filed') ? ['letter'] : []);
   if (nearest) await performInteraction(nearest.actions[0]);
 }
 function sleepPrompt() {
@@ -288,16 +299,15 @@ function sleepPrompt() {
 async function performInteraction(target: ArrivalId) {
   if (interacting || exiting) return;
   if (target === 'bed') { sleepPrompt(); return; }
-  if (['window-west', 'window-east', 'plant', 'side-table'].includes(target)) return;
-  interacting = true; touchControls?.stop(); refreshActionButtons();
+  if (['window-west', 'window-east', 'plant'].includes(target)) return;
+  interacting = true; refreshActionButtons();
   try {
     await dispatch({ kind: 'interact', target });
     if (target.startsWith('door-') || target === 'hearth' || target.startsWith('candle-') || target === 'stove' || target === 'sink' || target === 'sofa' || target === 'armchair') return;
     if (target === 'journal') { sound.cue('paper'); dailyJournal(); return; }
-    if (target === 'chest' || target === 'pantry' || target === 'desk') await roomPresentation.wait(target, true);
-    if (target === 'chest' || target === 'pantry') { chestDialog(target); return; }
-    if (target === 'desk') { sound.cue('paper'); dailyJournal(); return; }
-    if (target === 'bookshelf' || target === 'worktop') { sound.cue('paper'); recipeBook(); return; }
+    if (STORAGE_IDS.includes(target as StorageId)) {
+      await roomPresentation.wait(target, true); chestDialog(target as StorageId); return;
+    }
     if (target === 'letter') {
       sound.cue('paper');
       const entry = arrival.find(event => event.id === target)!;
@@ -348,7 +358,7 @@ function recipeBook() {
 function dailyJournal() {
   const report = world!.dayReports.at(-1), personal = report?.players[localId];
   const body = report ? `<p class="muted">Day ${report.day + 1} · recorded at dawn</p><div class="daily-columns"><section><h3>Our household</h3>${report.shared.length ? report.shared.map(kind => `<p>${escape(arrival.find(event => event.id === kind)?.title ?? 'A change in the household')}</p>`).join('') : '<p>No shared milestones recorded.</p>'}</section><section><h3>Your day</h3>${personal ? `<p>${personal.rested ? 'You rested until morning.' : 'You were awake when dawn arrived.'}</p><p>At dawn: ${personal.discoveries} discoveries, ${personal.recipes} known recipes, ${personal.completedQuests} completed personal quests.</p>` : '<p>Your record begins with your first morning here.</p>'}</section></div>` : '<p>The first entry will be ready after dawn. Each page keeps the household\'s shared milestones and your own record.</p>';
-  const panel = dialog('Yesterday at the castle', body + '<button id="finish-story" data-primary="true">A · Close journal</button>', 'object');
+  const panel = dialog('Household ledger', body + '<button id="finish-story" data-primary="true">A · Close ledger</button>', 'object');
   panel.classList.add('story-dialog', 'daily-journal'); on('finish-story', closeModal);
 }
 async function leaveGame() {
@@ -385,7 +395,7 @@ async function play() {
     <span id="resident-label" class="sr-only"></span><span id="save-state" class="sr-only" aria-live="polite"></span>
     <header class="game-hud"><div class="hud-clock" aria-label="World time"><span class="clock-moon" aria-hidden="true">☾</span><time id="game-clock">18:00</time></div><button id="inventory-toggle" class="hud-button" aria-label="Inventory and missions"><span>I</span><span id="notification-dot" hidden aria-label="New mission or discovery"></span></button><button id="leave" class="hud-button" aria-label="Save and return to title"><span>ESC</span></button></header>
     <div class="quickbar" role="group" aria-label="Quick slots">${Array.from({ length: QUICK_SLOT_COUNT }, (_, index) => `<button id="quick-slot-${index + 1}" class="quick-slot" aria-label="Quick slot ${index + 1}"><span class="slot-key">${index + 1}</span><span class="quick-item"></span><span class="quick-count"></span></button>`).join('')}</div>
-    <div id="night-transition" hidden aria-hidden="true"><span>☾</span></div>
+    <div id="night-transition" hidden aria-hidden="true"><span class="night-moon">☾</span><span class="morning-sun">☀</span></div>
     <div id="sleep-overlay" hidden role="status"><span id="sleep-label"></span><small>B · Wake up</small></div>
     <div id="game-actions" class="game-actions"><button id="action-b" class="action-key" aria-label="Back"><span>B</span></button><button id="action-a" class="action-key" aria-label="Interact"><span>A</span></button></div></section>`;
   on('inventory-toggle', () => inventory(quickSettings.seen !== notificationState() ? 'missions' : 'items'));
@@ -471,7 +481,7 @@ function updateHud() {
   if (badge) badge.hidden = quickSettings.seen === notificationState();
   document.getElementById('inventory-toggle')?.setAttribute('aria-label', `Inventory and missions${badge && !badge.hidden ? ', new updates' : ''}`);
   const player = world.players[localId], sleepOverlay = document.getElementById('sleep-overlay');
-  sound.setScene({ map: player.map, night: phase === 'night' || phase === 'late-night', hearth: roomFlag(world, player.map, player.map === 'kitchen' ? 'stove' : 'hearth') });
+  sound.setScene({ map: player.map, night: phase === 'night' || phase === 'late-night', hearth: roomFlag(world, player.map, 'hearth'), sink: roomFlag(world, player.map, 'sink'), stove: roomFlag(world, player.map, 'stove') });
   const activeIds = [world.hostId, ...(guestSession || hostSession?.guestId ? [world.guestId!] : [])];
   const allSleeping = activeIds.every(id => world!.players[id]?.fatigue.sleeping);
   const transition = document.getElementById('night-transition');
@@ -509,7 +519,7 @@ function notificationState() {
   const player = world.players[localId];
   return JSON.stringify([player.discoveries, player.quests, world.quests]);
 }
-function itemName(id: string) { return id === 'cacao-bean' ? 'Cacao bean' : id.replaceAll('-', ' '); }
+function itemName(id: string) { return id === 'cacao-bean' ? 'Cacao bean' : id === 'welcome-letter' ? 'Welcome letter' : id.replaceAll('-', ' '); }
 function itemIcon(id: string) { return id === 'cacao-bean' ? '<span class="cacao-icon" aria-hidden="true"></span>' : '<span class="unknown-item" aria-hidden="true">◇</span>'; }
 function selectQuickSlot(index: number) {
   if (!world || exiting || interacting || arranging || portraitMedia.matches || world.players[localId].fatigue.sleeping) return;
@@ -573,29 +583,102 @@ function itemDetails(id: string) {
   on('back-to-items', () => inventory('items'));
   on('clear-quick', () => { quickSettings.slots = quickSettings.slots.map(item => item === id ? null : item); saveQuickSettings(); closeModal(); updateHud(); });
 }
-function chestDialog(container: 'chest' | 'pantry' = 'chest') {
-  const label = container === 'pantry' ? 'Household pantry' : 'Household chest';
-  const panel = dialog(label, '<p class="muted">Shared storage for both residents.</p><div id="chest-content"></div>', 'object');
+function chestDialog(container: StorageId = 'chest') {
+  const resident = world!.players[localId];
+  const label = container === 'desk' ? `${resident.drawer === 'left' ? 'Left' : 'Right'} desk drawer` : getRoomObjects(resident.map).find(o => o.id === container)!.label;
+  const panel = dialog(label, `<p class="muted">${storageCapacity(container)} spaces · Both residents can use this storage.</p><div id="chest-content"></div>${container === 'bookshelf' || container === 'worktop' ? '<button id="read-recipes">Recipe book</button>' : ''}`, 'object');
   panel.classList.add('chest-dialog');
   let busy = false;
   let previousContents = '';
   const refresh = () => {
     if (!world || modal !== panel) return;
-    const personal = world.players[localId].inventory['cacao-bean'] ?? 0, shared = world.chest['cacao-bean'] ?? 0;
-    const nextContents = `${personal}:${shared}:${busy}`;
+    const player = world.players[localId], personal = player.inventory, shared = storedItems(world, player.map, container, player.drawer);
+    const nextContents = JSON.stringify([personal, shared, busy]);
     if (nextContents === previousContents) return;
     previousContents = nextContents;
-    panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3><p>${personal} cacao bean${personal === 1 ? '' : 's'}</p><button id="chest-deposit" ${personal && !busy ? '' : 'disabled'}>Deposit one →</button></div><div><h3>${label}</h3><p>${shared} cacao bean${shared === 1 ? '' : 's'}</p><button id="chest-withdraw" ${shared && !busy ? '' : 'disabled'}>← Take one</button></div></div>`;
-    const transfer = async (direction: 'deposit' | 'withdraw') => {
+    const rows = (direction: 'deposit' | 'withdraw') => STORED_ITEMS.filter(item => item === 'cacao-bean' || personal[item] || shared[item]).map(item => {
+      const count = (direction === 'deposit' ? personal : shared)[item] ?? 0;
+      return `<div class="storage-item"><p>${count} ${escape(itemName(item))}</p><button id="chest-${direction}${item === 'cacao-bean' ? '' : '-letter'}" ${count && !busy ? '' : 'disabled'}>${direction === 'deposit' ? 'Deposit one →' : '← Take one'}</button></div>`;
+    }).join('');
+    panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3>${rows('deposit')}</div><div><h3>${label}</h3>${rows('withdraw')}</div></div>${shared['welcome-letter'] ? '<button id="read-stored-letter">Read letter</button>' : ''}`;
+    const transfer = async (direction: 'deposit' | 'withdraw', item: typeof STORED_ITEMS[number]) => {
       if (busy) return; busy = true; refresh();
-      try { await dispatch({ kind: 'transfer', direction, item: 'cacao-bean', count: 1 }); }
+      try { await dispatch({ kind: 'transfer', direction, item, count: 1 }); }
       finally { busy = false; refresh(); }
     };
-    on('chest-deposit', () => transfer('deposit')); on('chest-withdraw', () => transfer('withdraw'));
+    for (const direction of ['deposit', 'withdraw'] as const) for (const item of STORED_ITEMS) on(`chest-${direction}${item === 'cacao-bean' ? '' : '-letter'}`, () => transfer(direction, item));
+    on('read-stored-letter', async () => {
+      await dispatch({ kind: 'read-letter' });
+      const entry = arrival.find(e => e.id === 'letter')!;
+      const letter = dialog(entry.title, `<p>${escape(entry.text)}</p><button id="back-storage" data-primary="true">Back to drawer</button>`, 'object');
+      letter.classList.add('story-dialog'); on('back-storage', () => chestDialog(container));
+    });
   };
   menuRefresh = refresh; refresh();
+  on('read-recipes', recipeBook);
 }
 async function hostDialog() {
+  if (!authority || !world) return;
+  if (hostSession?.guestId) { dialog('The household is together', '<p>Player 2 is connected.</p><button id="end-coop">End co-op and keep playing alone</button>'); on('end-coop', () => { hostSession?.close(); hostSession = undefined; void closeModal().catch(fail); }); return; }
+  transport?.close(); hostSession?.close();
+  const panel = dialog('Invite a second resident', '<p>On the other phone, choose Co-Op → Join Co-op and enter this room code.</p><p id="room-status" role="status">Opening a room…</p><output id="room-code" class="room-code"></output><p class="muted">Use the same Wi-Fi. Internet is needed only to arrange the connection. Keep both games open.</p><button id="manual-pairing">Pair without internet</button>');
+  const abort = new AbortController(); let advertised = false;
+  modalCleanup = () => { if (!advertised) abort.abort(); };
+  on('manual-pairing', () => { abort.abort(); return manualHostDialog(); });
+  const { CodeRoomTransport } = await import('../networking/code-room');
+  if (modal !== panel) return;
+  const connection = new CodeRoomTransport(); transport = connection;
+  hostSession = new HostSession(connection, authority, text => { toast(text); updateHud(); });
+  connection.onStatus = text => { if (modal === panel) panel.querySelector('#room-status')!.textContent = text; };
+  try {
+    const { code } = await connection.host(world.worldId, world.epoch, { signal: abort.signal });
+    if (modal !== panel) { connection.close(); return; }
+    advertised = true; panel.querySelector('#room-code')!.textContent = `${code.slice(0, 4)} ${code.slice(4)}`;
+    panel.querySelector('#room-status')!.textContent = 'Ready for your second resident.';
+  } catch (error) {
+    if (modal === panel && !abort.signal.aborted) panel.querySelector('#room-status')!.textContent = `${error instanceof Error ? error.message : 'The room service could not be reached.'} You can use offline pairing below.`;
+  }
+}
+function joinDialog() {
+  const panel = dialog('Join the household', `${characterFields('guest-name', 'Companion')}<form id="join-code-form"><label>Room code<input id="room-input" maxlength="12" placeholder="ABCD EFGH" autocapitalize="characters" autocomplete="off" spellcheck="false" required /></label><div class="button-row"><button id="join-room" class="primary" type="submit">Join room</button><button id="manual-pairing" type="button">Pair without internet</button></div><p id="room-status" role="status" class="muted">Both phones need the same Wi-Fi and internet for setup.</p></form>`);
+  panel.classList.add('guest-dialog'); void prepareResidentPreview(panel).catch(fail);
+  let pending = false; const abort = new AbortController();
+  const previewCleanup = modalCleanup;
+  modalCleanup = () => { previewCleanup?.(); abort.abort(); };
+  on('manual-pairing', manualJoinDialog);
+  panel.querySelector('#join-code-form')!.addEventListener('submit', event => {
+    event.preventDefault(); if (pending) return;
+    pending = true;
+    const button = panel.querySelector<HTMLButtonElement>('#join-room')!, status = panel.querySelector('#room-status')!;
+    button.disabled = true; status.textContent = 'Connecting to the household…';
+    void (async () => {
+      const { CodeRoomTransport } = await import('../networking/code-room');
+      if (modal !== panel) return;
+      const connection = new CodeRoomTransport(); transport?.close(); transport = connection;
+      try {
+        const offer = await connection.join(panel.querySelector<HTMLInputElement>('#room-input')!.value, { signal: abort.signal });
+        const mirror = await db.mirrors.get(offer.worldId), saved = await db.settings.get(`guestIdentity:${offer.worldId}`);
+        if (modal !== panel) { connection.close(); return; }
+        const existing = saved?.value as { id: string; key: string } | undefined;
+        const identity = { id: mirror?.playerId ?? existing?.id ?? crypto.randomUUID(), key: mirror?.key ?? existing?.key ?? crypto.randomUUID(),
+          name: panel.querySelector<HTMLInputElement>('#guest-name')!.value.trim(), appearance: panel.querySelector<HTMLSelectElement>('#appearance')!.value as Player['appearance'], look: readCharacterLook(panel) };
+        createPlayer(identity.name, identity.appearance, identity.id, identity.look);
+        await db.settings.put({ key: `guestIdentity:${offer.worldId}`, value: identity });
+        if (modal !== panel) { connection.close(); return; }
+        let entered = false;
+        guestSession = new GuestSession(connection, db, identity, offer, mirror, received => {
+          const previous = world; world = received; localId = identity.id; sharedPresentation(previous, received);
+          if (!entered) { entered = true; void play().catch(fail); } else updateHud();
+        }, text => { status.textContent = text; toast(text); updateHud(); if (!guestSession?.connected) { pending = false; button.disabled = false; } });
+        connection.activate();
+      } catch (error) {
+        connection.close(); throw error;
+      }
+    })().catch(error => { if (modal === panel && !abort.signal.aborted) status.textContent = error instanceof Error ? error.message : 'Could not join. Try the room code again.'; })
+      .finally(() => { pending = false; button.disabled = false; });
+  });
+}
+async function manualHostDialog() {
   if (!authority || !world) return;
   if (hostSession?.guestId) { dialog('The household is together', '<p>Player 2 is connected. Their personal progress is saved with this world.</p><button id="end-coop">End co-op and keep playing alone</button>'); on('end-coop', () => { hostSession?.close(); hostSession = undefined; void closeModal().catch(fail); }); return; }
   transport?.close(); hostSession?.close();
@@ -629,7 +712,7 @@ async function scanIntoInput() {
   if (modal !== currentDialog) { stop(); return; }
   modalCleanup = () => { cleanup?.(); stop(); };
 }
-function joinDialog() {
+function manualJoinDialog() {
   const panel = dialog('Join the household', `${characterFields('guest-name', 'Companion')}<label>Host offer<textarea id="pair-input" placeholder="TW1:…" spellcheck="false"></textarea></label><div class="button-row"><button id="scan">Scan offer QR</button><button id="create-answer" class="primary">Create answer</button></div><video id="camera" hidden></video><p id="scan-status" class="muted"></p>`);
   panel.classList.add('guest-dialog'); void prepareResidentPreview(panel).catch(fail);
   on('scan', scanIntoInput);
@@ -643,14 +726,14 @@ function joinDialog() {
       name: (document.getElementById('guest-name') as HTMLInputElement).value.trim(), appearance: (document.getElementById('appearance') as HTMLSelectElement).value as Player['appearance'], look: readCharacterLook(panel) };
     createPlayer(identity.name, identity.appearance, identity.id, identity.look);
     await db.settings.put({ key: `guestIdentity:${offer.worldId}`, value: identity });
-    transport?.close(); transport = new WebRTCTransport();
+    transport?.close(); const manualTransport = new WebRTCTransport(); transport = manualTransport;
     let entered = false;
     guestSession = new GuestSession(transport, db, identity, offer, mirror, received => {
       const previous = world; world = received; localId = identity.id;
       sharedPresentation(previous, received);
       if (!entered) { entered = true; void play().catch(fail); } else updateHud();
     }, text => { toast(text); updateHud(); });
-    const answer = await transport.answer(offer);
+    const answer = await manualTransport.answer(offer);
     dialog('Send your answer home', `<p class="muted">Let the host scan this QR, or copy the answer into their Co-op panel. Your room opens when they connect.</p>${pairingOutput()}`);
     displayPairing(encodePairing(answer));
   });

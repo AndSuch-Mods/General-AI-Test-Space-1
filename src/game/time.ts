@@ -31,9 +31,10 @@ export function nextWakeMinute(now: number) {
   const morning = Math.floor(now / 1440) * 1440 + SLEEP_RULES.morningMinute + (time >= SLEEP_RULES.morningMinute ? 1440 : 0);
   return morning;
 }
-export function startSleep(player: Player, minute: number, layout: RoomLayout = {}, side: 'left' | 'right' = 'left') {
+export function startSleep(player: Player, minute: number, layout: RoomLayout = {}, side?: 'left' | 'right') {
   const map = isBedroom(player.map) ? player.map : 'castle';
-  Object.assign(player, bedPoint({ x: BED_REST.x + (side === 'left' ? -27 : 27), y: BED_REST.y }, map, layout), { map, interaction: null, seated: null });
+  if (side) Object.assign(player, bedPoint({ x: BED_REST.x + (side === 'left' ? -27 : 27), y: 314 }, map, layout));
+  Object.assign(player, { map, interaction: null, seated: null });
   Object.assign(player.fatigue, { sleeping: true, sleepStartedAt: minute, wakeAt: nextWakeMinute(minute) });
 }
 export function energyCap(player: Player) {

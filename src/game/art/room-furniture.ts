@@ -16,7 +16,7 @@ export type ArtTurn = 0 | 1 | 2 | 3;
 type Spec = { width: number; depth: number; elevation: number };
 export const FURNITURE_ART_SPECS: Record<string, Spec> = {
   bed: { width: 140, depth: 96, elevation: 34 }, desk: { width: 105, depth: 48, elevation: 17 },
-  bookshelf: { width: 100, depth: 44, elevation: 60 }, pantry: { width: 94, depth: 54, elevation: 82 },
+  bookshelf: { width: 150, depth: 66, elevation: 90 }, pantry: { width: 94, depth: 54, elevation: 82 },
   chest: { width: 88, depth: 44, elevation: 8 }, 'side-table': { width: 60, depth: 36, elevation: 12 },
   sofa: { width: 146, depth: 44, elevation: 44 }, armchair: { width: 66, depth: 34, elevation: 36 },
   carpet: { width: 226, depth: 132, elevation: 0 }, stove: { width: 96, depth: 60, elevation: 28 },
@@ -36,8 +36,9 @@ export function furnitureArt(id: string, turn: ArtTurn = 0) {
   return {
     texture: `furniture-${id}-${turn}`, width, height, nativeWidth: Math.ceil(width / 2), nativeHeight: Math.ceil(height / 2),
     full: 'open-0', base: 'base', foreground: 'foreground', openFrames: ['open-0', 'open-1', 'open-2', 'open-3'],
+    drawerFrames: { left: ['left-0', 'left-1', 'left-2', 'left-3'], right: ['right-0', 'right-1', 'right-2', 'right-3'] },
     seatRise: SEAT_RISE,
-    seats: id === 'sofa' ? [-32, 32].map(offset => anchor(spec.width / 2 + offset, spec.depth / 2, SEAT_RISE))
+    seats: id === 'sofa' ? [-42, 0, 42].map(offset => anchor(spec.width / 2 + offset, spec.depth / 2, SEAT_RISE))
       : id === 'armchair' ? [anchor(spec.width / 2, spec.depth / 2, SEAT_RISE)] : [],
     // Measured pillow centers in the original front and derived side/rear artwork.
     pillows: id === 'bed' ? [
@@ -140,7 +141,37 @@ function nativeFurniture(id: string, turn: ArtTurn, sources: FurnitureSources) {
       c.drawImage(kitchen, 95, 99, 207, 111, -topHeight / 2, -topWidth / 2, topHeight, topWidth); c.restore();
     } else c.drawImage(kitchen, 95, 99, 207, 111, 5, 3, canvas.width - 10, 13);
   }
+  if (id === 'sink') {
+    // A continuous brass gooseneck at native scale. The stream shares its exact
+    // spout anchor below instead of guessing from the fixture's bounding box.
+    const points = turn % 2 ? [[33, 17], [33, 6], [31, 3], [25, 3], [22, 6], [22, 7]] : [[27, 10], [27, 3], [28, 1], [29, 1], [30, 3], [30, 6]];
+    const mirrored = turn === 3;
+    c.clearRect(turn % 2 ? 17 : 24, 0, turn % 2 ? 21 : 9, turn % 2 ? 14 : 9);
+    const line = (color: string, width: number, offset: number) => {
+      c.strokeStyle = color; c.lineWidth = width; c.lineJoin = 'round'; c.lineCap = 'square'; c.beginPath();
+      points.forEach(([x, y], index) => { x = mirrored ? canvas.width - x : x; if (!index) c.moveTo(x + offset, y); else c.lineTo(x + offset, y); }); c.stroke();
+    };
+    line('#251b20', 4, 0); line('#87602e', 2, 0); line('#d8ac59', 1, -.5);
+    // Quantize the vector coverage to the same crisp pixels as the furniture.
+    const tap = c.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 3; i < tap.data.length; i += 4) tap.data[i] = tap.data[i] < 128 ? 0 : 255;
+    c.putImageData(tap, 0, 0);
+  }
   return canvas;
+}
+
+export function kitchenAnchors(id: 'sink' | 'stove', turn: ArtTurn = 0) {
+  const art = furnitureArt(id, turn)!;
+  if (id === 'sink') return { spout: { x: turn % 2 ? (turn === 3 ? art.nativeWidth - 22 : 22) * 2 : 60, y: turn % 2 ? 14 : 12 }, waterEnd: turn % 2 ? 44 : 32, burners: [] as Point[] };
+  if (turn === 0) return { burners: [ { x: 27, y: 20 }, { x: 69, y: 20 }, { x: 27, y: 33 }, { x: 69, y: 33 } ] };
+  if (turn === 2) return { burners: [ { x: 27, y: 13 }, { x: 70, y: 13 }, { x: 27, y: 25 }, { x: 70, y: 25 } ] };
+  const topHeight = art.nativeHeight - Math.round(FURNITURE_ART_SPECS.stove.elevation / 2), topWidth = art.nativeWidth - 4;
+  const burners: Point[] = [];
+  for (const u of [.227, .797]) for (const v of [.270, .720]) {
+    const sx = (u - .5) * topHeight, sy = (v - .5) * topWidth;
+    burners.push({ x: Math.round((art.nativeWidth / 2 + (turn === 1 ? -sy : sy)) * 2), y: Math.round((topHeight / 2 + (turn === 1 ? sx : -sx)) * 2) });
+  }
+  return { burners };
 }
 
 /** Preserves the approved three-diamond motif, normalized to the current floor footprint. */
@@ -171,7 +202,7 @@ function drawOriginalCarpet(context: CanvasRenderingContext2D, turn: ArtTurn) {
 }
 
 /** Opening moves only the original lid, door leaves or drawer faces, never the furniture bitmap. */
-function openingPose(c: CanvasRenderingContext2D, native: HTMLCanvasElement, id: string, turn: ArtTurn, amount: number, sources: FurnitureSources) {
+function openingPose(c: CanvasRenderingContext2D, native: HTMLCanvasElement, id: string, turn: ArtTurn, amount: number, sources: FurnitureSources, drawer: 'left' | 'right' | 'both' = 'both') {
   const w = native.width, h = native.height;
   c.drawImage(native, 0, 0);
   if (amount <= 0) return;
@@ -196,7 +227,11 @@ function openingPose(c: CanvasRenderingContext2D, native: HTMLCanvasElement, id:
       c.drawImage(front, 4, 40, 18, 23, x, y, extent, height);
     } else {
       const positions = id === 'desk' ? [Math.round(h * .22), Math.round(h * .68)] : [Math.round(h * .48)];
-      for (const y of positions) c.drawImage(front, Math.round(front.width * .1), Math.round(front.height * .46), Math.round(front.width * .2), 5, x, y, extent, 5);
+      for (const [index, y] of positions.entries()) {
+        const left = turn === 1 ? index === 1 : index === 0;
+        if (id === 'desk' && drawer !== 'both' && (drawer === 'left') !== left) continue;
+        c.drawImage(front, Math.round(front.width * .1), Math.round(front.height * .46), Math.round(front.width * .2), 5, x, y, extent, 5);
+      }
     }
   } else if (turn === 0 && id === 'pantry') {
     const y = Math.round(h * .59), height = Math.round(h * .32), left = Math.round(w * .09), leaf = Math.round(w * .38), right = Math.round(w * .53);
@@ -209,7 +244,10 @@ function openingPose(c: CanvasRenderingContext2D, native: HTMLCanvasElement, id:
   } else if (turn === 0 && (id === 'desk' || id === 'side-table')) {
     const positions = id === 'desk' ? [Math.round(w * .1), Math.round(w * .73)] : [Math.round(w * .22)];
     const width = Math.round(w * (id === 'desk' ? .2 : .57)), y = Math.round(h * .46), height = Math.max(3, Math.round(h * .16)), drop = Math.round(amount * 3);
-    for (const x of positions) { rect(x, y, width, height + drop, '#211b23'); c.drawImage(native, x, y, width, height, x, y + drop, width, height); }
+    for (const [index, x] of positions.entries()) {
+      if (id === 'desk' && drawer !== 'both' && (drawer === 'left') !== (index === 0)) continue;
+      rect(x, y, width, height + drop, '#211b23'); c.drawImage(native, x, y, width, height, x, y + drop, width, height);
+    }
   }
   // Rear panels correctly occlude the opening doors/drawers.
 }
@@ -225,19 +263,19 @@ function foregroundPixel(id: string, turn: ArtTurn, x: number, y: number, w: num
     return x >= 20 || x < 5 || y >= 68;
   }
   if (id === 'sofa' || id === 'armchair') {
-    if (turn === 0) return y >= h * .77 || y > h * .44 && (x < w * .17 || x >= w * .83);
+    if (turn === 0) return y > h * .44 && (x < w * .17 || x >= w * .83);
     if (turn === 2) return y >= h * .29;
-    return y >= h * .79;
+    return y > h * .38 && y < h * .79 && (turn === 1 ? x > w * .72 : x < w * .28);
   }
   return false;
 }
 
 /** Approved raster designs with separately generated upright directional extensions. */
-export function drawFurniture(context: CanvasRenderingContext2D, id: string, turn: ArtTurn, part: 'full' | 'base' | 'foreground', opening = 0, sources?: FurnitureSources) {
+export function drawFurniture(context: CanvasRenderingContext2D, id: string, turn: ArtTurn, part: 'full' | 'base' | 'foreground', opening = 0, sources?: FurnitureSources, drawer: 'left' | 'right' | 'both' = 'both') {
   if (id === 'carpet') { if (part !== 'foreground') drawOriginalCarpet(context, turn); return; }
   if (!sources) throw new Error('Furniture raster sources must be loaded before drawing.');
   const native = nativeFurniture(id, turn, sources);
-  if (part === 'full') { openingPose(context, native, id, turn, opening, sources); return; }
+  if (part === 'full') { openingPose(context, native, id, turn, opening, sources, drawer); return; }
   const c = native.getContext('2d')!, data = c.getImageData(0, 0, native.width, native.height);
   for (let y = 0; y < native.height; y++) for (let x = 0; x < native.width; x++) {
     if (foregroundPixel(id, turn, x, y, native.width, native.height) !== (part === 'foreground')) data.data[(y * native.width + x) * 4 + 3] = 0;
@@ -256,13 +294,15 @@ export function buildFurnitureTextures(scene: Phaser.Scene) {
   };
   for (const id of Object.keys(FURNITURE_ART_SPECS)) for (const turn of [0, 1, 2, 3] as ArtTurn[]) {
     const art = furnitureArt(id, turn)!;
-    const texture = scene.textures.createCanvas(art.texture, art.nativeWidth * 6, art.nativeHeight)!;
+    const names = ['base', 'foreground', ...art.openFrames, ...(id === 'desk' ? [...art.drawerFrames.left, ...art.drawerFrames.right] : [])];
+    const texture = scene.textures.createCanvas(art.texture, art.nativeWidth * names.length, art.nativeHeight)!;
     texture.context.imageSmoothingEnabled = false;
-    for (const [index, name] of ['base', 'foreground', ...art.openFrames].entries()) {
+    for (const [index, name] of names.entries()) {
       texture.context.save(); texture.context.translate(index * art.nativeWidth, 0);
       // Translation only places atlas cells; orientation is authored through ground/elevation geometry.
       texture.context.beginPath(); texture.context.rect(0, 0, art.nativeWidth, art.nativeHeight); texture.context.clip();
-      drawFurniture(texture.context, id, turn, index < 2 ? name as 'base' | 'foreground' : 'full', Math.max(0, index - 2) / 3, sources);
+      const drawer = name.startsWith('left-') ? 'left' : name.startsWith('right-') ? 'right' : 'both';
+      drawFurniture(texture.context, id, turn, index < 2 ? name as 'base' | 'foreground' : 'full', index < 2 ? 0 : Number(name.at(-1)) / 3, sources, drawer);
       texture.context.restore(); texture.add(name, 0, index * art.nativeWidth, 0, art.nativeWidth, art.nativeHeight);
     }
     texture.refresh();

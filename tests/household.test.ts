@@ -51,8 +51,8 @@ describe('a shared home with private bedrooms', () => {
     a.world.events.push({ id: crypto.randomUUID(), kind: 'hearth', actor: host, minute: 1000 });
     a.world.players[guest].discoveries.push('letter');
     for (const id of [host, guest]) { Object.assign(a.world.players[id], { x: 242, y: 318 }); await a.dispatch(id, 1, { kind: 'sleep' }); }
-    expect(Math.abs(a.world.players[host].x - a.world.players[guest].x)).toBe(54);
-    expect(a.world.players[host].y).toBe(350); expect(a.world.players[guest].y).toBe(350);
+    expect(a.world.players[host]).toMatchObject({ x: 194, y: 318, bedDisturbances: 1, fatigue: { sleeping: true } });
+    expect(a.world.players[guest]).toMatchObject({ x: 242, y: 318, fatigue: { sleeping: true } });
     expect(await a.advanceTime(.5, { activeIds: [host, guest], paused: false })).toBe(false);
     expect(a.world.clock.totalMinutes).toBe(1080);
     await a.advanceTime(1, { activeIds: [host, guest], paused: false });
