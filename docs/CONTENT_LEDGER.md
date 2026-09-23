@@ -2,7 +2,7 @@
 
 ## September 22, 0.1.7 rework
 
-The active resident renderer uses clean original code-authored layers, with provenance in ART_RESIDENT_V7.md. Directional furniture, exact window frames, doors and distinct hall/kitchen finishes use ART_ROOM_V7.md. Historical resident sheets and inspection text are retained only as development history; they are not the active customization pipeline or gameplay observations.
+The active resident renderer uses registered raster layers derived from the approved original resident, with provenance and import rules in ART_RESIDENT_V7.md. The approved furniture fronts remain pixel-identical; additional directions, opening and occupied states extend them. ART_ROOM_V7.md and ART_ARCHITECTURE_V8.md record directional furniture, exact window frames, the retained generated walnut doors and distinct hall/kitchen finishes. Generic inspection text is no longer a gameplay interaction.
 
 The stair is removed. The hall and kitchen add household space, seating and upgrade room, not completed exploration or cooking content. Kitchen appliances have reversible cues and a recipe menu. Letters and the welcome reward remain personal; functional furniture no longer generates observation discoveries.
 
@@ -17,21 +17,21 @@ Emptiness check: household customization and shared rest have repeatable use, bu
 
 | Content | Scope | Implementation | Final asset status |
 | --- | --- | --- | --- |
-| Castle room and landing | Shared spaces | Two bedrooms, shared living room and landing with separate player occupancy | Separate pixel furniture/materials, solid footprints and depth layers |
+| Castle household | Shared world with private bedroom editing | Two bedrooms, shared living room, entry hall and kitchen with separate player occupancy | Original separate furniture/materials, solid footprints, four directions and depth layers |
 | Sealed letter, six-spoon wax mark | Personal discovery | Desk action and journal entry | Original writing and separate envelope sprite |
 | Household hearth | Shared world event | Either resident lights it; persisted recap | Separate firebox and six-frame pixel fire |
 | Welcome cacao parcel | Personal discovery and reward | Three beans once per resident | Original writing and separate parcel sprite |
 | Candles | Shared reversible world state | Two independently switchable candles | Separate brass bodies, pixel flame animation and flickering light |
 | Household chest | Shared storage | Atomic cacao deposits/withdrawals by either resident | Animated lid, shared opening state and solid footprint |
-| Bed, books, plant, windows, table | Personal discoveries and household functions | Direct A actions, confirmed bed sleep and clock-driven windows | Split quilt/pillow and original pixel layers |
+| Beds, seating and other furnishings | Household functions | Direct A actions, confirmed shared sleep, seating, clock-driven windows and saved touch arrangement | Split quilts, occupants and original pixel layers; exact window aperture masks |
 | A household begins | Personal quest | Letter and parcel completion state | Introductory only |
 | A light for the house | Shared quest | Hearth completion state | Introductory only |
 | Room-material title | Title presentation | Uses the room's wallpaper and wood with Select game menu | Original reusable textures; former exterior image retained as history |
 | Resident | Persistent character | Four directions, four walk phases, 32 by 48 native frame at 64 by 96 display | Shared body, clothing, hair and skin choices with a live creation preview |
-| Room doors and old west stair | Shared architecture | Room/landing travel and stair repair clue | Original generated door poses/stair, opening animation |
+| Wall doorways | Shared architecture | Automatic reciprocal travel across all five rooms; stairs removed | Original generated walnut door art for each wall and opening phase |
 | App icon | Application asset | User-supplied moonlit castle artwork, preserved in docs/art | iOS touch and PWA icons; provenance in ART_HOME_ICON.md |
 
-Current art uses `public/art/room-v2-props.png`, `public/art/room-v2-materials.png`, `public/art/room-v2-flames.png`, `public/art/room-v3-doors-stairs.png` and `public/art/residents-v2.png`. Exact built-in prompts are in [room provenance](ART_ROOM_V2_PROMPT.md), [new doorway provenance](ART_ROOM_V3_PROMPT.md) and [resident provenance](ART_RESIDENT_V2_PROMPT.md). Former title/interior paintings, first resident sheet and SVG generator remain as development history. Window views, garment masks and UI are original code. No existing game's assets were downloaded or copied. System fonts are used; dependency licenses remain with their packages.
+Current art retains `public/art/room-v2-props.png`, `public/art/room-v2-materials.png` and `public/art/room-v2-flames.png`. The original `residents-v2.png` supplies the approved identity and default raster; registered generated bases, hair and garments are packed into `src/game/art/resident-raster-data.ts`. Source images, prompts, hashes and the importer are preserved under `docs/art`. Additional furniture states use `furniture-v8-*.png` and `furniture-v9-*.png`; architecture uses `doors-v8.png` and `household-materials-v8.png`. See [original room provenance](ART_ROOM_V2_PROMPT.md), [resident layers](ART_RESIDENT_V7.md), [furniture preservation](ART_ROOM_V7.md) and [architecture provenance](ART_ARCHITECTURE_V8.md). Earlier paintings, door/stair sheets and procedural replacement attempts remain development history. Window skies and UI are original code. No existing game's assets were downloaded or copied. System fonts are used; dependency licenses remain with their packages.
 
 No final NPC portraits, music, enemy sprites, finished maps, fish, recipes or romance events are claimed. No content counts from the master have been reduced.
 
@@ -43,7 +43,7 @@ The sealed letter plants the idea that memory needs movement and a home. The six
 
 Phase 1 review: the room has three purposeful interactions and separate ownership rules, but it has no repeatable day loop yet. After settling in, it runs out of activities. The town, wilderness, recipe progression, social arcs and late-game reward timing are unimplemented, so this is not a content-phase completion audit.
 
-Room rework review: furnishings have physical presence, authored interactions and opening motion. Candles, storage and bed rest are working household functions. Time and window skies provide a daily rhythm, but there is still no town, cooking, gathering or exploration loop to fill that day. The landing offers a real exit/return and one repair clue; its closed stair is an open content gap. These are not counted as completed content phases or inflated quest counts.
+Room rework review: furnishings have physical presence, direct use and opening motion. Candles, storage, seating, shared bed rest and touch arrangement are repeatable household functions. Time and window skies provide a daily rhythm, but there is still no town, cooking, gathering or exploration loop to fill that day. The entry hall and kitchen provide connected household space and upgrade capacity; they do not close those progression gaps. These are not counted as completed content phases or inflated quest counts.
 
 Before closing any major content phase, record dead zones, weeks without authored events, NPC arcs that end early, exhausted systems, redundant rewards, repeated quest patterns, missing setup/payoff, and late rewards with no remaining use. Fill those holes before raising raw counts.
 

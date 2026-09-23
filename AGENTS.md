@@ -8,7 +8,7 @@ Read `docs/ROOM_REWORK_V7.md` first for the latest user overrides, including cen
 
 The September 23 clarification resumes the entire household request. A priority interruption such as the eye fix does not cancel the other tasks. Read `docs/HOUSEHOLD_ACCEPTANCE.md`, retain the generated wooden doors and original furniture designs, and finish the combined changes with the published eye fix included.
 
-Read `docs/EYE_CORRECTION_RELEASE.md` before touching resident art or publishing the pending rework. Preserve the matched open idle eyes and fixed face during walking from the isolated original-art hotfix.
+Read `docs/EYE_CORRECTION_RELEASE.md` before touching resident art. The combined household renderer retains the matched open idle eyes and fixed face during walking from the original-art hotfix. Never reset the broader work to that earlier isolated release.
 
 Before planning or implementation, read all of:
 

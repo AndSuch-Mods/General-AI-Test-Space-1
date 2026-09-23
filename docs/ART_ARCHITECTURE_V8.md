@@ -1,6 +1,6 @@
-# Architecture artwork restoration, in progress
+# Architecture artwork restoration
 
-These files are part of the resumed household restoration. They remain unpublished pending combined validation. The user liked the generated wooden door design and explicitly asked to retain it.
+These files are integrated into the combined household restoration. The user liked the generated wooden door design and explicitly asked to retain it. Commit-specific validation and deployment evidence belong in `VALIDATION.md` and the repository's Actions runs.
 
 The built-in imagegen tool created `public/art/doors-v8.png` and `public/art/household-materials-v8.png` on September 22, using only this project's original v2 prop and material sheets as references. The approved bedroom furniture, wallpaper and floor were not regenerated. The new material sheet supplies only the entry hall and kitchen. No external game assets were supplied.
 
