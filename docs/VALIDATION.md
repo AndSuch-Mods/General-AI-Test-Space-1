@@ -2,6 +2,8 @@
 
 ## Focused original-resident eye correction, September 22
 
+Checkpoint `4b23618` passed all 63 unit tests and all 21 browser cases in Chromium and macOS WebKit on branch run `35799660335`. Main run `35800107082` passed WebKit but failed Chromium's second pairing after origin shutdown, on both its initial run and one retry. The same reconnect case then passed three consecutive local Chromium runs. The captured trace shows matching new offer/answer sessions, numeric UDP candidates, a completed Connect action and no page errors; the old disconnect toasts do not establish whether the new peer closed or never connected. Test-only peer/ICE/channel diagnostics retain the original assertions and record actual connection states for investigation. Do not call this an eye-rendering failure or claim a networking cause without that evidence.
+
 The first full CI run (`35798929191`) passed 20 of 21 browser cases on both Chromium and macOS WebKit. Its sole failure was the co-op appearance assertion retaining the previous texture key; the actual guest had the new corrected-eye texture and the expected saved customization. Updated that exact assertion to the new versioned key, without weakening the appearance or co-op checks. The corrected commit must pass the complete matrix before publication.
 
 The previous correction copied only part of the original open eye and then darkened its lower light pixel. Cropped and swept hair also overwrote the brow. This correction restores the complete measured two-by-three eye cluster to both positions after customization. It preserves the original raster, facial proportions, palettes and fixed walking head.

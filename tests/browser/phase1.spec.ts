@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { offlineServer } from './offline-server';
 import { walk, walkTo, inventory, action } from './controls';
+import { installRtcDiagnostics, reportRtcDiagnostics } from './rtc-diagnostics';
 
 async function create(page: Page, name = 'Ada') {
   await page.getByRole('button', { name: /^Single Player/ }).click();
@@ -66,6 +67,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   const server = await offlineServer();
   try {
   const host = await first.newPage(); const guest = await second.newPage();
+  await installRtcDiagnostics(host, 'host'); await installRtcDiagnostics(guest, 'guest');
   for (const page of [host, guest]) {
     page.on('pageerror', error => console.log(browserName, 'page error', error.message));
   }
@@ -76,7 +78,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
     await inventory(host, 'session');
     await host.locator('#session').click();
     try { await expect(host.locator('#pair-output')).not.toHaveValue('', { timeout: 20000 }); }
-    catch (error) { console.log('Host pairing error:', await host.locator('#toast').textContent()); throw error; }
+    catch (error) { console.log('Host pairing error:', await host.locator('#toast').textContent()); await reportRtcDiagnostics([host, guest], 'offer failure', true); throw error; }
     const offer = await host.locator('#pair-output').inputValue();
     await guest.getByRole('button', { name: 'Join Co-op', exact: true }).click();
     await guest.locator('#pair-input').fill(offer);
@@ -85,7 +87,8 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
     await host.locator('#pair-input').fill(await guest.locator('#pair-output').inputValue());
     await host.getByRole('button', { name: 'Connect', exact: true }).click();
     try { await expect(guest.locator('#resident-label')).toContainText('Player 2', { timeout: 20000 }); }
-    catch (error) { console.log('Pairing status:', await host.locator('#toast').textContent(), await guest.locator('#toast').textContent()); throw error; }
+    catch (error) { console.log('Pairing status:', await host.locator('#toast').textContent(), await guest.locator('#toast').textContent()); await reportRtcDiagnostics([host, guest], 'pairing failure', true); throw error; }
+    await reportRtcDiagnostics([host, guest], 'pairing success');
     await host.getByRole('button', { name: 'Close dialog' }).click();
   };
   await pair();
