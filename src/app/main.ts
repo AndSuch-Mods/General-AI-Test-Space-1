@@ -129,6 +129,7 @@ async function title() {
   const records = await Promise.all(([1, 2] as Slot[]).map(id => db.load(id)));
   const hasWorld = records.some(Boolean), art = `${import.meta.env.BASE_URL}art/title-menu-reference.jpg`;
   app.innerHTML = `<section class="title-screen twilight-menu">
+    <svg class="title-art-filters" aria-hidden="true" width="0" height="0"><defs><filter id="title-lettering" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  6 0 -2 0 -.8" /></filter></defs></svg>
     <div class="title-menu-art" aria-hidden="true"><img src="${art}" alt="" fetchpriority="high" /></div>
     <div class="title-menu-controls">
       <h1 class="sr-only">Haunted Chocolatier: Twilight</h1>

@@ -2,6 +2,7 @@
 
 ## 0.1.9 main menu
 
+- Removed the blue rectangular backing around the supplied title lettering.
 - Replaced the room-material title with the supplied castle, moon and ghosts artwork and its logo.
 - Added responsive blue-framed Continue, New Game, Co-Op, Settings and Credits buttons, each with at least 44px touch height.
 - Moved world selection behind Continue/New Game and Host Co-op. Occupied slots cannot be used by New Game. Backups and offline repair live in Settings.
