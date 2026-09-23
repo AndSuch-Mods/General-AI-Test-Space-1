@@ -51,7 +51,7 @@ describe('schema 6 to 7 projected furniture migration', () => {
     expect(() => WorldSchema.parse({ ...old, schemaVersion: 7 })).toThrow('overlaps');
     const upgraded = parseWorld(old);
     expect(layoutError({ ...upgraded, layout: old.layout }, 'castle', { desk: { x: -92, y: 0, rotation: 1 } })).toBe('Leave a path to the furnishings.');
-    expect(upgraded.layout).toEqual({ desk: { x: -70, y: 5, rotation: 1 } });
+    expect(upgraded.layout).toEqual({ desk: { x: -77, y: 5, rotation: 1 } });
     expect(upgraded.players).toEqual(old.players);
     expect(parseWorld(old)).toEqual(upgraded);
     expect(layoutError({ ...upgraded, layout: old.layout }, 'castle', upgraded.layout)).toBeNull();

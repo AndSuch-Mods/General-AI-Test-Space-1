@@ -38,7 +38,7 @@ describe('persistent resident choices and occupied beds', () => {
     a.setActivePlayers([host, guest]);
     const layout = map === 'castle' ? a.world.layout : a.world.roomLayouts[map]; layout.bed = { x: 16, y: 16 };
     const shift = map === 'bedroom-2' ? 152 : 0;
-    Object.assign(a.world.players[host], { map, x: 258 + shift, y: 318 }); await a.dispatch(host, 1, { kind: 'sleep' });
+    Object.assign(a.world.players[host], { map, x: 169 + shift, y: 318 }); await a.dispatch(host, 1, { kind: 'sleep' });
     Object.assign(a.world.players[guest], { map, x: 176 + shift, y: 318 });
     const resting = structuredClone(a.world.players[host].fatigue);
     fail = true; await expect(a.dispatch(guest, 1, { kind: 'move', dx: -1, dy: 0 })).rejects.toThrow('Disk full');

@@ -13,7 +13,7 @@ const garmentHem = { coat: 35, vest: 32, tunic: 38, dress: 41, skirt: 39 } as co
 function seatedLegs(target: CharacterRaster, legs: CharacterRaster, facing: SourceFacing) {
   if (facing === 'right') {
     transformLayer(target, legs, (_x, y) => y >= 32 && y < 40, (x, y) => [13 + (y - 32), 32 + (x - 15)]);
-    transformLayer(target, legs, (_x, y) => y >= 40, (x, y) => [x - 6, y - 1]);
+    transformLayer(target, legs, (_x, y) => y >= 40, (x, y) => [x - 6, 40 + (y - 35) * 7 / 11]);
   } else transformLayer(target, legs, (_x, y) => y >= 32, (x, y) => [x, 32 + (y - 32) * .94]);
 }
 

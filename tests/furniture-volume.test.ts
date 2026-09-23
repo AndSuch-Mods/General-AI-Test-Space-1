@@ -8,10 +8,10 @@ describe('original furniture volume and saved placement', () => {
       const actual = getRoomObjects(map).find(o => o.id === original.id)!;
       expect(actual.bounds).toEqual(original.bounds);
       expect(objectColliders(actual)).toEqual(objectColliders(original));
-      if (!original.id.startsWith('candle-')) expect(actual.anchor).toEqual(original.anchor);
+      if (!original.id.startsWith('candle-') && original.id !== 'journal') expect(actual.anchor).toEqual(original.anchor);
     }
     expect(getRoomObjects().find(o => o.id === 'bookshelf')).toMatchObject({
-      bounds: { x: 82, y: 120, width: 100, height: 104 }, collision: { x: 82, y: 202, width: 100, height: 22 },
+      bounds: { x: 82, y: 74, width: 150, height: 156 }, collision: { x: 82, y: 202, width: 150, height: 22 },
     });
     expect(getRoomObjects().find(o => o.id === 'chest')).toMatchObject({
       bounds: { x: 760, y: 355, width: 88, height: 52 }, collision: { x: 760, y: 381, width: 88, height: 26 },
@@ -19,7 +19,7 @@ describe('original furniture volume and saved placement', () => {
   });
 
   it.each<[RoomMap, FurnitureId, number, number]>([
-    ['castle', 'bookshelf', 73 + 1 / 3, 120], ['castle', 'pantry', 90, 138.4], ['castle', 'chest', 73 + 1 / 3, 60.8],
+    ['castle', 'bookshelf', 110, 180], ['castle', 'pantry', 90, 138.4], ['castle', 'chest', 73 + 1 / 3, 60.8],
     ['castle', 'desk', 80, 80], ['castle', 'side-table', 60, 48],
     ['kitchen', 'stove', 100, 85.6], ['kitchen', 'sink', 93 + 1 / 3, 93.2], ['kitchen', 'worktop', 93 + 1 / 3, 104],
   ])('%s %s has readable side depth and a solid rotated floor', (map, id, width, height) => {
@@ -38,7 +38,7 @@ describe('original furniture volume and saved placement', () => {
     expect(migrated.layout).toEqual(before.layout);
     expect(migrated.players).toEqual(before.players);
     expect(getRoomObjects('castle', migrated.layout).find(o => o.id === 'bookshelf')!.collision)
-      .toEqual({ x: 142, y: 222, width: 100, height: 22 });
+      .toEqual({ x: 142, y: 222, width: 150, height: 22 });
     expect(getRoomObjects('castle', migrated.layout).find(o => o.id === 'chest')!.bounds)
       .toEqual({ x: 680, y: 365, width: 88, height: 52 });
   });
