@@ -3,7 +3,7 @@ import { BUILD_VERSION, CharacterLookSchema, createPlayer, createWorld, type Pla
 import { BODY_OPTIONS, HAIR_STYLE_OPTIONS, HAIR_COLOR_OPTIONS, SKIN_TONE_OPTIONS, OUTFIT_OPTIONS, DEFAULT_LOOK, type CharacterLook } from '../game/art/character-look';
 import { Authority, type Intent } from '../game/authority';
 import { arrival, validateContent, type ArrivalId } from '../content/arrival';
-import { canArrangeRoom, FURNITURE_IDS, getRoomObjects, objectOffset, inBedEntry, roomFlag, roomLayout, roomOwner, type FurnitureId, nearestInteractable } from '../content/room';
+import { canArrangeRoom, getRoomObjects, inBedEntry, roomFlag, roomLayout, roomOwner, nearestInteractable } from '../content/room';
 import { db, parseBackup } from '../persistence/database';
 import { acquireWorldLock } from '../persistence/lock';
 import { OfflinePackage } from '../pwa/offline';
@@ -14,22 +14,26 @@ import { mountTouchControls, type TouchControls } from '../ui/touch-controls';
 import { ROOM_MATERIAL_IMAGE } from '../game/art/room-atlas';
 import { clockLabel, dayPhase, fatigueMessage, SLEEP_RULES } from '../game/time';
 
-import { placementError } from '../content/furnishing';
+import { LayoutDesigner } from '../ui/layout-designer';
 import { RoomPresentation } from '../game/presentation';
 import { HouseholdAudio } from '../audio/household-audio';
 
 validateContent();
 const roomPresentation = new RoomPresentation();
 const sound = new HouseholdAudio();
-let arranging: { id: FurnitureId; x: number; y: number; expected: { x: number; y: number }; error: string | null } | undefined;
+let arranging: LayoutDesigner | undefined;
 let bedEntryLatched = false;
 let lastFootstep = 0;
 let dawnUntil = 0;
 let dawnTimer: ReturnType<typeof setTimeout> | undefined;
 document.addEventListener('pointerdown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
+// WebKit may grant audio activation only when the tap completes.
+document.addEventListener('click', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
 document.addEventListener('keydown', () => { void sound.unlock().catch(() => undefined); }, { capture: true });
 const app = document.querySelector<HTMLElement>('#app')!;
 const toastElement = document.querySelector<HTMLElement>('#toast')!;
+const portraitGuard = document.querySelector<HTMLDialogElement>('#rotate')!;
+const portraitMedia = matchMedia('(orientation: portrait)');
 let slot: Slot = 1;
 let world: World | undefined;
 let localId = '';
@@ -66,6 +70,16 @@ function fail(error: unknown) { toast(error instanceof Error ? error.message : '
 function on(id: string, action: () => unknown) {
   document.getElementById(id)?.addEventListener('click', () => { Promise.resolve().then(action).catch(fail); });
 }
+function updateOrientation() {
+  if (portraitMedia.matches) {
+    touchControls?.stop(); arranging?.cancelDrag(); clockLastTime = performance.now();
+    // Reopening puts the guard above a creation or inventory dialog in the top layer.
+    if (portraitGuard.open) portraitGuard.close();
+    portraitGuard.showModal();
+  } else if (portraitGuard.open) portraitGuard.close();
+}
+portraitGuard.addEventListener('cancel', event => event.preventDefault());
+portraitMedia.addEventListener('change', updateOrientation);
 function disposeModal() {
   touchControls?.stop(); menuRefresh = undefined; modalCleanup?.(); modalCleanup = undefined;
   const actions = document.getElementById('game-actions');
@@ -94,7 +108,7 @@ function dialog(title: string, body: string, kind: DialogKind = 'menu') {
   app.append(modal); modal.showModal(); on('close-dialog', closeModal);
   const actions = document.getElementById('game-actions'); if (actions) modal.append(actions);
   modal.addEventListener('cancel', event => { event.preventDefault(); void closeModal().catch(fail); });
-  refreshActionButtons();
+  refreshActionButtons(); updateOrientation();
   return modal;
 }
 function refreshOffline() {
@@ -105,6 +119,7 @@ function refreshOffline() {
 }
 async function title() {
   playGeneration += 1; arranging = undefined; bedEntryLatched = false; sound.suspend();
+  sound.setScene({ map: 'castle', night: true, hearth: false });
   clearInterval(clockTimer); clockTimer = undefined; clockLastTime = performance.now();
   touchControls?.destroy(); touchControls = undefined;
   disposeModal();
@@ -171,14 +186,11 @@ function readCharacterLook(panel: HTMLDialogElement): CharacterLook {
   return CharacterLookSchema.parse(Object.fromEntries([...panel.querySelectorAll<HTMLSelectElement>('select[data-look]')].map(select => [select.dataset.look, select.value])));
 }
 async function prepareResidentPreview(panel: HTMLDialogElement) {
-  const { mountResidentPreview } = await import('../ui/resident-preview');
-  if (modal !== panel) return;
   const select = panel.querySelector<HTMLSelectElement>('#appearance')!;
-  const preview = await mountResidentPreview(panel.querySelector<HTMLCanvasElement>('#resident-preview')!, select.value as Player['appearance'], readCharacterLook(panel));
-  if (modal !== panel) { preview.destroy(); return; }
-  preview.setAppearance(select.value as Player['appearance']);
-  preview.setLook(readCharacterLook(panel));
-  select.addEventListener('change', () => preview.setAppearance(select.value as Player['appearance']));
+  const preview: { current?: Awaited<ReturnType<typeof import('../ui/resident-preview').mountResidentPreview>> } = {};
+  let disposed = false;
+  // Choices work immediately, including while the preview chunk is still loading.
+  select.addEventListener('change', () => preview.current?.setAppearance(select.value as Player['appearance']));
   const chosen = new Set<string>();
   panel.querySelectorAll<HTMLSelectElement>('select[data-look]').forEach(field => field.addEventListener('change', () => {
     const key = field.dataset.look!;
@@ -186,10 +198,17 @@ async function prepareResidentPreview(panel: HTMLDialogElement) {
       const preset = field.value === 'female' ? { hairStyle: 'long', outfit: 'skirt' } : { hairStyle: 'short', outfit: 'coat' };
       for (const [name, value] of Object.entries(preset)) if (!chosen.has(name)) panel.querySelector<HTMLSelectElement>(`select[data-look="${name}"]`)!.value = value;
     } else chosen.add(key);
-    preview.setLook(readCharacterLook(panel));
+    preview.current?.setLook(readCharacterLook(panel));
   }));
   const previousCleanup = modalCleanup;
-  modalCleanup = () => { previousCleanup?.(); preview.destroy(); };
+  modalCleanup = () => { disposed = true; previousCleanup?.(); preview.current?.destroy(); };
+  const { mountResidentPreview } = await import('../ui/resident-preview');
+  if (disposed || modal !== panel) return;
+  const ready = await mountResidentPreview(panel.querySelector<HTMLCanvasElement>('#resident-preview')!, select.value as Player['appearance'], readCharacterLook(panel));
+  if (disposed || modal !== panel) { ready.destroy(); return; }
+  preview.current = ready;
+  ready.setAppearance(select.value as Player['appearance']);
+  ready.setLook(readCharacterLook(panel));
 }
 function appearanceField() { return '<label>Clothing color<select id="appearance"><option value="amber">Hearth amber</option><option value="moss">Woodland moss</option><option value="violet">Evening violet</option><option value="navy">Midnight navy</option><option value="wine">Berry wine</option><option value="cream">Warm cream</option></select></label>'; }
 async function enterHost(saved: World) {
@@ -204,7 +223,8 @@ async function enterHost(saved: World) {
 function sharedPresentation(previous: World | undefined, next: World) {
   const oldPlayer = previous?.players[localId], currentPlayer = next.players[localId];
   if (oldPlayer && currentPlayer) {
-    if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, 'hearth') !== roomFlag(next, currentPlayer.map, 'hearth')) sound.cue(roomFlag(next, currentPlayer.map, 'hearth') ? 'ignite' : 'extinguish');
+    const fireId = currentPlayer.map === 'kitchen' ? 'stove' : 'hearth';
+    if (oldPlayer.map === currentPlayer.map && roomFlag(previous!, oldPlayer.map, fireId) !== roomFlag(next, currentPlayer.map, fireId)) sound.cue(roomFlag(next, currentPlayer.map, fireId) ? 'ignite' : 'extinguish');
     if (oldPlayer.map !== currentPlayer.map) sound.cue('door');
     else if (Math.hypot(oldPlayer.x - currentPlayer.x, oldPlayer.y - currentPlayer.y) > 1 && !currentPlayer.fatigue.sleeping && performance.now() - lastFootstep > 250) { sound.cue('step'); lastFootstep = performance.now(); }
     if (oldPlayer.fatigue.sleeping !== currentPlayer.fatigue.sleeping) sound.cue(currentPlayer.fatigue.sleeping ? 'sleep' : 'wake');
@@ -236,17 +256,13 @@ async function dispatch(intent: Intent) {
 }
 function move(dx: number, dy: number) {
   if (moving || controlsBlocked()) return;
-  if (arranging) {
-    arranging.x += Math.sign(dx) * 8; arranging.y += Math.sign(dy) * 8;
-    arranging.error = placementError(world!, arranging.id, arranging, world!.players[localId].map); refreshArrangement(); return;
-  }
   moving = true; void dispatch({ kind: 'move', dx, dy }).then(() => {
     const entered = inBedEntry(world!.players[localId], roomLayout(world!, world!.players[localId].map));
     if (entered && !bedEntryLatched) { bedEntryLatched = true; sleepPrompt(); }
     if (!entered) bedEntryLatched = false;
   }).catch(fail).finally(() => { moving = false; });
 }
-function controlsBlocked() { return !!modal || interacting || exiting || document.hidden || performance.now() < dawnUntil || !!world?.players[localId]?.fatigue.sleeping; }
+function controlsBlocked() { return !!modal || !!arranging || portraitMedia.matches || interacting || exiting || document.hidden || performance.now() < dawnUntil || !!world?.players[localId]?.fatigue.sleeping; }
 async function interact() {
   if (!world || controlsBlocked()) return;
   touchControls?.stop();
@@ -262,45 +278,62 @@ function sleepPrompt() {
 async function performInteraction(target: ArrivalId) {
   if (interacting || exiting) return;
   if (target === 'bed') { sleepPrompt(); return; }
+  if (['window-west', 'window-east', 'plant', 'side-table'].includes(target)) return;
   interacting = true; touchControls?.stop(); refreshActionButtons();
   try {
     await dispatch({ kind: 'interact', target });
-    if (target.startsWith('door-') || target === 'hearth' || target.startsWith('candle-')) return;
+    if (target.startsWith('door-') || target === 'hearth' || target.startsWith('candle-') || target === 'stove' || target === 'sink' || target === 'sofa' || target === 'armchair') return;
     if (target === 'journal') { sound.cue('paper'); dailyJournal(); return; }
     if (target === 'chest' || target === 'pantry' || target === 'desk') await roomPresentation.wait(target, true);
-    if (target === 'chest') { chestDialog(); return; }
-    if (target === 'letter' || target === 'bookshelf') sound.cue('paper');
-    const entry = arrival.find(event => event.id === target)!;
-    const panel = dialog(entry.title, '<p class="story-text">' + escape(entry.text) + '</p><button id="finish-story" class="story-continue" data-primary="true"><kbd>A</kbd>Continue</button>', 'object');
-    panel.classList.add('story-dialog'); on('finish-story', closeModal);
+    if (target === 'chest' || target === 'pantry') { chestDialog(target); return; }
+    if (target === 'desk') { sound.cue('paper'); dailyJournal(); return; }
+    if (target === 'bookshelf' || target === 'worktop') { sound.cue('paper'); recipeBook(); return; }
+    if (target === 'letter') {
+      sound.cue('paper');
+      const entry = arrival.find(event => event.id === target)!;
+      const panel = dialog(entry.title, '<p class="story-text">' + escape(entry.text) + '</p><button id="finish-story" class="story-continue" data-primary="true"><kbd>A</kbd>Close letter</button>', 'object');
+      panel.classList.add('story-dialog'); on('finish-story', closeModal);
+    }
   } finally { interacting = false; refreshActionButtons(); }
 }
 function refreshArrangement() {
   const bar = document.getElementById('arrange-bar');
   if (!bar || !arranging) return;
-  const label = getRoomObjects(world!.players[localId].map).find(o => o.id === arranging!.id)!.label;
-  bar.querySelector('strong')!.textContent = label;
-  bar.querySelector('small')!.textContent = arranging.error ?? 'Move with the stick · A place · B cancel';
-  bar.classList.toggle('invalid', !!arranging.error);
+  const label = getRoomObjects(arranging.map).find(o => o.id === arranging!.selected)?.label;
+  bar.querySelector('strong')!.textContent = label ?? 'Arrange room';
+  const save = document.getElementById('save-layout') as HTMLButtonElement;
+  save.disabled = interacting || !arranging.dirty || arranging.invalid;
+  bar.dataset.invalid = String(arranging.invalid);
 }
 function endArrangement() {
   arranging = undefined; touchControls?.stop(); document.getElementById('arrange-bar')?.remove();
-  document.querySelector('.quickbar')?.classList.remove('arranging');
+  document.querySelector('.play-screen')?.classList.remove('designing');
 }
 function arrangeRoom() {
   const map = world!.players[localId].map;
-  if (!canArrangeRoom(world!, localId, map)) return;
-  const pieces = getRoomObjects(map).filter(o => FURNITURE_IDS.includes(o.id as FurnitureId));
-  const panel = dialog('Arrange room', '<p class="muted">Choose a piece. Move it with the stick, A places it, B cancels.</p><div class="furnishing-list">' + pieces.map(o => '<button data-furnishing="' + o.id + '">' + o.label + '</button>').join('') + '</div>');
-  panel.classList.add('arrange-picker');
-  for (const button of panel.querySelectorAll<HTMLButtonElement>('[data-furnishing]')) button.addEventListener('click', () => {
-    const id = button.dataset.furnishing as FurnitureId, offset = objectOffset(id, roomLayout(world!, map));
-    arranging = { id, x: offset.x, y: offset.y, expected: { x: offset.x, y: offset.y }, error: null };
-    disposeModal();
-    document.querySelector('.quickbar')?.classList.add('arranging');
-    const bar = document.createElement('div'); bar.id = 'arrange-bar'; bar.innerHTML = '<strong></strong><small></small>';
-    document.querySelector('.play-screen')!.append(bar); refreshArrangement();
-  });
+  if (!canArrangeRoom(world!, localId, map) || world!.players[localId].seated) return;
+  disposeModal(); touchControls?.stop();
+  arranging = new LayoutDesigner(map, () => world!, refreshArrangement);
+  document.querySelector('.play-screen')?.classList.add('designing');
+  const bar = document.createElement('div'); bar.id = 'arrange-bar';
+  bar.innerHTML = '<button id="cancel-layout">Cancel</button><div><strong>Arrange room</strong><small>Drag to move · Tap to rotate</small></div><button id="save-layout" class="primary" disabled>Save layout</button>';
+  document.querySelector('.play-screen')!.append(bar);
+  on('cancel-layout', endArrangement);
+  on('save-layout', saveArrangement); refreshArrangement();
+}
+async function saveArrangement() {
+  if (!arranging || interacting || !arranging.dirty || arranging.invalid) return;
+  const draft = arranging;
+  interacting = true; refreshArrangement();
+  try {
+    await dispatch({ kind: 'save-layout', map: draft.map, layout: structuredClone(draft.layout), expected: draft.expected });
+    sound.cue('place'); endArrangement();
+  } finally { interacting = false; refreshArrangement(); refreshActionButtons(); }
+}
+function recipeBook() {
+  const recipes = world!.players[localId].recipes;
+  const panel = dialog('Your recipe book', recipes.length ? '<ul class="recipe-list">' + recipes.map(id => `<li>${escape(itemName(id))}</li>`).join('') + '</ul>' : '<p>No recipes recorded yet.</p>', 'object');
+  panel.classList.add('recipe-dialog');
 }
 function dailyJournal() {
   const report = world!.dayReports.at(-1), personal = report?.players[localId];
@@ -354,7 +387,12 @@ async function play() {
   if (generation !== playGeneration) return;
   destroyScene?.();
   destroyScene = await mountArrival(document.getElementById('game-canvas')!, () => ({ world: world!, localId,
-    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])], arranging }), move, () => { void primaryAction().catch(fail); }, controlsBlocked, roomPresentation);
+    activeIds: guestSession ? [world!.hostId, localId] : [localId, ...(hostSession?.guestId ? [hostSession.guestId] : [])], design: arranging?.state }), move, () => { void primaryAction().catch(fail); }, controlsBlocked, roomPresentation, {
+      select: id => { if (!interacting && !portraitMedia.matches) arranging?.select(id); },
+      drag: (id, dx, dy) => { if (!interacting && !portraitMedia.matches) arranging?.drag(id, dx, dy); },
+      drop: id => arranging?.drop(id), rotate: id => { if (!interacting && !portraitMedia.matches) arranging?.rotate(id); },
+      cancelDrag: () => arranging?.cancelDrag(),
+    });
   updateHud();
   startClock();
 }
@@ -374,27 +412,21 @@ function startClock() {
     // This is a brief presentation pause, not a second world clock or sleep duration.
     if (sleepKey && now - sleepPresentationAt < 850) return;
     advancingClock = true;
-    void currentAuthority.advanceTime(elapsed <= 2 ? elapsed : 0, { activeIds, paused: activeIds.length === 1 && !!modal }).then(changed => {
+    void currentAuthority.advanceTime(elapsed <= 2 ? elapsed : 0, { activeIds, paused: activeIds.length === 1 && (!!modal || !!arranging || portraitMedia.matches) }).then(changed => {
       if (changed) hostSession?.publish(true);
     }).catch(fail).finally(() => { advancingClock = false; });
   }, 1000);
 }
 async function primaryAction() {
-  if (interacting || exiting || world?.players[localId]?.fatigue.sleeping) return;
-  if (arranging) {
-    if (arranging.error) return;
-    interacting = true; touchControls?.stop();
-    try { await dispatch({ kind: 'place', target: arranging.id, x: arranging.x, y: arranging.y, expected: arranging.expected }); sound.cue('place'); endArrangement(); }
-    finally { interacting = false; refreshActionButtons(); }
-    return;
-  }
+  if (interacting || exiting || portraitMedia.matches || arranging || world?.players[localId]?.fatigue.sleeping) return;
+  if (world?.players[localId]?.seated && !modal) { await dispatch({ kind: 'stand' }); return; }
   if (modal) {
     const choices = modal.querySelectorAll<HTMLButtonElement>('[data-primary="true"]');
     if (choices.length === 1) choices[0].click();
   } else await interact();
 }
 async function backAction() {
-  if (interacting || exiting) return;
+  if (interacting || exiting || portraitMedia.matches) return;
   if (arranging) { endArrangement(); return; }
   if (world?.players[localId]?.fatigue.sleeping) {
     interacting = true; refreshActionButtons();
@@ -403,15 +435,17 @@ async function backAction() {
     return;
   }
   if (modal) await closeModal();
+  else if (world?.players[localId]?.seated) await dispatch({ kind: 'stand' });
 }
 function refreshActionButtons() {
   const a = document.getElementById('action-a') as HTMLButtonElement | null;
   const b = document.getElementById('action-b') as HTMLButtonElement | null;
   const sleeping = !!world?.players[localId]?.fatigue.sleeping;
+  const seated = !!world?.players[localId]?.seated;
   const inventoryButton = document.getElementById('inventory-toggle') as HTMLButtonElement | null;
   if (inventoryButton) inventoryButton.disabled = interacting || exiting || sleeping || performance.now() < dawnUntil;
-  if (a) { a.disabled = interacting || exiting || sleeping || !!modal && modal.querySelectorAll('[data-primary="true"]').length !== 1; a.setAttribute('aria-label', modal ? 'Continue' : 'Interact'); }
-  if (b) { b.disabled = interacting || exiting || !!modal && modalKind === 'conversation'; b.setAttribute('aria-label', sleeping ? 'Wake up' : 'Back'); }
+  if (a) { a.disabled = interacting || exiting || sleeping || !!modal && modal.querySelectorAll('[data-primary="true"]').length !== 1; a.setAttribute('aria-label', modal ? 'Continue' : seated ? 'Stand up' : 'Interact'); }
+  if (b) { b.disabled = interacting || exiting || !!modal && modalKind === 'conversation'; b.setAttribute('aria-label', sleeping ? 'Wake up' : !modal && seated ? 'Stand up' : 'Back'); }
 }
 function updateHud() {
   if (!world) return;
@@ -426,8 +460,8 @@ function updateHud() {
   const badge = document.getElementById('notification-dot');
   if (badge) badge.hidden = quickSettings.seen === notificationState();
   document.getElementById('inventory-toggle')?.setAttribute('aria-label', `Inventory and missions${badge && !badge.hidden ? ', new updates' : ''}`);
-  sound.setScene({ map: world.players[localId].map, night: phase === 'night' || phase === 'late-night', hearth: roomFlag(world, world.players[localId].map, 'hearth') });
   const player = world.players[localId], sleepOverlay = document.getElementById('sleep-overlay');
+  sound.setScene({ map: player.map, night: phase === 'night' || phase === 'late-night', hearth: roomFlag(world, player.map, player.map === 'kitchen' ? 'stove' : 'hearth') });
   const activeIds = [world.hostId, ...(guestSession || hostSession?.guestId ? [world.guestId!] : [])];
   const allSleeping = activeIds.every(id => world!.players[id]?.fatigue.sleeping);
   const transition = document.getElementById('night-transition');
@@ -451,6 +485,7 @@ function updateHud() {
     button.classList.toggle('unavailable', !!item && !count);
   }
   menuRefresh?.();
+  refreshArrangement();
   refreshActionButtons();
 }
 function quickSettingsKey() { return `quickSlots:${world!.worldId}:${localId}`; }
@@ -467,11 +502,11 @@ function notificationState() {
 function itemName(id: string) { return id === 'cacao-bean' ? 'Cacao bean' : id.replaceAll('-', ' '); }
 function itemIcon(id: string) { return id === 'cacao-bean' ? '<span class="cacao-icon" aria-hidden="true"></span>' : '<span class="unknown-item" aria-hidden="true">◇</span>'; }
 function selectQuickSlot(index: number) {
-  if (!world || exiting || interacting || world.players[localId].fatigue.sleeping) return;
+  if (!world || exiting || interacting || arranging || portraitMedia.matches || world.players[localId].fatigue.sleeping) return;
   quickSettings.selected = index; saveQuickSettings(); updateHud();
 }
 function inventory(tab: InventoryTab = 'items') {
-  if (!world || exiting || interacting || world.players[localId].fatigue.sleeping) return;
+  if (!world || exiting || interacting || arranging || portraitMedia.matches || world.players[localId].fatigue.sleeping) return;
   endArrangement();
   if (tab === 'missions' || tab === 'journal') { quickSettings.seen = notificationState(); saveQuickSettings(); }
   const tabs = [['items', 'Satchel'], ['missions', 'Missions'], ['journal', 'Journal'], ['household', 'Household'], ['session', 'Co-op']] as const;
@@ -483,7 +518,7 @@ function inventory(tab: InventoryTab = 'items') {
     if (!world || modal !== panel) return;
     const player = world.players[localId], contents = panel.querySelector<HTMLElement>('#inventory-content')!;
     const nextContents = JSON.stringify(tab === 'items' ? player.inventory : tab === 'missions' ? [player.discoveries, world.story.flags] :
-      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, world.story.flags, player.map, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
+      tab === 'journal' ? player.discoveries : tab === 'household' ? [world.events, world.story.flags, player.map, player.seated, Object.keys(world.players)] : [guestSession?.connected, hostSession?.guestId]);
     if (nextContents === previousContents) return;
     previousContents = nextContents;
     if (tab === 'items') {
@@ -496,12 +531,19 @@ function inventory(tab: InventoryTab = 'items') {
         { done: player.discoveries.includes('pantry'), title: 'Open your welcome parcel', note: 'Personal · A parcel waits by the pantry.' }];
       contents.innerHTML = `<h3>A household begins</h3><div class="mission-list">${steps.map(step => `<div class="mission-row ${step.done ? 'complete' : ''}"><span aria-label="${step.done ? 'Complete' : 'Open'}">${step.done ? '✓' : '○'}</span><div><strong>${step.title}</strong><p class="muted">${step.note}</p></div></div>`).join('')}</div>`;
     } else if (tab === 'journal') {
-      contents.innerHTML = `<p class="muted">${escape(player.name)} · Personal discoveries</p><div class="journal-entries">${player.discoveries.length ? player.discoveries.map(id => {
+      const letters = player.discoveries.filter(id => id === 'letter' || id === 'pantry');
+      contents.innerHTML = `<p class="muted">${escape(player.name)} · Personal journal</p><div class="journal-entries">${letters.length ? letters.map(id => {
         const entry = arrival.find(event => event.id === id);
         return `<details><summary>${escape(entry?.title ?? id)}</summary><p>${escape(entry?.text ?? '')}</p></details>`;
       }).join('') : '<p>The first page is waiting.</p>'}</div>`;
     } else if (tab === 'household') {
-      contents.innerHTML = `<button id="arrange-room" ${canArrangeRoom(world, localId, player.map) ? '' : 'disabled'}>Arrange room</button>${roomOwner(world, player.map) && roomOwner(world, player.map) !== localId ? '<p class="muted">Only this bedroom’s owner can rearrange its furniture. You may use everything here.</p>' : ''}<h3>The castle household</h3><p>${roomFlag(world, player.map, 'hearth') ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p><p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+      const hearth = getRoomObjects(player.map).some(object => object.id === 'hearth') ? `<p>${roomFlag(world, player.map, 'hearth') ? 'The hearth is burning. Its warmth will remain when another resident arrives.' : 'The hearth is cold.'}</p>` : '';
+      contents.innerHTML = `<button id="arrange-room" ${canArrangeRoom(world, localId, player.map) ? '' : 'disabled'}>Arrange room</button>${roomOwner(world, player.map) && roomOwner(world, player.map) !== localId ? '<p class="muted">Only this bedroom’s owner can rearrange its furniture. You may use everything here.</p>' : ''}<h3>The castle household</h3>${hearth}<p class="muted">${Object.values(world.players).map(resident => escape(resident.name)).join(' and ')} call this place home. Personal discoveries and belongings stay with each resident.</p><h3>Changes to the house</h3>${world.events.length ? world.events.slice(-12).reverse().map(event => `<p class="household-event">${escape(arrival.find(entry => entry.id === event.kind)?.title ?? event.kind.replaceAll('-', ' '))}<small>${escape(world!.players[event.actor]?.name ?? 'A resident')}</small></p>`).join('') : '<p class="muted">The next chapter is still yours to write.</p>'}`;
+      const arrangeButton = document.getElementById('arrange-room') as HTMLButtonElement;
+      if (player.seated) {
+        arrangeButton.disabled = true;
+        arrangeButton.insertAdjacentHTML('afterend', '<p class="muted">Stand up before arranging the room.</p>');
+      }
       on('arrange-room', arrangeRoom);
     } else {
       contents.innerHTML = `<h3>${guestSession ? guestSession.connected ? 'Together in the castle' : 'Connection closed' : hostSession?.guestId ? 'The household is together' : 'Invite someone home'}</h3><p>${guestSession ? 'You are the second resident. Your belongings and discoveries are saved with this household, with a recovery copy on this device.' : 'A second resident can join this world over the same reachable Wi-Fi. You can continue alone after they leave.'}</p>${guestSession ? '<p class="muted">Use ESC to save and return to the title. Join Co-op there to reconnect.</p>' : '<button id="session" class="primary">Co-op session<span>→</span></button>'}<h3>Controls</h3><p class="muted">Drag on the left side to walk. A interacts or continues; B goes back. Choose dialogue responses directly. Keyboard: WASD or arrows, E to interact, B to go back, I for this satchel, ESC to save and leave.</p>`;
@@ -521,8 +563,9 @@ function itemDetails(id: string) {
   on('back-to-items', () => inventory('items'));
   on('clear-quick', () => { quickSettings.slots = quickSettings.slots.map(item => item === id ? null : item); saveQuickSettings(); closeModal(); updateHud(); });
 }
-function chestDialog() {
-  const panel = dialog('Household chest', '<p class="muted">Shared storage. Both residents use the same chest.</p><div id="chest-content"></div>', 'object');
+function chestDialog(container: 'chest' | 'pantry' = 'chest') {
+  const label = container === 'pantry' ? 'Household pantry' : 'Household chest';
+  const panel = dialog(label, '<p class="muted">Shared storage for both residents.</p><div id="chest-content"></div>', 'object');
   panel.classList.add('chest-dialog');
   let busy = false;
   let previousContents = '';
@@ -532,7 +575,7 @@ function chestDialog() {
     const nextContents = `${personal}:${shared}:${busy}`;
     if (nextContents === previousContents) return;
     previousContents = nextContents;
-    panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3><p>${personal} cacao bean${personal === 1 ? '' : 's'}</p><button id="chest-deposit" ${personal && !busy ? '' : 'disabled'}>Deposit one →</button></div><div><h3>Household chest</h3><p>${shared} cacao bean${shared === 1 ? '' : 's'}</p><button id="chest-withdraw" ${shared && !busy ? '' : 'disabled'}>← Take one</button></div></div>`;
+    panel.querySelector('#chest-content')!.innerHTML = `<div class="storage-columns"><div><h3>Your satchel</h3><p>${personal} cacao bean${personal === 1 ? '' : 's'}</p><button id="chest-deposit" ${personal && !busy ? '' : 'disabled'}>Deposit one →</button></div><div><h3>${label}</h3><p>${shared} cacao bean${shared === 1 ? '' : 's'}</p><button id="chest-withdraw" ${shared && !busy ? '' : 'disabled'}>← Take one</button></div></div>`;
     const transfer = async (direction: 'deposit' | 'withdraw') => {
       if (busy) return; busy = true; refresh();
       try { await dispatch({ kind: 'transfer', direction, item: 'cacao-bean', count: 1 }); }
@@ -638,7 +681,14 @@ async function settingsDialog() {
   const value = (await db.settings.get('reducedMotion'))?.value === true;
   const audioOff = (await db.settings.get('audioOff'))?.value === true, musicOff = (await db.settings.get('musicOff'))?.value === true;
   dialog('Settings & help', `<label class="check-label"><input id="audio-enabled" type="checkbox" ${audioOff ? '' : 'checked'} /> Sound effects and ambience</label><label class="check-label"><input id="music-enabled" type="checkbox" ${musicOff ? '' : 'checked'} /> Music</label><label class="check-label"><input id="reduced-motion" type="checkbox" ${value ? 'checked' : ''} /> Reduce decorative motion</label><h3>Offline installation</h3><p id="offline-details">${escape(offline.label)}</p><button id="offline-settings-install">Check or repair offline package</button><h3>On your iPhone</h3><p>In Safari, open Share and choose Add to Home Screen. Check the offline status here before leaving the network. Turn your phone sideways to play.</p><h3>Sharing the castle</h3><p>Use the same Wi-Fi network on both phones. Networks that isolate devices can prevent local pairing. Keep the host app open. If either app is suspended, reconnect through Co-op.</p><p class="muted">Haunted Chocolatier: Twilight · ${BUILD_VERSION}</p>`);
-  document.getElementById('audio-enabled')!.addEventListener('change', event => { const enabled = (event.target as HTMLInputElement).checked; sound.setEnabled(enabled); void db.settings.put({ key: 'audioOff', value: !enabled }).catch(fail); });
+  document.getElementById('audio-enabled')!.addEventListener('change', event => {
+    const enabled = (event.target as HTMLInputElement).checked;
+    sound.setEnabled(enabled);
+    // Capture listeners ran while the old preference was still muted. Resume here,
+    // synchronously within the enabling gesture, including on iOS WebKit.
+    if (enabled) void sound.unlock().catch(() => undefined);
+    void db.settings.put({ key: 'audioOff', value: !enabled }).catch(fail);
+  });
   document.getElementById('music-enabled')!.addEventListener('change', event => { const enabled = (event.target as HTMLInputElement).checked; sound.setMusicEnabled(enabled); void db.settings.put({ key: 'musicOff', value: !enabled }).catch(fail); });
   on('offline-settings-install', () => offline.install());
   document.getElementById('reduced-motion')!.addEventListener('change', event => {
@@ -648,6 +698,7 @@ async function settingsDialog() {
   });
 }
 document.addEventListener('keydown', event => {
+  if (portraitMedia.matches) { if (event.key === 'Escape') event.preventDefault(); return; }
   if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
   if (modal) {
     if (event.key === 'Escape' || event.key.toLowerCase() === 'b') { event.preventDefault(); void backAction().catch(fail); return; }
@@ -659,14 +710,16 @@ document.addEventListener('keydown', event => {
     return;
   }
   if (!world || exiting || interacting) return;
+  if (arranging) { if (event.key === 'Escape' || event.key.toLowerCase() === 'b') { event.preventDefault(); endArrangement(); } return; }
   if (event.key === 'Escape') { event.preventDefault(); void leaveGame().catch(fail); }
   else if (event.key.toLowerCase() === 'b') { event.preventDefault(); void backAction().catch(fail); }
   else if (event.key.toLowerCase() === 'i') { event.preventDefault(); inventory(quickSettings.seen !== notificationState() ? 'missions' : 'items'); }
   else if (/^[1-7]$/.test(event.key)) { event.preventDefault(); selectQuickSlot(Number(event.key) - 1); }
 });
-window.addEventListener('blur', () => { clockLastTime = performance.now(); });
+window.addEventListener('blur', () => { clockLastTime = performance.now(); arranging?.cancelDrag(); });
 window.addEventListener('pagehide', () => { clockLastTime = performance.now(); touchControls?.stop(); hostSession?.close(); guestSession?.close(); });
-document.addEventListener('visibilitychange', () => { clockLastTime = performance.now(); if (document.hidden) { touchControls?.stop(); hostSession?.close(); guestSession?.close(); } });
+document.addEventListener('visibilitychange', () => { clockLastTime = performance.now(); if (document.hidden) { touchControls?.stop(); arranging?.cancelDrag(); hostSession?.close(); guestSession?.close(); } });
+updateOrientation();
 void (async () => {
   sound.setEnabled((await db.settings.get('audioOff'))?.value !== true);
   sound.setMusicEnabled((await db.settings.get('musicOff'))?.value !== true);

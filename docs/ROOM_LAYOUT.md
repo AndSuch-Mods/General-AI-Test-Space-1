@@ -1,5 +1,8 @@
 # Room arrangement and direct interaction, 0.1.3
 
+Latest user-directed override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) supersedes the historical controls, observation dialogs, placement and painted-sprite details below. Current menus are centered; household editing uses direct dragging, valid tap rotations and Save layout. Characters use clean layers described in ART_RESIDENT_V7.md.
+
+
 **Current override:** HOUSEHOLD_ROOMS.md defines the 0.1.4 room permissions, separate layouts, two-person beds, dawn reports, save schema 4 and protocol 5. Earlier single-room descriptions below are historical.
 
 The user's 2026-09-21 review overrides earlier inspection menus, automatic sleep and minimum-eight-hour wake scheduling. This is a household life game. A performs the nearby item's action directly. It does not open an examination chooser. The letter and desk candle have separate positions and reachable targets. Reading and sleep choices use small bottom sheets over the quickbar. Ordinary light switches produce animation and sound without dialogue.

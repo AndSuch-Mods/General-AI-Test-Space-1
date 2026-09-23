@@ -26,7 +26,7 @@ The source repository and GitHub Pages site are public. Local saves stay on the 
 
 ## Current playable slice
 
-Create a resident with a live coat preview and enter the castle. Drag the left side to walk; A interacts and B backs out. Desktop controls use WASD/arrows and E or Space. `I` opens items, missions, journal and co-op controls; `ESC` saves and returns to the title after closing ordinary dialogs. Assign owned items to seven quick slots. Candles and the household chest are shared, while discoveries and belongings stay personal. Walk into the bed's turned-down gap to sleep, or open the door to explore the adjoining landing.
+Create a resident with a live layered appearance preview and enter the castle. Drag the left side to walk; A interacts and B backs out. Desktop controls use WASD/arrows and E or Space. `I` opens items, missions, journal and co-op controls; `ESC` saves and returns to the title after closing ordinary dialogs. Assign owned items to seven quick slots. Candles and the household chest are shared, while discoveries and belongings stay personal. Enter the bed's turned-down gap for a sleep choice, or walk through an opening doorway to explore the shared living room, main entry hall and kitchen.
 
 The title uses the room's original floor and wall materials. Residents display at 64 by 96 world pixels, with furniture and effects on a matching two-world-pixel grid. Shared time drives the window sky; furniture animates as it opens. Exact prompts, provenance and remaining art work are recorded in `docs/ART_*_PROMPT.md`, the [content ledger](docs/CONTENT_LEDGER.md), and [room and controls](docs/ROOM_AND_CONTROLS.md). See [time and sleep](docs/TIME_AND_SLEEP.md) for solo/co-op rest rules.
 
@@ -36,10 +36,12 @@ The full game loop remains in development. Physical iPhone acceptance results ar
 
 This is an independent personal project, not an official ConcernedApe game. The requested project title is retained. No official art, code, dialogue, maps, music, logos or UI is copied. References are recorded in [the research notes](docs/RESEARCH_NOTES.md); all game assets need provenance in [the content ledger](docs/CONTENT_LEDGER.md).
 
-## Household controls, 0.1.3
+## Household controls, 0.1.7
 
-A reads the nearest letter, switches a candle or hearth, opens a container, or offers bed sleep. Reading appears along the bottom. Containers finish their opening animation before showing their contents. B closes ordinary sheets. Sleep always ends at the next 06:00.
+A reads a nearby letter, switches a candle or hearth, opens a container, sits on a sofa/chair, or offers bed sleep. Functional menus are centered. Containers finish opening before showing their contents and close after their menu. B closes ordinary menus or stands up. Sleep requires confirmation and ends at the next 06:00 when all present residents are resting.
 
-Use I > Household > Arrange room to choose furniture. Move its outlined preview with the left stick or arrow keys; A places, B cancels. Layouts save with the household and sync to the other resident. Doors, windows and fireplace stay structural.
+Use I > Household > Arrange room. Drag objects directly within the room; green means valid and red means blocked. Invalid drops return to their previous position. Tap a directional furnishing to rotate it when there is room. Save layout at bottom right saves the entire draft; Cancel leaves the saved arrangement intact. Only a bedroom's owner may edit it. Hall, kitchen and living room are shared. Doors, windows and fireplace stay structural.
 
-Original music and sound start after a tap or keypress and work offline. Sound and music switches are in Settings & help.
+The entry hall replaces the old stair landing, with the kitchen through its right wall. Stove and sink have reversible cues, while the recipe worktable and open space support future kitchen progression. Full cooking is still planned.
+
+Original music and sound start after a tap or keypress and work offline. Sound and music switches are in Settings & help. Both phones must use the same app version before pairing.

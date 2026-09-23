@@ -1,7 +1,7 @@
 import type { RoomMap } from '../content/room';
 export type HouseholdCue = 'step' | 'open' | 'close' | 'paper' | 'ignite' | 'extinguish' | 'door' | 'place' | 'sleep' | 'wake' | 'disturbed' | 'ui';
 export type HouseholdSoundScene = { map: RoomMap; night: boolean; hearth: boolean };
-type Bus = 'music' | 'effect';
+type Bus = 'music' | 'effect' | 'fire';
 type Voice = { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; bus: Bus };
 
 // "An Unlatched Window", an original eight-bar miniature, in D minor.
@@ -30,17 +30,22 @@ export class HouseholdAudio {
   private roomFilter?: BiquadFilterNode;
   private graph: AudioNode[] = [];
   private noise?: AudioBuffer;
+  private fireBed?: AudioBuffer;
+  private fireVoice?: Voice;
+  private fireGain?: GainNode;
+  private fireStartedAt = 0;
+  private fireSeed = 0x6e6d6265;
   private voices = new Set<Voice>();
   private timer?: ReturnType<typeof setInterval>;
   private enabled = true;
   private musicEnabled = true;
   private unlocked = false;
   private disposed = false;
+  private lifecycle = 0;
   private scene: HouseholdSoundScene = { map: 'castle', night: true, hearth: false };
   private nextNote = 0;
   private nextCrackle = 0;
   private scoreStep = 0;
-  private crackleStep = 0;
   private cueStep = 0;
   private lastCue = new Map<HouseholdCue, number>();
   private readonly hidden = () => { if (document.hidden) this.suspend(); };
@@ -56,14 +61,19 @@ export class HouseholdAudio {
     if (this.disposed || !this.enabled) return;
     if (!this.context) this.build();
     const context = this.context!;
+    const lifecycle = this.lifecycle;
     await context.resume();
-    if (this.disposed || !this.enabled || document.hidden) { this.suspend(); return; }
+    // A resume requested on pointer-down may settle after the checkbox changes.
+    // That older gesture must neither restart muted voices nor suspend a newer enable.
+    if (this.disposed || lifecycle !== this.lifecycle || !this.enabled) return;
+    if (document.hidden) { this.suspend(); return; }
     this.unlocked = true;
     this.master!.gain.setTargetAtTime(.48, context.currentTime, .04);
     this.start();
   }
 
   setEnabled(enabled: boolean) {
+    this.lifecycle++;
     this.enabled = enabled;
     if (!this.context || this.disposed) return;
     this.master!.gain.cancelScheduledValues(this.context.currentTime);
@@ -86,7 +96,7 @@ export class HouseholdAudio {
     this.scene = { ...scene };
     if (!this.context || this.disposed) return;
     this.roomFilter!.frequency.setTargetAtTime(scene.map === 'landing' ? 1650 : scene.night ? 2400 : 3300, this.context.currentTime, 1.2);
-    if (!scene.hearth || scene.map === 'landing') this.nextCrackle = 0;
+    this.updateFire();
   }
 
   cue(name: HouseholdCue) {
@@ -101,8 +111,8 @@ export class HouseholdAudio {
       case 'open': tone(230, 145, .24, .043); rustle(.24, 650, .06, 0, true); tone(90, 42, .12, .052, .16); break;
       case 'close': tone(103, 37, .22, .09); rustle(.07, 920, .072); break;
       case 'paper': rustle(.13, 2100, .047, 0, true); rustle(.18, 3100, .033, .1, true); break;
-      case 'ignite': rustle(.08, 3200, .055, 0, true); rustle(.46, 930, .071, .07); tone(88, 176, .28, .039, .08); break;
-      case 'extinguish': rustle(.32, 1700, .054, 0, true); break;
+      case 'ignite': rustle(.78, 720, .088); rustle(.34, 1700, .038, .16, true); break;
+      case 'extinguish': rustle(.5, 1500, .045, 0, true); break;
       case 'door': tone(190, 105, .46, .065); rustle(.43, 410, .078, 0, true); tone(89, 39, .19, .066, .31); break;
       case 'place': tone(151, 64, .12, .06); rustle(.065, 1150, .047); break;
       case 'disturbed': rustle(.24, 740, .048, 0, true); tone(118, 81, .23, .025, .08); break;
@@ -113,18 +123,19 @@ export class HouseholdAudio {
   }
 
   suspend() {
+    this.lifecycle++;
     this.stopTimer(); this.stopVoices(); this.lastCue.clear();
     if (this.context && this.context.state !== 'closed') void this.context.suspend().catch(() => undefined);
   }
 
   destroy() {
     if (this.disposed) return;
-    this.disposed = true; this.stopTimer(); this.stopVoices();
+    this.disposed = true; this.lifecycle++; this.stopTimer(); this.stopVoices();
     document.removeEventListener('visibilitychange', this.hidden);
     window.removeEventListener('pagehide', this.leaving);
     this.graph.forEach(node => node.disconnect()); this.graph = [];
     if (this.context) void this.context.close().catch(() => undefined);
-    this.context = undefined; this.noise = undefined;
+    this.context = undefined; this.noise = undefined; this.fireBed = undefined;
   }
 
   private canPlay() { return !this.disposed && this.enabled && this.unlocked && !document.hidden && this.context?.state === 'running'; }
@@ -155,6 +166,7 @@ export class HouseholdAudio {
     this.noise = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
     const data = this.noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = random();
+    this.fireBed = this.buildFireBed(context);
     this.setScene(this.scene);
   }
 
@@ -163,6 +175,7 @@ export class HouseholdAudio {
     this.nextNote = this.context!.currentTime + .08;
     this.nextCrackle = this.context!.currentTime + .8;
     this.scoreStep -= this.scoreStep % 8;
+    this.updateFire();
     this.timer = setInterval(() => this.schedule(), 100);
     this.schedule();
   }
@@ -185,11 +198,89 @@ export class HouseholdAudio {
       if (pitch !== null) this.note(pitch, at + (beat % 2 ? .014 : 0), 1.65, (beat === 0 ? .13 : .105) * roomLevel, 'music');
       this.scoreStep = (this.scoreStep + 1) % 128; this.nextNote += EIGHTH;
     }
-    if (this.scene.hearth && this.scene.map !== 'landing' && now >= this.nextCrackle) {
-      const pattern = [.7, 1.4, .9, 1.9, 1.2, .6, 1.7];
-      this.noiseVoice(now + .01, .028 + this.crackleStep % 3 * .015, 1150 + this.crackleStep % 4 * 280, .018, true);
-      this.nextCrackle = now + pattern[this.crackleStep % pattern.length]; this.crackleStep++;
+    if (this.fireVoice && now >= this.nextCrackle) {
+      // Soft, irregular ember releases sit inside a continuous air/wood bed.
+      // Every burst gets fresh buffer position, cutoff, attack and decay.
+      this.ember(now + .02, .13 + this.fireRandom() * .3, 680 + this.fireRandom() * 1350, .017 + this.fireRandom() * .017);
+      this.nextCrackle = now + .45 + this.fireRandom() * 1.8;
     }
+  }
+
+  private fireRandom() {
+    let seed = this.fireSeed; seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; this.fireSeed = seed;
+    return (seed >>> 0) / 4294967296;
+  }
+
+  private buildFireBed(context: AudioContext) {
+    // Low sample rate saves mobile memory; the final low-pass removes bright fizz.
+    const rate = 24000, duration = 7.3, length = Math.round(rate * duration);
+    const buffer = context.createBuffer(2, length, rate);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = buffer.getChannelData(channel);
+      let low = 0, mid = 0;
+      for (let i = 0; i < length; i++) {
+        const white = this.fireRandom() * 2 - 1;
+        low = low * .993 + white * .007; mid = mid * .947 + white * .053;
+        const phase = i / length * Math.PI * 2;
+        const breath = .8 + .12 * Math.sin(phase * 2 + channel * .4) + .08 * Math.sin(phase * 5 + 1.7);
+        const hiss = .023 * (.7 + .3 * Math.sin(phase * 7 + .8));
+        data[i] = (low * 3.7 + mid * .65) * breath + (white - mid) * hiss;
+      }
+      // Fold the tail into the head across 350 ms. Both ends then have the same
+      // samples and slope, so the loop has no discontinuity or periodic pop.
+      const overlap = Math.round(rate * .35), start = length - overlap;
+      const first = data.slice(0, overlap);
+      for (let i = 0; i < overlap; i++) {
+        const blend = .5 - .5 * Math.cos(i / (overlap - 1) * Math.PI);
+        data[start + i] = data[start + i] * (1 - blend) + first[i] * blend;
+      }
+      let mean = 0;
+      for (let i = 0; i < length; i++) mean += data[i];
+      mean /= length;
+      for (let i = 0; i < length; i++) data[i] -= mean;
+    }
+    return buffer;
+  }
+
+  private updateFire() {
+    if (!this.context) return;
+    const audible = this.canPlay() && this.scene.hearth && this.scene.map !== 'landing';
+    if (!audible) {
+      const voice = this.fireVoice, gain = this.fireGain;
+      this.fireVoice = undefined; this.fireGain = undefined; this.nextCrackle = 0;
+      if (voice && gain) {
+        const now = this.context.currentTime;
+        const held = .19 * Math.min(1, Math.max(0, now - this.fireStartedAt) / 1.3);
+        gain.gain.cancelScheduledValues(now); gain.gain.setValueAtTime(held, now); gain.gain.linearRampToValueAtTime(0, now + .45);
+        voice.sources.forEach(source => source.stop(now + .5));
+      }
+      return;
+    }
+    if (this.fireVoice) return;
+    const context = this.context, source = context.createBufferSource(), high = context.createBiquadFilter(), low = context.createBiquadFilter(), gain = context.createGain();
+    source.buffer = this.fireBed!; source.loop = true;
+    // The folded tail reaches the first 350 ms of audio. Resume beyond that
+    // matching section on wrap, preserving a continuous waveform at loopEnd.
+    source.loopStart = .35; source.loopEnd = 7.3;
+    high.type = 'highpass'; high.frequency.value = 55; high.Q.value = .5;
+    low.type = 'lowpass'; low.frequency.value = 2300; low.Q.value = .4;
+    source.connect(high); high.connect(low); low.connect(gain); gain.connect(this.effects!);
+    gain.gain.setValueAtTime(0, context.currentTime); gain.gain.linearRampToValueAtTime(.19, context.currentTime + 1.3);
+    this.fireStartedAt = context.currentTime;
+    this.fireVoice = { sources: [source], nodes: [source, high, low, gain], bus: 'fire' }; this.fireGain = gain;
+    this.track(this.fireVoice, context.currentTime, Infinity); this.nextCrackle = context.currentTime + .8;
+  }
+
+  private ember(at: number, duration: number, cutoff: number, level: number) {
+    const context = this.context!, source = context.createBufferSource(), filter = context.createBiquadFilter(), high = context.createBiquadFilter(), envelope = context.createGain();
+    source.buffer = this.noise!;
+    filter.type = 'lowpass'; filter.frequency.value = cutoff; filter.Q.value = .4;
+    high.type = 'highpass'; high.frequency.value = 230; high.Q.value = .5;
+    const attack = .028 + this.fireRandom() * .03;
+    envelope.gain.setValueAtTime(0, at); envelope.gain.linearRampToValueAtTime(level, at + attack);
+    envelope.gain.exponentialRampToValueAtTime(.00001, at + duration); envelope.gain.linearRampToValueAtTime(0, at + duration + .02);
+    source.connect(high); high.connect(filter); filter.connect(envelope); envelope.connect(this.effects!);
+    this.track({ sources: [source], nodes: [source, high, filter, envelope], bus: 'fire' }, at, duration + .04, this.fireRandom());
   }
 
   private note(midi: number, at: number, duration: number, level: number, bus: Bus, pad = false) {
@@ -223,18 +314,20 @@ export class HouseholdAudio {
     this.track({ sources: [source], nodes: [source, filter, envelope], bus: 'effect' }, at, duration + .02);
   }
 
-  private track(voice: Voice, at: number, duration: number) {
+  private track(voice: Voice, at: number, duration: number, offset = 0) {
     if (this.voices.size >= 40) this.release(this.voices.values().next().value!);
     this.voices.add(voice);
     let remaining = voice.sources.length;
     for (const source of voice.sources) {
       source.onended = () => { if (--remaining === 0) this.release(voice); };
-      source.start(at); source.stop(at + duration);
+      if (source instanceof AudioBufferSourceNode) source.start(at, offset); else source.start(at);
+      if (Number.isFinite(duration)) source.stop(at + duration);
     }
   }
 
   private release(voice: Voice) {
     if (!this.voices.delete(voice)) return;
+    if (voice === this.fireVoice) { this.fireVoice = undefined; this.fireGain = undefined; }
     voice.sources.forEach(source => { source.onended = null; try { source.stop(); } catch { /* Already ended. */ } });
     voice.nodes.forEach(node => node.disconnect());
   }

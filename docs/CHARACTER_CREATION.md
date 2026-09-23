@@ -1,5 +1,8 @@
 # Resident creation and sleepy reactions
 
+Latest user-directed override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) supersedes the historical controls, observation dialogs, placement and painted-sprite details below. Current menus are centered; household editing uses direct dragging, valid tap rotations and Save layout. Characters use clean layers described in ART_RESIDENT_V7.md.
+
+
 The September 21 character choices apply independently to both residents when they first join a world. They extend the existing live preview and original native sprite pipeline.
 
 - Male or female character, at the same adult height.

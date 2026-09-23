@@ -1,13 +1,13 @@
 import type Phaser from 'phaser';
 import { getRoomObjects } from '../../content/room';
-import { ROOM_TEXTURE, ROOM_FRAMES, ROOM_EXTRA_FRAMES, ROOM_FLAME_FRAMES, ROOM_FIRE_SIZE } from './room-atlas';
+import { ROOM_TEXTURE, ROOM_FRAMES, ROOM_FLAME_FRAMES, ROOM_FIRE_SIZE } from './room-atlas';
+import { drawWindowFrame } from './room-window-art';
+import { buildFurnitureTextures } from './room-furniture';
+import { buildDoorTextures, drawRoomFinish } from './room-architecture';
+export { inWindowPane } from './room-window-art';
 
 /** All environment art resolves to one native pixel per two world units. */
 export const ENV_PIXEL = 2;
-export function inWindowPane(x: number, y: number) {
-  if (y < 8 || y > 34 || x < 9 || x > 18 || x === 13) return false;
-  return y >= 14 || Math.abs(x - 13.5) <= y - 7;
-}
 export function buildRoomTextures(scene: Phaser.Scene) {
   // Eighty-pixel cells fit the wider two-resident bed without overlapping the desk.
   const props = scene.textures.createCanvas('props-native', 320, 320)!;
@@ -18,10 +18,8 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     const size = object?.bounds ?? ({ candle: { width: 10, height: 24 }, letter: { width: 22, height: 16 }, parcel: { width: 22, height: 26 } }[frame.name as 'candle' | 'letter' | 'parcel']);
     const width = Math.ceil(size.width / ENV_PIXEL), height = Math.ceil(size.height / ENV_PIXEL);
     const x = index % 4 * 80, y = Math.floor(index / 4) * 80;
-    props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
-    if (frame.name === 'window') for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
-      if (inWindowPane(Math.floor(px / 2), Math.floor(py / 2))) props.context.clearRect(x + px, y + py, 1, 1);
-    }
+    if (frame.name === 'window') drawWindowFrame(props.context, source, x, y);
+    else props.context.drawImage(source, frame.x, frame.y, frame.width, frame.height, x, y, width, height);
     props.add(frame.name, 0, x, y, width, height);
     if (frame.name === 'bed') {
       props.add('bed-back', 0, x, y, width, 27);
@@ -40,36 +38,6 @@ export function buildRoomTextures(scene: Phaser.Scene) {
       props.add('desk-right', 0, x + 39, y + 17, 11, 8);
     }
   });
-  // Original walnut seat frames reuse the room's burgundy quilt weave as upholstery.
-  const bedSource = ROOM_FRAMES.find(frame => frame.name === 'bed')!;
-  const seat = (name: 'sofa' | 'armchair', x: number, y: number, width: number, height: number) => {
-    const c = props.context;
-    const rect = (px: number, py: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x + px, y + py, w, h); };
-    const cloth = (px: number, py: number, w: number, h: number) => c.drawImage(source, bedSource.x + 25, bedSource.y + 170, bedSource.width - 50, 110, x + px, y + py, w, h);
-    const arm = name === 'sofa' ? 9 : 7, backBottom = name === 'sofa' ? 25 : 20;
-    rect(4, 3, width - 8, height - 7, '#251d29');
-    rect(7, 1, width - 14, 4, '#805735'); rect(8, 2, width - 16, 1, '#ad7d4d');
-    rect(5, 5, width - 10, backBottom - 2, '#58372f');
-    cloth(arm, 6, width - arm * 2, backBottom - 7);
-    rect(arm, backBottom - 1, width - arm * 2, 2, '#432634');
-    cloth(arm - 1, backBottom + 1, width - arm * 2 + 2, 9);
-    rect(arm - 1, backBottom, width - arm * 2 + 2, 1, '#9a626a');
-    rect(arm - 1, backBottom + 9, width - arm * 2 + 2, 4, '#49303b');
-    for (const side of [0, width - arm]) {
-      rect(side, backBottom - 10, arm, 22, '#2d222a');
-      rect(side + 1, backBottom - 12, arm - 2, 6, '#8b6140');
-      rect(side + 2, backBottom - 11, arm - 3, 2, '#b48654');
-      rect(side + 2, backBottom - 5, arm - 4, 16, '#694530');
-      rect(side + 2, height - 5, 4, 5, '#30222a');
-      rect(side + 2, height - 5, 2, 3, '#815437');
-    }
-    for (let px = arm + 5; px < width - arm; px += 12) rect(px, backBottom + 11, 1, 1, '#b18b52');
-    if (name === 'sofa') for (const divider of [27, 45]) {
-      rect(divider, 7, 1, 16, '#55313e'); rect(divider, backBottom + 2, 1, 7, '#56313d');
-    }
-    props.add(name, 0, x, y, width, height);
-  };
-  seat('sofa', 0, 240, 73, 44); seat('armchair', 80, 240, 33, 35);
   // A closed forest-green journal with a brass clasp, distinct from the sealed letter.
   const notebook = props.context;
   notebook.fillStyle = '#251e29'; notebook.fillRect(160, 240, 9, 7);
@@ -79,12 +47,19 @@ export function buildRoomTextures(scene: Phaser.Scene) {
   notebook.fillStyle = '#bf9a58'; notebook.fillRect(167, 242, 2, 1); notebook.fillRect(161, 241, 1, 3);
   props.add('journal', 0, 160, 240, 9, 7);
   props.refresh();
-  const materials = scene.textures.createCanvas('materials-native', 128, 68)!;
+  const materials = scene.textures.createCanvas('materials-native', 384, 90)!;
   materials.context.imageSmoothingEnabled = false;
   const materialSource = scene.textures.get('room-materials').getSourceImage() as HTMLImageElement;
   materials.context.drawImage(materialSource, 0, 0, 887, 887, 0, 0, 64, 64);
-  materials.context.drawImage(materialSource, 887, 0, 887, 812, 64, 0, 64, 68);
-  materials.add('floor', 0, 0, 0, 64, 64); materials.add('wall', 0, 64, 0, 64, 68); materials.refresh();
+  materials.context.drawImage(materialSource, 887, 0, 887, 812, 64, 0, 64, 90);
+  materials.add('floor', 0, 0, 0, 64, 64); materials.add('wall', 0, 64, 0, 64, 90);
+  const householdSource = scene.textures.get('household-materials-v8').getSourceImage() as HTMLImageElement;
+  for (const [index, name] of (['hall-floor', 'hall-wall', 'kitchen-floor', 'kitchen-wall'] as const).entries()) {
+    const x = 128 + index * 64;
+    materials.context.save(); materials.context.beginPath(); materials.context.rect(x, 0, 64, 90); materials.context.clip(); drawRoomFinish(materials.context, householdSource, name, x); materials.context.restore();
+    materials.add(name, 0, x, 0, 64, name.endsWith('floor') ? 64 : 90);
+  }
+  materials.refresh();
   const width = ROOM_FIRE_SIZE.width / ENV_PIXEL, height = ROOM_FIRE_SIZE.height / ENV_PIXEL;
   const flames = scene.textures.createCanvas('flames-native', width * 6, height)!;
   flames.context.imageSmoothingEnabled = false;
@@ -94,92 +69,6 @@ export function buildRoomTextures(scene: Phaser.Scene) {
     flames.add(frame.name, 0, index * width, 0, width, height);
   });
   flames.refresh();
-  const doors = scene.textures.createCanvas('doors-native', 192, 80)!;
-  doors.context.imageSmoothingEnabled = false;
-  const doorSource = scene.textures.get('room-doors').getSourceImage() as HTMLImageElement;
-  ROOM_EXTRA_FRAMES.forEach((frame, index) => {
-    const width = frame.name === 'stairs' ? 60 : 55, height = frame.name === 'stairs' ? 54 : 68;
-    doors.context.drawImage(doorSource, frame.x, frame.y, frame.width, frame.height, index * 64, 0, width, height);
-    doors.add(frame.name, 0, index * 64, 0, width, height);
-  });
-  // Drop faint generated matte pixels at the native grid so the cutouts remain crisp.
-  const pixels = doors.context.getImageData(0, 0, 192, 80);
-  for (let i = 3; i < pixels.data.length; i += 4) pixels.data[i] = pixels.data[i] < 192 ? 0 : 255;
-  doors.context.putImageData(pixels, 0, 0); doors.refresh();
-  // A room-sized walnut frame sits in the wall, with the threshold at the skirting.
-  // This native pixel drawing uses the same wood/brass palette as the furnishings.
-  const wood = scene.textures.createCanvas('wood-door', 86, 68)!;
-  const c = wood.context;
-  const rect = (x: number, y: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
-  for (const [index, name] of ['closed', 'open'].entries()) {
-    const x = index * 43;
-    rect(x, 0, 43, 68, '#241c25'); rect(x + 1, 1, 41, 67, '#694831');
-    rect(x + 3, 3, 37, 64, '#3a292b'); rect(x + 5, 5, 33, 61, '#17151e');
-    rect(x + 1, 1, 41, 2, '#9b724b'); rect(x + 2, 3, 2, 63, '#84603f'); rect(x + 39, 3, 2, 63, '#523b2e');
-    rect(x + 3, 65, 37, 2, '#ad8759');
-    if (name === 'closed') {
-      rect(x + 6, 6, 31, 59, '#68452f');
-      for (let col = 7; col < 36; col += 5) { rect(x + col, 7, 1, 57, '#785337'); rect(x + col + 3, 8, 1, 56, '#4e342a'); }
-      for (const y of [10, 36]) for (const px of [10, 24]) {
-        rect(x + px - 1, y - 1, 10, 23, '#9a6c43'); rect(x + px, y, 10, 23, '#3f2c28'); rect(x + px, y + 1, 8, 20, '#63402e'); rect(x + px + 1, y + 2, 1, 18, '#795035');
-      }
-      rect(x + 32, 32, 2, 5, '#322730'); rect(x + 32, 33, 2, 2, '#c29b58');
-    } else {
-      rect(x + 5, 6, 9, 58, '#69432d'); rect(x + 6, 7, 2, 56, '#8d613c'); rect(x + 12, 7, 2, 57, '#3a2927');
-      rect(x + 10, 31, 2, 3, '#b38b51'); rect(x + 15, 61, 21, 3, '#39303a');
-    }
-    wood.add(name, 0, x, 0, 43, 68);
-  }
-  wood.refresh();
-  // West wall doors show the narrow, recessed side plane. East uses the same pixels mirrored.
-  const sideDoor = scene.textures.createCanvas('wood-door-side', 32, 60)!;
-  const s = sideDoor.context;
-  for (const [index, name] of ['closed', 'open'].entries()) {
-    const x = index * 16;
-    const rect = (px: number, py: number, w: number, h: number, color: string) => { s.fillStyle = color; s.fillRect(x + px, py, w, h); };
-    rect(0, 0, 8, 60, '#241c25');
-    // The stepped top and sill make the wall thickness readable at the native grid.
-    for (let column = 1; column < 16; column++) {
-      const inset = Math.floor(column / 3);
-      rect(column, inset, 1, 60 - inset * 2, column < 4 ? '#694831' : '#3a292b');
-      rect(column, inset + 1, 1, 2, '#9b724b'); rect(column, 57 - inset, 1, 2, '#ad8759');
-    }
-    rect(4, 7, 9, 46, '#17151e');
-    rect(2, 3, 2, 54, '#84603f'); rect(13, 6, 2, 48, '#523b2e');
-    if (name === 'closed') {
-      rect(5, 8, 7, 44, '#68452f'); rect(6, 9, 1, 42, '#8d613c'); rect(11, 9, 1, 42, '#4e342a');
-      for (const y of [12, 33]) { rect(7, y, 4, 16, '#3f2c28'); rect(7, y + 1, 3, 14, '#795035'); }
-      rect(10, 29, 2, 2, '#c29b58');
-    } else {
-      rect(4, 7, 3, 44, '#69432d'); rect(4, 8, 1, 42, '#9b724b'); rect(6, 28, 1, 2, '#c29b58');
-      rect(7, 49, 6, 3, '#39303a');
-    }
-    sideDoor.add(name, 0, x, 0, 16, 60);
-  }
-  sideDoor.refresh();
-  // The south wall is cut away: short jambs flank a floor threshold, not a front elevation.
-  const southDoor = scene.textures.createCanvas('wood-door-south', 86, 18)!;
-  const b = southDoor.context;
-  for (const [index, name] of ['closed', 'open'].entries()) {
-    const x = index * 43;
-    const rect = (px: number, py: number, w: number, h: number, color: string) => { b.fillStyle = color; b.fillRect(x + px, py, w, h); };
-    rect(0, 11, 43, 7, '#241c25'); rect(5, 4, 33, 8, '#4d3730'); rect(5, 12, 33, 6, '#17151e');
-    rect(5, 7, 33, 1, '#674b39'); rect(5, 11, 33, 2, '#ad8759'); rect(5, 13, 33, 1, '#4a342e');
-    for (const px of [0, 37]) {
-      rect(px, 0, 6, 18, '#30232b'); rect(px + 1, 1, 4, 15, '#694831');
-      rect(px + 1, 1, 4, 2, '#ad8759'); rect(px + 1, 4, 1, 12, '#84603f');
-    }
-    if (name === 'closed') {
-      rect(6, 8, 31, 6, '#4e342a'); rect(6, 8, 31, 2, '#9b724b'); rect(6, 10, 31, 2, '#785337');
-      for (let px = 10; px < 36; px += 6) rect(px, 10, 1, 3, '#3f2c28');
-      rect(32, 9, 2, 2, '#c29b58');
-    } else {
-      rect(5, 3, 5, 10, '#69432d'); rect(5, 3, 2, 10, '#9b724b'); rect(8, 4, 2, 9, '#3a2927');
-      rect(8, 5, 1, 2, '#c29b58');
-    }
-    southDoor.add(name, 0, x, 0, 43, 18);
-  }
-  southDoor.refresh();
   // A tiny sleepy huff: stepped cream cloud, plum outline and a brass annoyance mark.
   const huff = scene.textures.createCanvas('resident-reaction', 14, 12)!;
   const h = huff.context;
@@ -188,4 +77,6 @@ export function buildRoomTextures(scene: Phaser.Scene) {
   h.fillStyle = '#9d7052'; h.fillRect(4, 3, 1, 2); h.fillRect(5, 4, 3, 1); h.fillRect(8, 3, 1, 2);
   h.fillStyle = '#d5c6a8'; h.fillRect(10, 8, 2, 2); h.fillRect(12, 11, 1, 1);
   huff.refresh();
+  buildFurnitureTextures(scene);
+  buildDoorTextures(scene);
 }

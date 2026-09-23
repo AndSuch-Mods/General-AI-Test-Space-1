@@ -1,0 +1,33 @@
+# Architecture artwork restoration, in progress
+
+These files are part of the resumed household restoration. They remain unpublished pending combined validation. The user liked the generated wooden door design and explicitly asked to retain it.
+
+The built-in imagegen tool created `public/art/doors-v8.png` and `public/art/household-materials-v8.png` on September 22, using only this project's original v2 prop and material sheets as references. The approved bedroom furniture, wallpaper and floor were not regenerated. The new material sheet supplies only the entry hall and kitchen. No external game assets were supplied.
+
+The doorway sheet has real RGBA transparency after a separate background-extraction pass. The renderer measures each source sprite independently, samples to the existing native grid and clamps faint outer alpha. It retains wall-specific views and four opening states. Native contact-sheet review is `.local/architecture-v8-review.png`.
+
+The renderer corrects two opening defects while retaining the approved source PNG. North's second intermediate state projects the original leaf to a narrower opening over the original recess. South's final state retains the left hinge. Attempts to regenerate these corrections either baked in checkerboard pixels or changed the palette and were rejected. Only the approved transparent atlas is loaded by the game. Review its native states and actual wall alignment before release.
+
+## Door atlas prompt
+
+```text
+Use case: precise-object-edit. Asset type: production transparent RPG doorway sprite atlas extending our approved original pixel art. Reference image is our original furniture atlas, STYLE/MATERIAL reference only. Match its rich carved walnut and brass material, 16-bit pixel cluster detail, soft plum shadows and warm highlights. Create a NEW modest wooden interior door with walnut paneled leaf, brass knob, carved wood frame; no stone trim. SAME door in four architectural orientations and four opening states. Strict uniform 4 columns x 4 rows on a square transparent canvas, no text/grid/labels. Every cell reserved and centered, generous transparent gutters, no object crosses cells. Columns: fully closed, one-third open, two-thirds open, fully open. Rows: 1 north wall frontal upright door, top-down three-quarter RPG view, tall rectangle, full frame and threshold visible. 2 WEST wall door: viewed as narrow side elevation on left room boundary, tall narrow slanted recess receding into left wall, right edge facing interior. 3 SOUTH wall: foreground wall CUT AWAY to reveal walking; only very SHORT left/right walnut jamb stubs, horizontal floor threshold and low top edge of leaf visible from above; no tall panel obscuring player, horizontal low silhouette. 4 EAST wall door: narrow side elevation on right room boundary, tall narrow recess, left edge facing room. Each row retains exactly same frame silhouette, position and size in all four cells, only leaf moves on same hinge. Row1 shape aspect .63:1, row2/4 .27:1, row3 2.4:1. Recess dark transparent-looking plum void, NO room beyond. Use coherent original art at detail density of source desk and wood drawers. Hard pixel edges, not simplistic vector blocks, not photorealistic, no dramatic cartoon arches, no stonework, no lamps, no ground shadow beyond silhouette. TRUE alpha transparent background. Do not redesign reference furniture.
+```
+
+## Door alpha extraction prompt
+
+```text
+Use case: background-extraction. EDIT TARGET: this exact 4x4 doorway sprite atlas. Preserve every wooden pixel, door design, placement, detail, light, dimensions and all frame states. Remove the entire gray-and-white checkerboard background. It is unwanted visible artwork. Return the same sprite atlas on an actually transparent alpha channel PNG. Empty pixels must have alpha zero, NOT a painted checkerboard, NOT white, NOT black. Preserve the dark purple doorway interiors as opaque. Remove checkerboard only. Do not move, resize, redesign or re-render the sprites. No grid, labels, shadow or background.
+```
+
+## Door state correction prompt
+
+```text
+Use case: precise-object-edit. Edit ONLY TWO sprites in this 4 by4 door atlas. Preserve EVERYTHING else exactly including positions, palette, walnut details, alpha transparency and all doorframes. Fix 1: row1 column3 door leaf must be more open than row1column2: narrow its visible door leaf by half, hinged on the same LEFT jamb, still showing original brass knob and carved panels. Right part of doorway shows same dark purple recess. Fix2: row3 column4 fully-open LOW SOUTH door currently has hinge on RIGHT jamb incorrectly. Move this fully-open upright narrow door leaf to LEFT jamb, matching the same left-hinge opening of row3columns2 and3. Keep left/right low jambs, threshold and overall framing in their EXACT positions; this is a leaf hinge correction only. All other sprites strictly unchanged. Output true alpha transparent PNG, NOT checkerboard or painted black/white background. Preserve pixel-art quality and the existing all-wood design.
+```
+
+## New-room materials prompt
+
+```text
+Use case: style-transfer. Asset type: original RPG environment TEXTURE tilesheet. Use approved image ONLY as exact pixel cluster, shading/detail and cozy gothic material quality reference. Make a NEW atlas of FOUR equal square texture panels in a strict 2 columns x2 rows square canvas. No gutters, no labels, no lines, no scene, no furnishings. Each fills its quadrant to all edges. TOP LEFT: seamless top-down aged pale limestone entry hall floor, large offset rectangular slabs, subtle worn edges, quiet warm gray and mauve shadows, no diamond perspective. TOP RIGHT: straight-on entry hall wall segment, muted slate-blue patterned wallpaper upper 65%, carved dark walnut wainscot lower35%, matching original image's wood detail, quiet small damask floral motif, horizontally seamless. BOTTOM LEFT: seamless top-down old kitchen floor small square cream and muted sage ceramic tiles, alternating subdued checker pattern, softly worn finish, grid aligned canvas not diagonal. BOTTOM RIGHT: straight-on kitchen wall, warm cream ceramic tiles upper65%, deep sage painted wood paneling lower35%, thin walnut chair rail, horizontally seamless. Preserve original image's visibly pixelated, finished 16-bit RPG medium detail: rich restrained pixel shading in materials, strong wood grain and carved bevels, calm low contrast to let sprites read. Construct as native64x64 pixel tiles enlarged nearest neighbor, no antialias, no smooth gradients, no photoreal noise. The source floor and purple wall are NOT being replaced; these panels are only for new entry hall and kitchen. No doors, windows, lamps, characters, staircases, objects, shadows, text or borders.
+```

@@ -1,9 +1,27 @@
 # Changelog
 
-## 0.1.6 eye correction
+## 0.1.7 art restoration
 
-- Restore matching open eye clusters and brows in the original resident sprite, including customization and walking frames.
-- Keep this correction on the existing published artwork while the separate household artwork rework remains under review.
+- Resumed the entire household request after the priority eye correction. Preserved all pending artwork and gameplay work.
+
+- Restored the exact original front-facing furniture, original rug motif, detailed flames and protected window frames. Added matching directional furniture, occupied-bed/seat layers and kitchen fixtures.
+- Retained the generated wooden doors and corrected their intermediate opening and hinge states. Removed unused procedural seat/door texture builders.
+- Replaced the rejected procedural residents with registered raster body, garment and hair layers in the original style. Preserved matched open eyes and stable walking faces from the published `7b1539b` correction.
+- Corrected rotated furniture floor proportions while preserving older front-facing placements and saves.
+- Fixed stove ambience, repeated audio unlock/mute and stale fire resuming after exit. Seated residents now receive a clear stand-up hint before room arrangement.
+- Fixed character presets selected before the preview module loads; later preview loading preserves all manual choices.
+
+## 0.1.7
+
+- Rebuilt characters from original body, joint, skin, garment and hair layers with consistent walking faces and directional seated/rest poses.
+- Matched window sky pixels to the frame aperture, spaced windows evenly and centered direction-specific doors. Walking through a doorway now changes rooms; collision no longer prevents turning to face an object.
+- Replaced the furnishing picker with full-room touch editing: drag within room boundaries, green/red placement feedback, tap valid rotations, cancel or save the whole layout. The host enforces ownership, busy furniture, access, conflicts and atomic persistence.
+- Added four upright views for all requested furniture, opening container poses, attached desk items, rotating bed access and two-seat sofa/armchair interaction. A or B stands up; walking also leaves a seat.
+- Centered menus, added portrait protection over character creation and removed generic observation dialogs. Containers open before their menu and close afterward.
+- Reworked hearth audio into continuous stereo fire ambience with softer irregular ember sounds.
+- Replaced the stair landing with a distinct entry hall and an east-connected basic kitchen. Stove, sink and recipe worktop are movable; cooking progression remains future work.
+- Schema 6 adds facing, seating, rotations and shared hall/kitchen layouts. Older custom furniture positions, both profiles and world progress are preserved. Protocol 8 requires matching game rules on both devices.
+
 
 ## 0.1.6
 

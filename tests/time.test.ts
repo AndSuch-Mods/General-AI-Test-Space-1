@@ -126,7 +126,7 @@ describe('maps, containers and migration', () => {
   it('travels through the real room door without moving the other resident', async () => {
     const authority = new Authority(household(), async () => {});
     const host = authority.world.hostId, guest = await addGuest(authority);
-    Object.assign(authority.world.players[guest], { x: 852, y: 440 });
+    Object.assign(authority.world.players[guest], { x: 828, y: 343 });
     await authority.dispatch(guest, 1, { kind: 'interact', target: 'door-out' });
     expect(authority.world.players[guest].map).toBe('living');
     expect(authority.world.players[host].map).toBe('castle');
@@ -136,9 +136,9 @@ describe('maps, containers and migration', () => {
     expect(canStand(authority.world.players[guest])).toBe(true);
   });
   it('gives both maps valid solids and reachable furnishing interactions', () => {
-    for (const map of ['castle', 'bedroom-2', 'living', 'landing'] as const) for (const object of getRoomObjects(map)) {
+    for (const map of ['castle', 'bedroom-2', 'living', 'landing', 'kitchen'] as const) for (const object of getRoomObjects(map)) {
       for (const rect of objectColliders(object)) expect(canStand({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, map }), object.id).toBe(false);
-      expect(object.actions.length > 0 || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number]), object.id).toBe(true);
+      expect(object.actions.length > 0 || object.id.startsWith('window') || FURNITURE_IDS.includes(object.id as typeof FURNITURE_IDS[number]), object.id).toBe(true);
     }
   });
   it('persists opening intent and clears it on explicit close or guest departure', async () => {
@@ -167,7 +167,7 @@ describe('maps, containers and migration', () => {
       return [id, { ...rest, fatigue: oldFatigue }];
     })) };
     const migrated = parseWorld(legacy);
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.worldId).toBe(authority.world.worldId);
     expect(migrated.revision).toBe(authority.world.revision);
     expect(migrated.players[guest].inventory).toEqual({ 'cacao-bean': 9 });

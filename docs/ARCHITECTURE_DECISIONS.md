@@ -1,5 +1,13 @@
 # Architecture decisions
 
+## 0.1.7 household revision
+
+- Art uses material-tagged character layers and upright ground-plan furniture projections. Preview and scene share the same native character frames; no garment is painted over an old clothed image.
+- Room geometry owns wall connections, quarter-turn footprints, bed slits, interaction anchors and attached surface items. Saved facing follows input even when travel is blocked. Directional doorway crossing is a movement intent handled by the host.
+- Room editing is a private full-layout draft. The host compares expected layout, checks bounds/access/occupancy and commits the complete new layout once. Ordinary map movement carries facing and seating in compact updates; layout changes use full shared snapshots.
+- Menus are centered and the portrait blocker uses the browser top layer above any current form. Opening menus is a presentation consequence of accepted object interaction; it cannot grant inventory ownership.
+
+
 ## 2026-09-18: one household, two persistent residents
 
 The world is the persistence and authority boundary. `World` has a UUID, timeline UUID, monotonic revision, seed, shared clock, story, world changes, quests, communal chest and event history. `players` holds one host and at most one permanent guest, each keyed by UUID. A saved guest is not necessarily an active guest.

@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { Authority } from '../src/game/authority';
 import { createPlayer, createWorld, parseWorld } from '../src/game/model';
-import { FURNITURE_IDS, getRoomObjects, objectOffset, roomLayout } from '../src/content/room';
+import { FURNITURE_IDS, getRoomObjects, objectColliders, objectOffset, roomLayout, type RoomLayout } from '../src/content/room';
 import { placementError } from '../src/content/furnishing';
 import { GameDatabase } from '../src/persistence/database';
 import { nextWakeMinute, startSleep, wakePlayer } from '../src/game/time';
@@ -11,38 +11,44 @@ describe('shared room arrangement', () => {
   it('can relocate every requested furnishing with its action and collision geometry', async () => {
     for (const id of FURNITURE_IDS) {
       const world = createWorld(createPlayer('Keeper'));
-      const map = id === 'sofa' || id === 'armchair' ? 'living' : 'castle';
+      const map = ['stove', 'sink', 'worktop'].includes(id) ? 'kitchen' : id === 'sofa' || id === 'armchair' ? 'living' : 'castle';
       world.players[world.hostId].map = map;
-      if (map === 'living') world.players[world.hostId].y = 464;
+      if (map !== 'castle') world.players[world.hostId].y = 464;
       const offset = [{ x: -16, y: 0 }, { x: 16, y: 0 }, { x: 0, y: 16 }, { x: 0, y: -16 }].find(p => !placementError(world, id, p, map));
       expect(offset, id).toBeDefined();
       const host = new Authority(world, async () => {});
-      await host.dispatch(world.hostId, 1, { kind: 'place', target: id, ...offset!, expected: { x: 0, y: 0 } });
+      await host.dispatch(world.hostId, 1, { kind: 'save-layout', map, layout: { [id]: offset! }, expected: {} });
       const before = getRoomObjects(map).find(o => o.id === id)!, after = getRoomObjects(map, roomLayout(host.world, map)).find(o => o.id === id)!;
       expect(after.bounds.x).toBe(before.bounds.x + offset!.x);
       expect(after.bounds.y).toBe(before.bounds.y + offset!.y);
+      // A candle moved along the same support still uses that support's reachable approach.
+      expect(after.anchor, id).toEqual(id.startsWith('candle-') ? { x: before.anchor.x + offset!.x, y: before.anchor.y } : { x: before.anchor.x + offset!.x, y: before.anchor.y + offset!.y });
+      expect(objectColliders(after)).toEqual(objectColliders(before).map(rect => ({ ...rect, x: rect.x + offset!.x, y: rect.y + offset!.y })));
     }
   });
   it('rejects occupied floor, the doorway, out-of-room placements and stale competing moves', async () => {
     const world = createWorld(createPlayer('Keeper')), host = new Authority(world, async () => {});
     expect(placementError(world, 'chest', { x: -324, y: -40 })).toMatch(/residents|way/);
-    expect(placementError(world, 'chest', { x: 0, y: 40 })).toMatch(/doorway|way/);
+    expect(placementError(world, 'chest', { x: 0, y: -56 })).toMatch(/doorway/);
     expect(placementError(world, 'bed', { x: -200, y: 0 })).toMatch(/inside/);
-    await host.dispatch(world.hostId, 1, { kind: 'place', target: 'carpet', x: 8, y: 0, expected: { x: 0, y: 0 } });
+    const move = { kind: 'save-layout', map: 'castle', layout: { carpet: { x: 8, y: 0 } }, expected: {} };
+    await host.dispatch(world.hostId, 1, move);
     const once = host.world.layout;
-    expect(await host.dispatch(world.hostId, 1, { kind: 'place', target: 'carpet', x: 8, y: 0, expected: { x: 0, y: 0 } })).toBe(false);
+    expect(await host.dispatch(world.hostId, 1, move)).toBe(false);
     expect(host.world.layout).toEqual(once);
-    await expect(host.dispatch(world.hostId, 2, { kind: 'place', target: 'carpet', x: 16, y: 0, expected: { x: 0, y: 0 } })).rejects.toThrow('other resident');
+    await expect(host.dispatch(world.hostId, 2, { ...move, layout: { carpet: { x: 16, y: 0 } } })).rejects.toThrow('other resident');
   });
   it('persists layouts atomically and preserves schema 2 profiles on migration', async () => {
     const database = new GameDatabase(crypto.randomUUID());
     try {
       const world = createWorld(createPlayer('Keeper')); await database.save(1, world, { create: true });
       const host = new Authority(world, draft => database.save(1, draft));
-      await host.dispatch(world.hostId, 1, { kind: 'place', target: 'carpet', x: 8, y: 8, expected: { x: 0, y: 0 } });
-      expect((await database.load(1))!.world.layout).toEqual({ carpet: { x: 8, y: 8 } });
+      const draft: RoomLayout = { carpet: { x: 8, y: -20, rotation: 1 }, desk: { x: 16, y: 0, rotation: 0 } };
+      await host.dispatch(world.hostId, 1, { kind: 'save-layout', map: 'castle', layout: draft, expected: {} });
+      expect((await database.load(1))!.world.layout).toEqual(draft);
+      expect(getRoomObjects('castle', draft).find(o => o.id === 'carpet')!.bounds).toEqual({ x: 439, y: 249, width: 132, height: 226 });
       const failing = new Authority(host.world, async () => { throw Error('Disk full'); });
-      await expect(failing.dispatch(world.hostId, 2, { kind: 'place', target: 'carpet', x: 16, y: 8, expected: { x: 8, y: 8 } })).rejects.toThrow('Disk full');
+      await expect(failing.dispatch(world.hostId, 2, { kind: 'save-layout', map: 'castle', layout: { carpet: { x: 16, y: -20, rotation: 1 }, desk: { x: 24, y: 0 } }, expected: draft })).rejects.toThrow('Disk full');
       expect(failing.world).toEqual(host.world);
       const { layout: _layout, roomLayouts: _rooms, dayReports: _days, ...old } = world; void _layout; void _rooms; void _days;
       const migrated = parseWorld({ ...old, schemaVersion: 2 });
@@ -54,13 +60,17 @@ describe('shared room arrangement', () => {
     expect(objectOffset('letter', layout)).toEqual(layout.desk);
     expect(objectOffset('candle-desk', layout)).toEqual(layout.desk);
     expect(objectOffset('candle-desk', { ...layout, 'candle-desk': { x: 0, y: 0 } })).toEqual({ x: 0, y: 0 });
+    const rotated: RoomLayout = { desk: { x: 16, y: 16, rotation: 1 }, 'candle-desk': { x: -8, y: 0 } };
+    const after = getRoomObjects('castle', rotated);
+    expect(after.find(o => o.id === 'letter')!.anchor).toEqual({ x: 369.5, y: 256.5 });
+    expect(after.find(o => o.id === 'candle-desk')!.bounds).toMatchObject({ x: 397, y: 215 });
   });
   it('blocks moving an occupied bed and always wakes at the next six oclock', () => {
     for (const now of [0, 60, 359, 360, 720, 1080, 1439, 1500]) {
       const wake = nextWakeMinute(now); expect(wake).toBeGreaterThan(now); expect(wake % 1440).toBe(360);
     }
     const world = createWorld(createPlayer('Keeper')), player = world.players[world.hostId];
-    startSleep(player, 350); expect(placementError(world, 'bed', { x: -16, y: 0 })).toContain('bed');
+    startSleep(player, 350); expect(placementError(world, 'bed', { x: -16, y: 0 })).toBe('Someone is using this piece.');
     player.fatigue.consecutiveAllNighters = 3; wakePlayer(player, 360);
     expect(player.energy).toBe(100); expect(player.fatigue.consecutiveAllNighters).toBe(0);
   });

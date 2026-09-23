@@ -14,7 +14,7 @@
 </head>
 <body>
   <main id="app"></main>
-  <div id="rotate"><span class="rotate-glyph">↻</span><h2>A little more room for wonder.</h2><p>Turn your phone sideways to enter the castle.</p></div>
+  <dialog id="rotate" aria-labelledby="rotate-title"><span class="rotate-glyph" aria-hidden="true">↻</span><h2 id="rotate-title">Turn your phone sideways</h2><p>Your place is kept while you turn.</p></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/src/app/main.ts"></script>
 </body>

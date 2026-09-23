@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { action, inventory, position, walkTo } from './controls';
+import { action, inventory, position, walkTo, throughDoor } from './controls';
 
 async function create(page: Page) {
   await page.goto('/?renderer=canvas');
@@ -42,13 +42,12 @@ test('bed entry advances solo time, windows change, menus pause and the new day 
 
 test('exit door reaches a saved living room and returns through its own door', async ({ page }) => {
   await create(page);
-  await walkTo(page, 'y', 454); await walkTo(page, 'x', 852);
-  await action(page);
+  await throughDoor(page, 'door-out', 'living');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-left');
   await page.locator('#leave').click(); await page.reload(); await page.locator('#solo').click();
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
-  await action(page);
+  await throughDoor(page, 'door-left', 'castle');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
   await expect(page.locator('#game-canvas')).toHaveAttribute('data-nearest-object', 'door-out');
 });
@@ -77,7 +76,7 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     const before = await minutes(guest);
     await expect.poll(() => minutes(guest), { timeout: 6000 }).toBeGreaterThan(before);
     await host.locator('#action-b').click();
-    await walkTo(guest, 'y', 454); await walkTo(guest, 'x', 852); await action(guest);
+    await throughDoor(guest, 'door-out', 'living');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'living');
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
     await expect.poll(async () => (await host.locator('#game-canvas').getAttribute('data-visible-players'))?.split(',').length).toBe(1);
@@ -88,9 +87,9 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     expect(await minutes(guest)).toBeGreaterThan(whileResting);
     expect(await minutes(guest)).toBeLessThan(whileResting + 10);
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'false');
-    await action(guest); // Return through the living room's left door.
+    await throughDoor(guest, 'door-left', 'castle');
     await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-map', 'castle');
-    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-v4-eyes2-amber-female-braid-chestnut-warm-skirt');
+    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-resident-texture', 'resident-raster-v8-amber-female-braid-chestnut-warm-skirt');
     await walkTo(guest, 'x', 700); await walkTo(guest, 'y', 355); await walkTo(guest, 'x', 270); await walkTo(guest, 'y', 302);
     await guest.keyboard.down('ArrowLeft');
     try { await expect(guest.locator('#confirm-sleep')).toBeVisible(); } finally { await guest.keyboard.up('ArrowLeft'); }

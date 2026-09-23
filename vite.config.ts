@@ -2,6 +2,6 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
-  server: { port: 5173, strictPort: true },
+  server: { port: 5173, strictPort: true, watch: { ignored: ['**/.local/**', '**/.pnpm-store/**', '**/docs/art/sources/**'] } },
   preview: { port: 4173, strictPort: true },
 });

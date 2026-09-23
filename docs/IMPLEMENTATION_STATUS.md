@@ -1,28 +1,26 @@
 # Implementation status
 
-The focused eye correction retains the existing 0.1.6 artwork and gameplay. The larger household rework remains on its separate development branch; its first art pass was rejected and is being restored to the approved designs. Eye correction test and deployment evidence belongs in VALIDATION.md.
+The original-art eye correction was published at `7b1539b`. Its source-pixel correction is included in the combined household restoration. See `EYE_CORRECTION_RELEASE.md` for that isolated release's evidence and the earlier intermittent CI reconnect history. Combined checks belong in VALIDATION.md and the exact checkpoint's Actions run.
 
-Current local build: 0.1.6. Directional wall doors, doubled windows, refined silhouettes, skirt/blouse and cropped/swept hair are included. Shared rooms, owned bedrooms, two-person rest, daily journals, original offline audio, personal character choices and synchronized sleepy reactions are implemented. Specification coverage, lint, types, 60 unit tests and the build pass. Browser and deployment evidence is recorded in VALIDATION.md. Physical-device acceptance remains pending. This is still an early playable household slice.
+The initial v7 procedural art was rejected. The full household request has resumed. Original furniture fronts are restored, approved generated wooden doors are retained, and compatible raster resident layers are integrated. The eye fix was a priority interruption, not a cancellation. Track every requirement in `HOUSEHOLD_ACCEPTANCE.md`; publication requires the combined restored artwork to pass review and regression checks.
 
-The 0.1.3 correction adds direct A actions, compact bottom sheets, original Web Audio music/SFX, next-06:00 confirmed sleep and host-validated shared furnishing layouts. Forty-five unit tests pass; current browser and deployment outcomes are recorded in VALIDATION.md and Actions.
+Current build: **0.1.7**, the September 22 household rework. This remains an early playable household slice; Phase 1 device acceptance is open.
 
-Phase 1 is in progress. Do not describe it as a complete game or stable iPhone co-op release.
+Implemented: compatible male/female raster layers with stable matched eyes; correctly masked, evenly spaced windows; centered directional doors crossed by walking; blocked-input facing; full-room touch layout drafts with clamping, placement colors, rotation and atomic saving; shared sofa/chair seating; directional beds, containers and attached desk objects; centered functional menus; portrait blocking through creation and play; smoother original fire ambience; a distinct entry hall and basic kitchen. Approved furniture fronts remain pixel-identical. Added views use explicit floor depth and upright elevation.
 
-Implemented code includes two world slots, profiles, IndexedDB transactions and recovery checkpoint, validated import/export, Web Locks, WebRTC manual/QR pairing, guest mirrors and a versioned offline build. The title now shares room materials, and compact character creation previews live coat changes. Residents display at twice their previous size. Layered rooms have solid furniture, animated lights and opening containers, shared chest transfers, a sleep-entry bed, a running shared clock and changing window skies. An exit connects the room and landing, with independent co-op map occupancy. The HUD uses a floating left stick, dedicated A/B buttons, clock/I/ESC and seven persistent quick slots.
+Existing systems remain: two world slots, host-authoritative solo/co-op, persistent individual profiles, bedroom ownership, shared storage, IndexedDB recovery, validated backups, guest mirrors, offline packages, configurable time, personal fatigue, two-person sleep and dawn journals. Schema 6 and protocol 8 preserve earlier saves while rejecting mixed-version pairing. The supplied home-screen icon remains in the offline package.
 
-Specification coverage, lint, types, 45 unit tests and production build pass locally for this revision. Browser tests retain DataChannel pairing/reconnect, separate inventories, shared changes, cold offline loading, package repair, save-preserving updates and import/export. New cases cover actual preview pixels, A/B input, seven-slot migration, adult render geometry, sleep/daylight, saved map travel and co-op rest. See VALIDATION.md and the checkpoint Actions run for outcomes. WebKit CI uses macOS 15; the earlier macOS 26 discovery failure remains documented. No physical-device results or completed content phases are claimed.
+The current kitchen has a movable stove, sink and recipe worktable, with room for upgrades. Its appliance cues and recipe menu do not implement the later cooking/chocolate progression. Generic observation popups are removed; letters, journals, storage and sleep choices remain.
 
-The tested checkpoint is on `main`. GitHub Pages deployment requires both browser jobs to pass; [Actions](https://github.com/AndSuch-Mods/General-AI-Test-Space-1/actions) records each publication.
+Validation and publication evidence belong in [VALIDATION.md](VALIDATION.md). The full unchanged target matrix remains in TEST_PLAN.md and the master. No physical iPhone results are claimed.
 
-Known open gates:
+Open work:
 
-- Real installation and cold offline start on an iPhone.
-- Two-iPhone Wi-Fi pairing, camera permissions, rotating QR scanning, suspension, reconnect and offline local-network operation.
-- Phase 2 town/forest maps and fixed-rate authoritative simulation. The room/landing connection is implemented; the full three-space slice is not complete.
-- Equipment layers and later wardrobe changes. Creation currently supports two character bodies, four outfits, four hairstyles and personal hair/skin/clothing palettes on the original native sprite. Left poses mirror the right profile.
-- Phase 3 multi-day device stress, full health/energy integration and schedule consumers of the clock. Basic shared time, personal fatigue and solo/co-op bed sleep are implemented.
-- Combat, storage/crafting, cooking, fishing, NPC schedules, romance, main story and mature content.
-- Guided recovery when guest data is newer than the host. The current safe behavior rejects the join.
-- Cache cleanup after all clients stop using a previous version. Old caches are currently retained for safety.
-
-`docs/TEST_PLAN.md` preserves the full target matrix. Passing current tests does not satisfy future-system tests or replace device testing.
+- Actual iPhone installation, cold offline launch, touch feel and audio audition.
+- Two-iPhone local Wi-Fi pairing, camera/QR permissions, suspension, reconnect and offline local-network operation.
+- Phase 2 town/wilderness and fixed-rate simulation; current rooms do not complete the exploration slice.
+- Later equipment layers and in-game wardrobe progression. Creation now has two bodies, six hairstyles, five outfits and personal skin/hair/clothing palettes.
+- Multi-day device stress and complete clock/schedule consumers.
+- Combat, crafting, cooking, fishing, NPC schedules, relationships and the main story.
+- Guided recovery from a guest mirror newer than its host; current behavior safely rejects the join.
+- Cleanup of old caches after all clients stop using them.

@@ -1,5 +1,14 @@
 # Content ledger
 
+## September 22, 0.1.7 rework
+
+The active resident renderer uses clean original code-authored layers, with provenance in ART_RESIDENT_V7.md. Directional furniture, exact window frames, doors and distinct hall/kitchen finishes use ART_ROOM_V7.md. Historical resident sheets and inspection text are retained only as development history; they are not the active customization pipeline or gameplay observations.
+
+The stair is removed. The hall and kitchen add household space, seating and upgrade room, not completed exploration or cooking content. Kitchen appliances have reversible cues and a recipe menu. Letters and the welcome reward remain personal; functional furniture no longer generates observation discoveries.
+
+Emptiness check: household customization and shared rest have repeatable use, but recipe progression, kitchen upgrades, town/NPC arcs, gathering, combat and wilderness are still absent. The new floor space is deliberately reserved for equipment; it is not counted as dense finished content. No major content phase is closed by this checkpoint.
+
+
 0.1.5 adds original native character body, garment, hair and skin layers plus a brief occupied-bed reaction. These add personal expression, not story or quest counts.
 
 0.1.4 adds the shared living room, a second bedroom, original code-native sofa/chair/journal artwork and the previous-day record. These are household systems and rooms, not additional completed story chapters or quest content. The earlier emptiness audit and later content targets remain open.

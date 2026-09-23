@@ -1,24 +1,11 @@
-import { RESIDENT_DISPLAY_HEIGHT, RESIDENT_DISPLAY_WIDTH, RESIDENT_IMAGE, type ResidentFacing } from '../game/art/resident-atlas';
+import { RESIDENT_DISPLAY_HEIGHT, RESIDENT_DISPLAY_WIDTH, type ResidentFacing } from '../game/art/resident-atlas';
 import { residentFrame } from '../game/art/resident-animation';
 import { residentCanvas, residentTextureKey, type ResidentAppearance } from '../game/art/resident-appearance';
 import { DEFAULT_LOOK, type CharacterLook } from '../game/art/character-look';
 
 export type ResidentPreview = { setAppearance(value: ResidentAppearance): void; setLook(value: CharacterLook): void; destroy(): void };
-let sourceImage: Promise<HTMLImageElement> | undefined;
-
-function imageSource() {
-  sourceImage ??= new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => { sourceImage = undefined; reject(new Error('Could not load the resident preview.')); };
-    image.src = `./${RESIDENT_IMAGE}`;
-  });
-  return sourceImage;
-}
-
 /** Paints the same garment-colored frames used in the room, with a quiet turning walk. */
 export async function mountResidentPreview(canvas: HTMLCanvasElement, initialAppearance: ResidentAppearance, initialLook: CharacterLook = DEFAULT_LOOK): Promise<ResidentPreview> {
-  const image = await imageSource();
   canvas.width = RESIDENT_DISPLAY_WIDTH; canvas.height = RESIDENT_DISPLAY_HEIGHT;
   canvas.style.imageRendering = 'pixelated';
   canvas.setAttribute('role', 'img');
@@ -43,7 +30,7 @@ export async function mountResidentPreview(canvas: HTMLCanvasElement, initialApp
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.save();
       if (pose.flipX) { context.translate(canvas.width, 0); context.scale(-1, 1); }
-      context.drawImage(residentCanvas(image, pose.frame, appearance, look), 0, 0, canvas.width, canvas.height);
+      context.drawImage(residentCanvas(null, pose.frame, appearance, look), 0, 0, canvas.width, canvas.height);
       context.restore();
       canvas.dataset.appearance = appearance; canvas.dataset.frame = pose.frame; canvas.dataset.flipX = String(pose.flipX);
       canvas.dataset.characterLook = JSON.stringify(look);

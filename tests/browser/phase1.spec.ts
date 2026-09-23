@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { offlineServer } from './offline-server';
-import { walk, walkTo, inventory, action } from './controls';
+import { walk, walkTo, inventory, action, dragFurniture } from './controls';
 import { installRtcDiagnostics, reportRtcDiagnostics } from './rtc-diagnostics';
 
 async function create(page: Page, name = 'Ada') {
@@ -18,8 +18,8 @@ test('title, two slots, personal rewards, reload and backup export', async ({ pa
   await create(page);
   await walk(page, 'ArrowUp', 5); await walk(page, 'ArrowRight', 19);
   await action(page);
-  await expect(page.getByRole('heading', { name: 'A practical welcome' })).toBeVisible();
-  await page.locator('#finish-story').click();
+  await expect(page.getByRole('heading', { name: 'Household pantry', exact: true, level: 2 })).toBeVisible();
+  await page.locator('#close-dialog').click();
   await inventory(page);
   await expect(page.getByRole('button', { name: 'Cacao bean, 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
@@ -93,11 +93,8 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   };
   await pair();
   await inventory(host, 'household'); await host.locator('#arrange-room').click();
-  await host.locator('[data-furnishing="carpet"]').click();
-  await host.keyboard.down('ArrowRight');
-  try { await expect.poll(async () => Number(await host.locator('#game-canvas').getAttribute('data-placement-x'))).toBeGreaterThan(0); }
-  finally { await host.keyboard.up('ArrowRight'); }
-  await host.locator('#action-a').click();
+  await dragFurniture(host, 'carpet', 16, 0);
+  await host.locator('#save-layout').click();
   await expect(host.locator('#arrange-bar')).toHaveCount(0);
   await expect.poll(async () => JSON.parse((await host.locator('#game-canvas').getAttribute('data-layout'))!).carpet?.x ?? 0).toBeGreaterThan(0);
   const layout = await host.locator('#game-canvas').getAttribute('data-layout');
@@ -116,7 +113,7 @@ test('manual WebRTC pairing, shared props and storage, independent discoveries a
   await walkTo(guest, 'y', 290);
   await walkTo(guest, 'x', 782);
   await action(guest);
-  await guest.locator('#finish-story').click();
+  await guest.locator('#close-dialog').click();
   await walkTo(guest, 'y', 355);
   await action(guest);
   await expect(guest.getByRole('heading', { name: 'Household chest', exact: true, level: 2 })).toBeVisible();

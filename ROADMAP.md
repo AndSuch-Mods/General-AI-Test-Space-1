@@ -1,6 +1,11 @@
 # Roadmap
 
-Current priority is a focused eye correction on the published 0.1.6 artwork. Both front-facing eyes must remain equally open at the actual native resolution, after every customization choice and throughout walking. The larger household rework is held on the development branch following the user's art review. Preserve the original furnishing designs and character identity while extending their states.
+Focused eye correction completed and published at `7b1539b`; live and installed-save offline update checks pass. The user's September 23 clarification resumes all preserved household work. Follow `docs/HOUSEHOLD_ACCEPTANCE.md` and carry the fixed eyes into the combined release.
+
+The rejected procedural art has been replaced by the restored original furnishings and compatible raster character layers. The generated wooden doors are retained. Added furniture directions, container states, window masks, fire audio, touch layouts, entry hall and kitchen are integrated. The matched-eye correction from `7b1539b` remains covered by source-pixel and gait tests. Physical iPhone acceptance remains open.
+
+Latest revision: **0.1.7 household acceptance rework**. Follow the complete requirement ledger in HOUSEHOLD_ACCEPTANCE.md and exact validation evidence in VALIDATION.md. This remains household acceptance work, not a completed content phase.
+
 
 Current household revision: shared living room, owned bedrooms, two-person beds, dawn journals, personal character creation and synchronized sleepy reactions. Device acceptance remains open before expanding content. This does not complete later town or story phases.
 

@@ -1,0 +1,22 @@
+{
+  "original": {
+    "path": "public/art/residents-v2.png",
+    "sha256": "219358d84902c0514389b2aa5d6ef84bed19a554f864102d0dde1095b47bcb49"
+  },
+  "base": {
+    "path": "docs/art/sources/resident-v8-clean-bases-alpha.png",
+    "sha256": "0a95e6cea1de83ae524e8422a9515b41af7041cf1c73004d40e1f98fd9419cce"
+  },
+  "male": {
+    "path": "docs/art/sources/resident-v8-male-outfits-rgb.png",
+    "sha256": "73137e48319a2590c5ca9bbf868e8f08218510347a1b8741c868c4edabaf131b"
+  },
+  "female": {
+    "path": "docs/art/sources/resident-v8-female-outfits-alpha.png",
+    "sha256": "efd9a3a14ddf764bab22917b54d70e6bb3d76582a58baf838db9f92e5a6903f8"
+  },
+  "hair": {
+    "path": "docs/art/sources/resident-v8-hair-alpha.png",
+    "sha256": "67da657d1bd0a0a4778f9ada5d5a85661a95d5c7a0862fe64f47003a9d29f909"
+  }
+}

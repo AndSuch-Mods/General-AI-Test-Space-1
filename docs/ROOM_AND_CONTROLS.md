@@ -1,5 +1,8 @@
 # Room and touch rework
 
+Latest user-directed override: [ROOM_REWORK_V7.md](ROOM_REWORK_V7.md) supersedes the historical controls, observation dialogs, placement and painted-sprite details below. Current menus are centered; household editing uses direct dragging, valid tap rotations and Save layout. Characters use clean layers described in ART_RESIDENT_V7.md.
+
+
 Current override: the 2026-09-21 changes in [ROOM_LAYOUT.md](ROOM_LAYOUT.md) replace inspection menus, automatic sleep, old wake scheduling and static furniture positions. Current saves use schema 3 and protocol 4. [AUDIO.md](AUDIO.md) describes original offline sound. Earlier implementation details below remain historical where they conflict.
 
 The user's successive reviews on 2026-09-18 supersede the earlier arrival presentation. This stays within the Phase 1 correction milestone. Requested room, inventory and sleep behavior brings a limited part of later work forward without declaring those phases complete.
