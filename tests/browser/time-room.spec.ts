@@ -74,6 +74,8 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     await host.locator('#pair-input').fill(await guest.locator('#pair-output').inputValue());
     await host.locator('#accept').click();
     await expect(guest.locator('#resident-label')).toContainText('Player 2', { timeout: 20000 });
+    // The label appears before Phaser finishes mounting the guest room.
+    await expect(guest.locator('#game-canvas')).toHaveAttribute('data-player-x', /\d/, { timeout: 20000 });
     await host.locator('#action-b').click();
     await inventory(host);
     const before = await minutes(guest);
@@ -98,10 +100,13 @@ test('co-op residents separate maps, disturb occupied beds and rest independentl
     await expect(guest.locator('#confirm-sleep')).toHaveCount(0);
     await action(guest); await expect(guest.locator('#confirm-sleep')).toBeVisible();
     await guest.locator('#cancel-sleep').click();
-    await guest.keyboard.down('ArrowLeft');
-    try { await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-count', '1'); }
-    finally { await guest.keyboard.up('ArrowLeft'); }
-    await expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-active', 'true');
+    // Stop inside the bed instead of holding left until a remote assertion returns.
+    // Observe the brief reaction while the real input crosses the sleeping resident.
+    await Promise.all([
+      walkTo(guest, 'x', 142),
+      expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-count', '1'),
+      expect(host.locator('#game-canvas')).toHaveAttribute('data-bed-reaction-active', 'true'),
+    ]);
     await expect(host.locator('#game-canvas')).toHaveAttribute('data-sleeping', 'true');
     await expect.poll(async () => {
       const reactions = JSON.parse((await guest.locator('#game-canvas').getAttribute('data-bed-reactions'))!);
